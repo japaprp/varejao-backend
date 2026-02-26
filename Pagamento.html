@@ -1,0 +1,193 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pagamento</title>
+    <link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+    <header>
+        <h1>Finalizar Compra</h1>
+        <p>Revise o resumo, aplique cupom e informe seu CPF para fidelidade.</p>
+        <p class="info-card" style="margin-top:10px;">
+          <strong>Entrega:</strong> taxa de R$ 30,00 ou grátis acima de R$ 100,00.
+        </p>
+    </header>
+
+    <main>
+        <div class="acoes">
+            <a href="Carrinho.html">Voltar ao carrinho</a>
+            <a href="index.html">Início</a>
+            <a href="cliente.html">Área do cliente</a>
+        </div>
+
+        <p id="statusMsg" class="status-banner" aria-live="polite"></p>
+
+        <h2>Resumo da Compra</h2>
+        <ul id="resumoCompra"></ul>
+        <h3 id="subtotal">Subtotal: R$ 0,00</h3>
+        <h3 id="desconto">Desconto: R$ 0,00</h3>
+        <h3 id="frete">Frete: R$ 0,00</h3>
+        <h3 id="totalCarrinho">Total: R$ 0,00</h3>
+        <p id="freteStatus" class="status-banner" aria-live="polite"></p>
+
+        <h2>Dados do cliente</h2>
+        <div class="admin-panel">
+          <input id="nomeCliente" placeholder="Seu nome (opcional)">
+          <input id="cpfCliente" placeholder="CPF para fidelidade (somente números)">
+          <div class="acoes">
+            <input id="cupomInput" placeholder="Cupom (ex: BEMVINDO10)">
+            <button type="button" id="btnCupom" onclick="aplicarCupom()">Aplicar cupom</button>
+          </div>
+        </div>
+
+        <h2>Pagamento via Mercado Pago:</h2>
+        <div class="acoes">
+            <button id="btn-credito" onclick="processarPagamento('credito', this)">Pagar com cartão</button>
+            <button id="btn-debito" onclick="processarPagamento('debito', this)">Pagar com débito</button>
+            <button id="btn-pix" onclick="processarPagamento('pix', this)">Pagar com Pix</button>
+        </div>
+    </main>
+
+    <script>
+        function resolveApiBase() {
+            const params = new URLSearchParams(window.location.search);
+            const apiParam = params.get('api');
+            if (apiParam) {
+                localStorage.setItem('api_url', apiParam);
+                return apiParam;
+            }
+            return localStorage.getItem('api_url') || 'http://localhost:3001';
+        }
+        const API = resolveApiBase();
+        let cupomAplicado = '';
+
+        function money(v) { return Number(v).toFixed(2).replace('.', ','); }
+
+        function showStatus(message, type = 'status-info') {
+            const status = document.getElementById('statusMsg');
+            status.textContent = message;
+            status.className = `status-banner ${type}`;
+        }
+
+        function renderReturnStatus() {
+            const params = new URLSearchParams(window.location.search);
+            const status = params.get('status') || params.get('collection_status');
+            if (!status) return;
+            if (status === 'approved') {
+                showStatus('Pagamento aprovado. Seu pedido está confirmado!', 'status-success');
+            } else if (status === 'pending') {
+                showStatus('Pagamento pendente. Assim que confirmado, liberaremos seu pedido.', 'status-info');
+            } else {
+                showStatus('Pagamento não aprovado. Tente novamente ou escolha outra forma.', 'status-error');
+            }
+        }
+
+        async function carregarResumo(cupom = '') {
+            const resumoCompra = document.getElementById('resumoCompra');
+            resumoCompra.innerHTML = '';
+
+            try {
+                const res = await fetch(`${API}/checkout${cupom ? `?cupom=${encodeURIComponent(cupom)}` : ''}`);
+                if (!res.ok) {
+                    const body = await res.json().catch(() => ({}));
+                    throw new Error(body.erro || 'Falha ao carregar resumo da compra.');
+                }
+
+                const data = await res.json();
+
+                data.itens.forEach(item => {
+                    const subtotal = Number(item.preco) * Number(item.quantidade);
+                    const li = document.createElement('li');
+                    li.textContent = `${item.produto} - ${item.quantidade} ${item.unidade} - R$ ${money(subtotal)}`;
+                    resumoCompra.appendChild(li);
+                });
+
+                const subtotal = Number(data.subtotal || 0);
+                const desconto = Number(data.desconto || 0);
+                const totalBase = Number(data.totalBase || data.total || 0);
+                const frete = Number(data.frete || 0);
+                const totalFinal = Number(data.total || 0);
+
+                document.getElementById('subtotal').textContent = `Subtotal: R$ ${money(subtotal)}`;
+                document.getElementById('desconto').textContent = `Desconto: R$ ${money(desconto)}`;
+                document.getElementById('frete').textContent = `Frete: R$ ${money(frete)}`;
+                document.getElementById('totalCarrinho').textContent = `Total: R$ ${money(totalFinal)}`;
+
+                const freteStatus = document.getElementById('freteStatus');
+                freteStatus.textContent = totalBase >= 100 ? 'Frete grátis aplicado.' : (totalBase > 0 ? 'Frete será cobrado no total.' : '');
+                freteStatus.className = totalBase >= 100 ? 'status-banner status-success' : 'status-banner status-info';
+
+                if (!data.itens.length) {
+                    showStatus('Seu carrinho está vazio. Adicione itens antes de pagar.', 'status-info');
+                } else if (cupom) {
+                    showStatus(`Cupom ${cupom} aplicado com sucesso.`, 'status-success');
+                } else {
+                    showStatus('Resumo carregado. Você será redirecionado ao Mercado Pago para concluir o pagamento.', 'status-success');
+                }
+            } catch (err) {
+                showStatus(err.message, 'status-error');
+            }
+        }
+
+        async function aplicarCupom() {
+            const cupom = document.getElementById('cupomInput').value.trim();
+            if (!cupom) {
+                cupomAplicado = '';
+                await carregarResumo('');
+                return;
+            }
+            cupomAplicado = cupom;
+            await carregarResumo(cupom);
+        }
+
+        async function processarPagamento(metodo, buttonEl) {
+            const botoes = document.querySelectorAll('button[id^="btn-"]');
+            const textoOriginal = buttonEl.textContent;
+            botoes.forEach(btn => { btn.disabled = true; });
+            buttonEl.textContent = 'Processando...';
+
+            try {
+                const payload = {
+                  cpf: document.getElementById('cpfCliente').value.trim(),
+                  nomeCliente: document.getElementById('nomeCliente').value.trim(),
+                  cupom: cupomAplicado,
+                  metodoPreferido: metodo
+                };
+
+                const finalizarRes = await fetch(`${API}/pagamento/preferencia`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(payload)
+                });
+
+                const body = await finalizarRes.json().catch(() => ({}));
+                if (!finalizarRes.ok) throw new Error(body.erro || 'Falha ao iniciar o pagamento.');
+                const link = body.initPoint || body.sandboxInitPoint;
+                if (!link) throw new Error('Link de pagamento não disponível.');
+                showStatus('Redirecionando para o Mercado Pago...', 'status-success');
+                setTimeout(() => { window.location.href = link; }, 600);
+            } catch (err) {
+                showStatus(err.message, 'status-error');
+                buttonEl.textContent = textoOriginal;
+                botoes.forEach(btn => { btn.disabled = false; });
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            renderReturnStatus();
+            carregarResumo('');
+        });
+    </script>
+  <footer class="centralizar">
+    <h4>Varejão do Povo</h4>
+    <p>Av. Cásper Líbero, 376, Ribeirão Preto - SP</p>
+    <p>WhatsApp: (16) 99259-6614 • Seg a Sáb 07:00 às 19:00</p>
+    <div class="social-links">
+      <a href="https://www.facebook.com/people/Varejao-do-Povo/100043319426102/" target="_blank" rel="noopener noreferrer">Facebook</a>
+      <a href="#" class="is-disabled" aria-disabled="true" tabindex="-1">Instagram (em breve)</a>
+    </div>
+  </footer></body>
+</html>
+

@@ -1,0 +1,818 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel Admin</title>
+  <link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+  <header>
+    <h1>Painel de Gestão</h1>
+    <p>Métricas, financeiro e gerenciamento completo de produtos.</p>
+  </header>
+
+  <main>
+    <div class="acoes">
+      <a href="index.html">Início</a>
+      <a href="Setor Frutas.html">Frutas</a>
+      <a href="Setor Legumes.html">Legumes</a>
+      <a href="setor folhas.html">Folhas</a>
+    </div>
+
+    <section id="authBox" class="admin-panel" style="margin-bottom:16px;">
+      <h2>Acesso administrativo</h2>
+      <p>Use: <strong>admin@varejao.com</strong> / <strong>admin123</strong></p>
+      <div class="acoes" style="margin-top:10px;">
+        <input id="loginEmail" placeholder="E-mail" value="admin@varejao.com">
+        <input id="loginSenha" placeholder="Senha" type="password" value="admin123">
+        <button id="btnLogin" type="button">Entrar</button>
+      </div>
+    </section>
+
+    <p id="statusMsg" class="status-banner" aria-live="polite"></p>
+
+    <section id="adminArea" style="display:none;">
+      <section class="admin-panel" style="margin-bottom:16px;">
+        <div class="acoes" style="justify-content:space-between;align-items:center;">
+          <h2 style="margin:0;">Dashboard de Métricas</h2>
+          <div class="acoes">
+            <select id="periodoDash">
+              <option value="dia">Dia</option>
+              <option value="semana">Semana</option>
+              <option value="mes" selected>Mês</option>
+              <option value="ano">Ano</option>
+            </select>
+            <button type="button" onclick="carregarDashboard()">Atualizar</button>
+          </div>
+        </div>
+
+        <div id="metricasGrid" class="carousel-row" style="margin-top:12px;"></div>
+
+        <section class="admin-panel" style="margin-top:12px;">
+          <h3>Assistente de Performance</h3>
+          <p>Leituras automáticas para orientar decisões de vendas.</p>
+          <ul id="insightsList"></ul>
+        </section>
+
+        <div class="admin-layout" style="margin-top:12px;">
+          <div class="admin-table-wrap">
+            <h3>Série (Entradas/Saídas/Lucro)</h3>
+            <table class="admin-table">
+              <thead><tr><th>Período</th><th>Entradas</th><th>Frete</th><th>Saídas</th><th>Lucro</th></tr></thead>
+              <tbody id="seriesBody"></tbody>
+            </table>
+          </div>
+
+          <div class="admin-table-wrap">
+            <h3>Top Produtos</h3>
+            <table class="admin-table">
+              <thead><tr><th>Produto</th><th>Qtd</th><th>Faturamento</th></tr></thead>
+              <tbody id="topBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <section class="admin-panel" style="margin-top:12px;">
+          <h3>Gráfico de Performance</h3>
+          <p>Entradas, frete e saídas por período.</p>
+          <canvas id="chartPerformance" width="900" height="260"></canvas>
+        </section>
+      </section>
+
+      <section class="admin-layout" style="margin-bottom:16px;">
+        <aside class="admin-panel">
+          <h2>Lançar Saída</h2>
+          <form id="saidaForm">
+            <input id="saidaDescricao" placeholder="Descrição" required>
+            <input id="saidaValor" type="number" step="0.01" min="0.01" placeholder="Valor" required>
+            <input id="saidaCategoria" placeholder="Categoria (ex: aluguel)">
+            <button type="submit">Salvar saída</button>
+          </form>
+        </aside>
+
+        <section class="admin-table-wrap">
+          <h2>Saídas Financeiras</h2>
+          <div class="acoes" style="margin-bottom:8px;">
+            <button type="button" id="btnExportSaidas">Exportar CSV</button>
+          </div>
+          <table class="admin-table">
+            <thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Valor</th><th>Ações</th></tr></thead>
+            <tbody id="saidasBody"></tbody>
+          </table>
+        </section>
+      </section>
+
+      <section class="admin-layout" style="margin-bottom:16px;">
+        <aside class="admin-panel">
+          <h2>Entrada de Estoque (Caixas)</h2>
+          <form id="entradaForm">
+            <select id="entradaProduto" required></select>
+            <input id="entradaCaixas" type="number" min="1" placeholder="Quantidade de caixas" required>
+            <input id="entradaPesoMin" type="number" step="0.01" min="0" placeholder="Peso caixa mín (kg)">
+            <input id="entradaPesoMax" type="number" step="0.01" min="0" placeholder="Peso caixa máx (kg)">
+            <input id="entradaPesoMedio" type="number" step="1" min="0" placeholder="Peso médio por unidade (g)">
+            <input id="entradaUnidadesCaixa" type="number" step="1" min="0" placeholder="Unidades por caixa">
+            <button type="submit">Registrar entrada</button>
+          </form>
+        </aside>
+
+        <section class="admin-table-wrap">
+          <h2>Entradas de Estoque</h2>
+          <table class="admin-table">
+            <thead><tr><th>Data</th><th>Produto</th><th>Caixas</th><th>Quantidade</th></tr></thead>
+            <tbody id="entradasBody"></tbody>
+          </table>
+        </section>
+      </section>
+
+      <section class="admin-layout" style="margin-bottom:16px;">
+        <aside class="admin-panel">
+          <h2>Saída por Perdas</h2>
+          <form id="perdaForm">
+            <select id="perdaProduto" required></select>
+            <input id="perdaQuantidade" type="number" step="0.01" min="0.01" placeholder="Quantidade perdida" required>
+            <select id="perdaMotivo">
+              <option value="quebra">Quebra</option>
+              <option value="vencimento">Vencimento</option>
+              <option value="ajuste">Ajuste</option>
+            </select>
+            <button type="submit">Registrar perda</button>
+          </form>
+        </aside>
+
+        <section class="admin-table-wrap">
+          <h2>Histórico de Perdas</h2>
+          <div class="acoes" style="margin-bottom:8px;">
+            <button type="button" id="btnExportPerdas">Exportar CSV</button>
+          </div>
+          <table class="admin-table">
+            <thead><tr><th>Data</th><th>Produto</th><th>Quantidade</th><th>Motivo</th></tr></thead>
+            <tbody id="perdasBody"></tbody>
+          </table>
+        </section>
+      </section>
+
+      <section class="admin-table-wrap" style="margin-bottom:16px;">
+        <h2>Giro de Estoque</h2>
+        <div class="acoes" style="margin-bottom:8px;">
+          <button type="button" id="btnExportGiro">Exportar CSV</button>
+        </div>
+        <table class="admin-table">
+          <thead><tr><th>Produto</th><th>Entrada</th><th>Saída (Venda)</th><th>Perdas</th><th>Saída Total</th></tr></thead>
+          <tbody id="giroBody"></tbody>
+        </table>
+      </section>
+
+      <section class="admin-table-wrap" style="margin-bottom:16px;">
+        <h2>Alertas de Estoque Baixo</h2>
+        <div class="acoes" style="margin-bottom:8px;">
+          <input id="limiteEstoque" type="number" step="0.01" min="0" placeholder="Limite (ex: 10)">
+          <button type="button" id="btnEstoqueBaixo">Atualizar</button>
+          <button type="button" id="btnExportEstoqueBaixo">Exportar CSV</button>
+        </div>
+        <table class="admin-table">
+          <thead><tr><th>Produto</th><th>Estoque</th><th>Unidade</th></tr></thead>
+          <tbody id="estoqueBaixoBody"></tbody>
+        </table>
+      </section>
+
+      <section class="admin-table-wrap" style="margin-bottom:16px;">
+        <h2>Pedidos Recentes</h2>
+        <div class="acoes" style="margin-bottom:8px;">
+          <input id="filtroCpf" placeholder="CPF">
+          <input id="filtroDataInicio" type="date">
+          <input id="filtroDataFim" type="date">
+          <select id="filtroStatus">
+            <option value="">Status: todos</option>
+            <option value="Aguardando pagamento">Aguardando pagamento</option>
+            <option value="Pagamento pendente">Pagamento pendente</option>
+            <option value="Pagamento recusado">Pagamento recusado</option>
+            <option value="Pago">Pago</option>
+            <option value="Finalizado">Finalizado</option>
+            <option value="Em preparo">Em preparo</option>
+            <option value="Saiu para entrega">Saiu para entrega</option>
+            <option value="Cancelado">Cancelado</option>
+          </select>
+          <input id="filtroMinTotal" type="number" step="0.01" min="0" placeholder="Total mínimo">
+          <button type="button" id="btnFiltrarPedidos">Filtrar</button>
+          <button type="button" id="btnExportPedidos">Exportar CSV</button>
+        </div>
+        <table class="admin-table">
+          <thead>
+            <tr><th>Data</th><th>Itens</th><th>Frete</th><th>Total</th><th>Status</th><th>CPF</th><th>Nome</th><th>Ações</th></tr>
+          </thead>
+          <tbody id="pedidosBody"></tbody>
+        </table>
+      </section>
+
+      <section class="admin-layout">
+        <aside class="admin-panel">
+          <h2 id="formTitle">Novo Produto</h2>
+          <form id="produtoForm">
+            <input type="hidden" id="produtoId">
+            <input id="nome" placeholder="Nome" required>
+            <select id="setor" required>
+              <option value="">Selecione o setor</option>
+              <option value="frutas">Frutas</option>
+              <option value="legumes">Legumes</option>
+              <option value="folhas">Folhas</option>
+            </select>
+            <input id="preco" type="number" step="0.01" min="0" placeholder="Preço" required>
+            <select id="unidade" required><option value="kg">kg</option><option value="un">un</option></select>
+            <div class="admin-layout" style="grid-template-columns: 1fr 1fr; gap:10px;">
+              <input id="caixasQtd" type="number" min="0" placeholder="Quantidade de caixas">
+              <input id="pesoPorCaixa" type="number" step="0.01" min="0" placeholder="Peso por caixa (kg)">
+              <input id="pesoCaixaMin" type="number" step="0.01" min="0" placeholder="Peso caixa mín (kg)">
+              <input id="pesoCaixaMax" type="number" step="0.01" min="0" placeholder="Peso caixa máx (kg)">
+              <input id="pesoMedioUnidade" type="number" step="1" min="0" placeholder="Peso médio por unidade (g)">
+              <input id="unidadesPorCaixa" type="number" step="1" min="0" placeholder="Unidades por caixa">
+              <input id="estoque" type="number" min="0" placeholder="Estoque calculado" required readonly>
+            </div>
+            <small id="estimativaUnidades" class="status-banner status-info"></small>
+            <label>Imagem do produto</label>
+            <input id="imagemFile" type="file" accept="image/*">
+            <input id="imagem" placeholder="Ou caminho da imagem (opcional)">
+            <img id="previewImagem" alt="Prévia" style="display:none;max-width:100%;border-radius:10px;border:1px solid #ddd;">
+            <input id="selo" placeholder="Selo (ex: 500g aprox. 2-3 un)">
+            <textarea id="descricaoCurta" rows="3" placeholder="Descrição curta"></textarea>
+            <label><input type="checkbox" id="promocao"> Em promoção</label>
+            <label><input type="checkbox" id="destaque"> Produto destaque</label>
+            <div class="acoes">
+              <button type="submit" id="btnSalvar">Salvar</button>
+              <button type="button" id="btnCancelar">Cancelar</button>
+            </div>
+          </form>
+        </aside>
+
+        <section class="admin-table-wrap">
+          <h2>Produtos Cadastrados</h2>
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Nome</th><th>Setor</th><th>Preço</th><th>Unidade</th><th>Estoque</th><th>Estimativa</th><th>Promo</th><th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="produtosTableBody"></tbody>
+          </table>
+        </section>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    function resolveApiBase() {
+      const params = new URLSearchParams(window.location.search);
+      const apiParam = params.get('api');
+      if (apiParam) {
+        localStorage.setItem('api_url', apiParam);
+        return apiParam;
+      }
+      return localStorage.getItem('api_url') || 'http://localhost:3001';
+    }
+    const API = resolveApiBase();
+    let authToken = localStorage.getItem('admin_token') || '';
+    let imagemDataUrl = '';
+
+    function authHeaders() { return { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` }; }
+    function money(v) { return Number(v || 0).toFixed(2).replace('.', ','); }
+    function showStatus(msg, type='status-info'){ const el=document.getElementById('statusMsg'); el.textContent=msg; el.className=`status-banner ${type}`; }
+
+    async function fileToDataUrl(file){ return new Promise((ok,err)=>{ const r=new FileReader(); r.onload=()=>ok(String(r.result||'')); r.onerror=err; r.readAsDataURL(file);}); }
+    async function uploadImagem(file){
+      if(!authToken) throw new Error('Faça login no painel para enviar imagens.');
+      const form = new FormData();
+      form.append('imagem', file);
+      const res = await fetch(`${API}/upload`, { method:'POST', headers:{ Authorization:`Bearer ${authToken}` }, body: form });
+      const body = await res.json().catch(()=>({}));
+      if(!res.ok) throw new Error(body.erro || 'Falha no upload da imagem.');
+      return body.url;
+    }
+
+    function resetForm(){
+      document.getElementById('produtoForm').reset();
+      document.getElementById('produtoId').value='';
+      document.getElementById('formTitle').textContent='Novo Produto';
+      imagemDataUrl='';
+      const p=document.getElementById('previewImagem'); p.style.display='none'; p.src='';
+    }
+
+    function calcularEstoque(){
+      const unidade = document.getElementById('unidade').value;
+      const caixas = Number(document.getElementById('caixasQtd').value || 0);
+      const pesoCaixa = Number(document.getElementById('pesoPorCaixa').value || 0);
+      const pesoCaixaMin = Number(document.getElementById('pesoCaixaMin').value || 0);
+      const pesoCaixaMax = Number(document.getElementById('pesoCaixaMax').value || 0);
+      const pesoMedioUnidade = Number(document.getElementById('pesoMedioUnidade').value || 0);
+      const unidadesCaixa = Number(document.getElementById('unidadesPorCaixa').value || 0);
+      let estoque = 0;
+      let estimativa = '';
+      const pesoCaixaMedio = (pesoCaixaMin > 0 && pesoCaixaMax > 0) ? (pesoCaixaMin + pesoCaixaMax) / 2 : pesoCaixa;
+      if (unidade === 'kg') {
+        estoque = caixas * (pesoCaixaMedio || 0);
+        if (pesoMedioUnidade > 0 && pesoCaixaMin > 0 && pesoCaixaMax > 0) {
+          const minUn = Math.floor((pesoCaixaMin * 1000) / pesoMedioUnidade);
+          const maxUn = Math.floor((pesoCaixaMax * 1000) / pesoMedioUnidade);
+          estimativa = `Estimativa por caixa: ${minUn} a ${maxUn} unidades.`;
+        } else if (pesoMedioUnidade > 0 && pesoCaixaMedio > 0) {
+          const un = Math.floor((pesoCaixaMedio * 1000) / pesoMedioUnidade);
+          estimativa = `Estimativa por caixa: ~${un} unidades.`;
+        }
+      } else {
+        estoque = caixas * unidadesCaixa;
+        if (unidadesCaixa > 0) {
+          estimativa = `Unidades por caixa: ${unidadesCaixa}.`;
+        }
+      }
+      document.getElementById('estoque').value = estoque ? estoque.toFixed(2) : 0;
+      document.getElementById('estimativaUnidades').textContent = estimativa;
+    }
+
+    function getPayload(){
+      return {
+        nome: document.getElementById('nome').value.trim(),
+        setor: document.getElementById('setor').value,
+        preco: Number(document.getElementById('preco').value),
+        unidade: document.getElementById('unidade').value,
+        estoque: Number(document.getElementById('estoque').value),
+        caixasQtd: Number(document.getElementById('caixasQtd').value || 0),
+        pesoPorCaixa: Number(document.getElementById('pesoPorCaixa').value || 0),
+        pesoCaixaMin: Number(document.getElementById('pesoCaixaMin').value || 0),
+        pesoCaixaMax: Number(document.getElementById('pesoCaixaMax').value || 0),
+        pesoMedioUnidade: Number(document.getElementById('pesoMedioUnidade').value || 0),
+        unidadesPorCaixa: Number(document.getElementById('unidadesPorCaixa').value || 0),
+        imagem: imagemDataUrl || document.getElementById('imagem').value.trim(),
+        selo: document.getElementById('selo').value.trim(),
+        descricaoCurta: document.getElementById('descricaoCurta').value.trim(),
+        promocao: document.getElementById('promocao').checked,
+        destaque: document.getElementById('destaque').checked
+      };
+    }
+
+    function preencherForm(produto){
+      document.getElementById('produtoId').value=produto.id;
+      document.getElementById('nome').value=produto.nome;
+      document.getElementById('setor').value=produto.setor;
+      document.getElementById('preco').value=produto.preco;
+      document.getElementById('unidade').value=produto.unidade;
+      document.getElementById('estoque').value=produto.estoque;
+      document.getElementById('caixasQtd').value=produto.caixasQtd || '';
+      document.getElementById('pesoPorCaixa').value=produto.pesoPorCaixa || '';
+      document.getElementById('pesoCaixaMin').value=produto.pesoCaixaMin || '';
+      document.getElementById('pesoCaixaMax').value=produto.pesoCaixaMax || '';
+      document.getElementById('pesoMedioUnidade').value=produto.pesoMedioUnidade || '';
+      document.getElementById('unidadesPorCaixa').value=produto.unidadesPorCaixa || '';
+      document.getElementById('imagem').value=produto.imagem||'';
+      document.getElementById('selo').value=produto.selo||'';
+      document.getElementById('descricaoCurta').value=produto.descricaoCurta||'';
+      document.getElementById('promocao').checked=Boolean(produto.promocao);
+      document.getElementById('destaque').checked=Boolean(produto.destaque);
+      document.getElementById('formTitle').textContent=`Editando: ${produto.nome}`;
+      const prev=document.getElementById('previewImagem');
+      if(produto.imagem){ prev.src=produto.imagem; prev.style.display='block'; }
+      calcularEstoque();
+    }
+
+    let produtosCache = [];
+
+    async function carregarProdutos(){
+      const res=await fetch(`${API}/produtos`); const produtos=await res.json();
+      produtosCache = produtos;
+      const selectEntrada = document.getElementById('entradaProduto');
+      if (selectEntrada) {
+        selectEntrada.innerHTML = produtos.map(p=>`<option value="${p.id}">${p.nome}</option>`).join('');
+      }
+      const selectPerda = document.getElementById('perdaProduto');
+      if (selectPerda) {
+        selectPerda.innerHTML = produtos.map(p=>`<option value="${p.id}">${p.nome}</option>`).join('');
+      }
+      const tbody=document.getElementById('produtosTableBody'); tbody.innerHTML='';
+      produtos.forEach(p=>{
+        const tr=document.createElement('tr');
+        const estimativa = (p.pesoCaixaMin && p.pesoCaixaMax && p.pesoMedioUnidade)
+          ? `${Math.floor((p.pesoCaixaMin*1000)/p.pesoMedioUnidade)}–${Math.floor((p.pesoCaixaMax*1000)/p.pesoMedioUnidade)} un/caixa`
+          : (p.unidadesPorCaixa ? `${p.unidadesPorCaixa} un/caixa` : '');
+        tr.innerHTML=`<td>${p.nome}</td><td>${p.setor}</td><td>R$ ${money(p.preco)}</td><td>${p.unidade}</td><td>${p.estoque ?? 0}</td><td>${estimativa}</td><td>${p.promocao?'Sim':'Não'}</td><td class="admin-actions"><button type="button" data-edit="${p.id}">Editar</button><button type="button" data-del="${p.id}">Excluir</button></td>`;
+        tbody.appendChild(tr);
+      });
+      tbody.querySelectorAll('[data-edit]').forEach(btn=>btn.addEventListener('click',()=>{ const id=btn.getAttribute('data-edit'); const p=produtos.find(x=>x.id===id); if(p) preencherForm(p); }));
+      tbody.querySelectorAll('[data-del]').forEach(btn=>btn.addEventListener('click',async()=>{ const id=btn.getAttribute('data-del'); const r=await fetch(`${API}/produtos/${id}`,{method:'DELETE',headers:authHeaders()}); if(!r.ok){showStatus('Erro ao excluir produto.','status-error');return;} showStatus('Produto excluído com sucesso.','status-success'); await carregarProdutos(); }));
+    }
+
+    async function salvarProduto(ev){
+      ev.preventDefault();
+      const id=document.getElementById('produtoId').value;
+      const res=await fetch(id?`${API}/produtos/${id}`:`${API}/produtos`,{method:id?'PUT':'POST',headers:authHeaders(),body:JSON.stringify(getPayload())});
+      const body=await res.json().catch(()=>({}));
+      if(!res.ok){ showStatus(body.erro||'Erro ao salvar produto.','status-error'); return; }
+      showStatus('Produto salvo com sucesso.','status-success');
+      resetForm(); await carregarProdutos();
+    }
+
+    async function carregarDashboard(){
+      const periodo=document.getElementById('periodoDash').value;
+      const [resResumo,resSeries,resTop]=await Promise.all([
+        fetch(`${API}/analytics/resumo?periodo=${periodo}`,{headers:authHeaders()}),
+        fetch(`${API}/analytics/series?periodo=${periodo}`,{headers:authHeaders()}),
+        fetch(`${API}/analytics/top-produtos?periodo=${periodo}`,{headers:authHeaders()})
+      ]);
+      const resumo=await resResumo.json(); const series=await resSeries.json(); const top=await resTop.json();
+
+      const cards=[
+        ['Pedidos',resumo.pedidos],
+        ['Entrada Bruta',`R$ ${money(resumo.entradaBruta)}`],
+        ['Descontos',`R$ ${money(resumo.descontos)}`],
+        ['Entrada Produtos',`R$ ${money(resumo.entradaProdutos)}`],
+        ['Frete',`R$ ${money(resumo.freteTotal)}`],
+        ['Entrada Líquida',`R$ ${money(resumo.entradaLiquida)}`],
+        ['Saída Total',`R$ ${money(resumo.saidaTotal)}`],
+        ['Lucro',`R$ ${money(resumo.lucro)}`],
+        ['Ticket Médio',`R$ ${money(resumo.ticketMedio)}`]
+      ];
+      const grid=document.getElementById('metricasGrid'); grid.innerHTML='';
+      cards.forEach(c=>{ const el=document.createElement('article'); el.className='promo-card'; el.innerHTML=`<small>${c[0]}</small><strong>${c[1]}</strong>`; grid.appendChild(el); });
+
+      renderInsights(resumo, top);
+      renderChart(series);
+
+      const sbody=document.getElementById('seriesBody'); sbody.innerHTML='';
+      series.forEach(r=>{ const tr=document.createElement('tr'); tr.innerHTML=`<td>${r.label}</td><td>R$ ${money(r.entrada)}</td><td>R$ ${money(r.frete)}</td><td>R$ ${money(r.saida)}</td><td>R$ ${money(r.lucro)}</td>`; sbody.appendChild(tr); });
+
+      const tbody=document.getElementById('topBody'); tbody.innerHTML='';
+      top.forEach(r=>{ const tr=document.createElement('tr'); tr.innerHTML=`<td>${r.produto}</td><td>${r.quantidade.toFixed(2)} ${r.unidade}</td><td>R$ ${money(r.faturamento)}</td>`; tbody.appendChild(tr); });
+    }
+
+    function renderChart(series){
+      const canvas=document.getElementById('chartPerformance');
+      if(!canvas) return;
+      const ctx=canvas.getContext('2d');
+      const width=canvas.width;
+      const height=canvas.height;
+      ctx.clearRect(0,0,width,height);
+
+      const padding=40;
+      const labels=series.map(s=>s.label);
+      const entradas=series.map(s=>Number(s.entrada||0));
+      const fretes=series.map(s=>Number(s.frete||0));
+      const saidas=series.map(s=>Number(s.saida||0));
+      const max=Math.max(10, ...entradas, ...fretes, ...saidas);
+
+      // eixo
+      ctx.strokeStyle='#1f8f5f';
+      ctx.lineWidth=1;
+      ctx.beginPath();
+      ctx.moveTo(padding, padding);
+      ctx.lineTo(padding, height-padding);
+      ctx.lineTo(width-padding, height-padding);
+      ctx.stroke();
+
+      // linhas
+      const plot = (data,color) => {
+        ctx.strokeStyle=color;
+        ctx.lineWidth=2;
+        ctx.beginPath();
+        data.forEach((val,i)=>{
+          const x = padding + (i/(Math.max(1,data.length-1)))*(width-2*padding);
+          const y = height - padding - (val/max)*(height-2*padding);
+          if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+        });
+        ctx.stroke();
+      };
+      plot(entradas,'#1f8f5f');
+      plot(fretes,'#e99b05');
+      plot(saidas,'#d14b4b');
+
+      // labels
+      ctx.fillStyle='#1f2933';
+      ctx.font='12px Sora, sans-serif';
+      labels.forEach((lab,i)=>{
+        const x = padding + (i/(Math.max(1,labels.length-1)))*(width-2*padding);
+        ctx.fillText(lab, x-12, height-padding+18);
+      });
+
+      // legenda
+      const legend = [
+        ['Entradas','#1f8f5f'],
+        ['Frete','#e99b05'],
+        ['Saídas','#d14b4b']
+      ];
+      legend.forEach((l,idx)=>{
+        const lx = padding + idx*110;
+        const ly = 18;
+        ctx.fillStyle=l[1];
+        ctx.fillRect(lx, ly-8, 12, 12);
+        ctx.fillStyle='#1f2933';
+        ctx.fillText(l[0], lx+18, ly+2);
+      });
+    }
+
+    function renderInsights(resumo, top){
+      const list=document.getElementById('insightsList');
+      list.innerHTML='';
+      const insights=[];
+
+      if(Number(resumo.pedidos||0)===0){
+        insights.push('Sem pedidos no período: ative promoções relâmpago e divulgue no WhatsApp.');
+      }
+      if(Number(resumo.lucro||0) < 0){
+        insights.push('Lucro negativo: revise saídas e ajuste preços dos itens com baixa margem.');
+      }
+      if(Number(resumo.ticketMedio||0) < 50 && Number(resumo.pedidos||0) > 0){
+        insights.push('Ticket médio baixo: ofereça combos e sugestões de compra para aumentar o valor por pedido.');
+      }
+      if(Number(resumo.freteTotal||0) > 0 && Number(resumo.entradaProdutos||0) > 0){
+        const ratio = Number(resumo.freteTotal) / Number(resumo.entradaProdutos);
+        if(ratio > 0.25){
+          insights.push('Frete representa parte alta da receita: reavalie a política de frete ou aumente o ticket mínimo.');
+        }
+      }
+      if(top && top.length){
+        insights.push(`Produto líder: destaque ${top[0].produto} na home e em promoções.`);
+      }
+      if(!insights.length){
+        insights.push('Indicadores estáveis. Teste novos banners e mantenha o mix atualizado.');
+      }
+
+      insights.forEach((text)=>{
+        const li=document.createElement('li');
+        li.textContent=text;
+        list.appendChild(li);
+      });
+    }
+
+    async function carregarEntradasEstoque(){
+      const res=await fetch(`${API}/estoque/entradas`,{headers:authHeaders()});
+      const list=await res.json();
+      const body=document.getElementById('entradasBody'); body.innerHTML='';
+      list.forEach(e=>{
+        const dt=new Date(e.data);
+        const tr=document.createElement('tr');
+        tr.innerHTML=`<td>${dt.toLocaleDateString('pt-BR')}</td><td>${e.produto}</td><td>${e.caixasQtd}</td><td>${e.quantidade} ${e.unidade}</td>`;
+        body.appendChild(tr);
+      });
+    }
+
+    async function carregarPerdasEstoque(){
+      const res=await fetch(`${API}/estoque/perdas`,{headers:authHeaders()});
+      const list=await res.json();
+      const body=document.getElementById('perdasBody'); body.innerHTML='';
+      list.forEach(e=>{
+        const dt=new Date(e.data);
+        const tr=document.createElement('tr');
+        tr.innerHTML=`<td>${dt.toLocaleDateString('pt-BR')}</td><td>${e.produto}</td><td>${e.quantidade} ${e.unidade}</td><td>${e.motivo}</td>`;
+        body.appendChild(tr);
+      });
+    }
+
+    async function salvarPerdaEstoque(ev){
+      ev.preventDefault();
+      const payload = {
+        produtoId: document.getElementById('perdaProduto').value,
+        quantidade: Number(document.getElementById('perdaQuantidade').value),
+        motivo: document.getElementById('perdaMotivo').value
+      };
+      const res = await fetch(`${API}/estoque/perdas`, { method:'POST', headers:authHeaders(), body: JSON.stringify(payload) });
+      const body = await res.json().catch(()=>({}));
+      if(!res.ok){ showStatus(body.erro || 'Erro ao registrar perda.','status-error'); return; }
+      showStatus('Perda registrada com sucesso.','status-success');
+      document.getElementById('perdaForm').reset();
+      await carregarProdutos();
+      await carregarPerdasEstoque();
+      await carregarEstoqueBaixo();
+    }
+
+    async function carregarGiroEstoque(){
+      const res=await fetch(`${API}/estoque/giro`,{headers:authHeaders()});
+      const list=await res.json();
+      const body=document.getElementById('giroBody'); body.innerHTML='';
+      list.forEach(e=>{
+        const tr=document.createElement('tr');
+        tr.innerHTML=`<td>${e.produto}</td><td>${e.entrada.toFixed(2)}</td><td>${e.saidaVenda.toFixed(2)}</td><td>${e.perda.toFixed(2)}</td><td>${e.saidaTotal.toFixed(2)}</td>`;
+        body.appendChild(tr);
+      });
+    }
+
+    async function carregarEstoqueBaixo(){
+      const limite = document.getElementById('limiteEstoque').value || 10;
+      const res=await fetch(`${API}/estoque/baixo?limite=${encodeURIComponent(limite)}`,{headers:authHeaders()});
+      const list=await res.json();
+      const body=document.getElementById('estoqueBaixoBody'); body.innerHTML='';
+      list.forEach(p=>{
+        const tr=document.createElement('tr');
+        tr.innerHTML=`<td>${p.nome}</td><td>${p.estoque ?? 0}</td><td>${p.unidade || ''}</td>`;
+        body.appendChild(tr);
+      });
+    }
+
+    async function salvarEntradaEstoque(ev){
+      ev.preventDefault();
+      const payload = {
+        produtoId: document.getElementById('entradaProduto').value,
+        caixasQtd: Number(document.getElementById('entradaCaixas').value),
+        pesoCaixaMin: Number(document.getElementById('entradaPesoMin').value || 0),
+        pesoCaixaMax: Number(document.getElementById('entradaPesoMax').value || 0),
+        pesoMedioUnidade: Number(document.getElementById('entradaPesoMedio').value || 0),
+        unidadesPorCaixa: Number(document.getElementById('entradaUnidadesCaixa').value || 0)
+      };
+      const res = await fetch(`${API}/estoque/entradas`, { method:'POST', headers:authHeaders(), body: JSON.stringify(payload) });
+      const body = await res.json().catch(()=>({}));
+      if(!res.ok){ showStatus(body.erro || 'Erro ao registrar entrada.','status-error'); return; }
+      showStatus('Entrada registrada com sucesso.','status-success');
+      document.getElementById('entradaForm').reset();
+      await carregarProdutos();
+      await carregarEntradasEstoque();
+      await carregarGiroEstoque();
+      await carregarEstoqueBaixo();
+    }
+
+    async function carregarSaidas(){
+      const res=await fetch(`${API}/financeiro/saidas`,{headers:authHeaders()});
+      const list=await res.json();
+      const body=document.getElementById('saidasBody'); body.innerHTML='';
+      list.forEach(s=>{
+        const dt=new Date(s.data);
+        const tr=document.createElement('tr');
+        tr.innerHTML=`<td>${dt.toLocaleDateString('pt-BR')}</td><td>${s.descricao}</td><td>${s.categoria||''}</td><td>R$ ${money(s.valor)}</td><td><button type="button" data-del-saida="${s.id}">Excluir</button></td>`;
+        body.appendChild(tr);
+      });
+      body.querySelectorAll('[data-del-saida]').forEach(btn=>btn.addEventListener('click',async()=>{
+        const id=btn.getAttribute('data-del-saida');
+        const r=await fetch(`${API}/financeiro/saidas/${id}`,{method:'DELETE',headers:authHeaders()});
+        if(!r.ok){showStatus('Erro ao excluir saída.','status-error');return;}
+        showStatus('Saída removida com sucesso.','status-success');
+        await carregarSaidas();
+        await carregarDashboard();
+      }));
+    }
+
+    function buildPedidosQuery(){
+      const params = new URLSearchParams();
+      const cpf = document.getElementById('filtroCpf').value.trim();
+      const dataInicio = document.getElementById('filtroDataInicio').value;
+      const dataFim = document.getElementById('filtroDataFim').value;
+      const status = document.getElementById('filtroStatus').value;
+      const minTotal = document.getElementById('filtroMinTotal').value;
+      if (cpf) params.set('cpf', cpf);
+      if (dataInicio) params.set('dataInicio', dataInicio);
+      if (dataFim) params.set('dataFim', dataFim);
+      if (status) params.set('status', status);
+      if (minTotal) params.set('minTotal', minTotal);
+      const query = params.toString();
+      return query ? `?${query}` : '';
+    }
+
+    async function carregarPedidos(){
+      const res=await fetch(`${API}/admin/pedidos${buildPedidosQuery()}`,{headers:authHeaders()});
+      const list=await res.json();
+      const body=document.getElementById('pedidosBody'); body.innerHTML='';
+      list.forEach(p=>{
+        const dt=new Date(p.createdAt);
+        const tr=document.createElement('tr');
+        const statusSelect = `
+          <select data-status-id="${p.id}">
+            <option value="Aguardando pagamento"${p.status==='Aguardando pagamento'?' selected':''}>Aguardando pagamento</option>
+            <option value="Pagamento pendente"${p.status==='Pagamento pendente'?' selected':''}>Pagamento pendente</option>
+            <option value="Pagamento recusado"${p.status==='Pagamento recusado'?' selected':''}>Pagamento recusado</option>
+            <option value="Pago"${p.status==='Pago'?' selected':''}>Pago</option>
+            <option value="Finalizado"${p.status==='Finalizado'?' selected':''}>Finalizado</option>
+            <option value="Em preparo"${p.status==='Em preparo'?' selected':''}>Em preparo</option>
+            <option value="Saiu para entrega"${p.status==='Saiu para entrega'?' selected':''}>Saiu para entrega</option>
+            <option value="Cancelado"${p.status==='Cancelado'?' selected':''}>Cancelado</option>
+          </select>
+        `;
+        tr.innerHTML=`<td>${dt.toLocaleDateString('pt-BR')}</td><td>${(p.itens||[]).length}</td><td>R$ ${money(p.frete||0)}</td><td>R$ ${money(p.total||0)}</td><td>${statusSelect}</td><td>${p.cpf||''}</td><td>${p.nomeCliente||''}</td><td><button type="button" data-save-status="${p.id}">Salvar</button></td>`;
+        body.appendChild(tr);
+      });
+
+      body.querySelectorAll('[data-save-status]').forEach(btn=>{
+        btn.addEventListener('click', async ()=>{
+          const id = btn.getAttribute('data-save-status');
+          const select = body.querySelector(`[data-status-id="${id}"]`);
+          const status = select ? select.value : 'Finalizado';
+          const res = await fetch(`${API}/admin/pedidos/${id}/status`, {
+            method:'PUT',
+            headers: authHeaders(),
+            body: JSON.stringify({ status })
+          });
+          if(!res.ok){ showStatus('Falha ao atualizar status.','status-error'); return; }
+          showStatus('Status atualizado.','status-success');
+          await carregarPedidos();
+        });
+      });
+    }
+
+    async function salvarSaida(ev){
+      ev.preventDefault();
+      const payload={
+        descricao: document.getElementById('saidaDescricao').value.trim(),
+        valor: Number(document.getElementById('saidaValor').value),
+        categoria: document.getElementById('saidaCategoria').value.trim() || 'operacional'
+      };
+      const res=await fetch(`${API}/financeiro/saidas`,{method:'POST',headers:authHeaders(),body:JSON.stringify(payload)});
+      const body=await res.json().catch(()=>({}));
+      if(!res.ok){showStatus(body.erro||'Erro ao salvar saída.','status-error');return;}
+      showStatus('Saída registrada com sucesso.','status-success');
+      document.getElementById('saidaForm').reset();
+      await carregarSaidas();
+      await carregarDashboard();
+    }
+
+    async function loginAdmin(){
+      const email=document.getElementById('loginEmail').value.trim();
+      const senha=document.getElementById('loginSenha').value;
+      const res=await fetch(`${API}/auth/login`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,senha})});
+      const body=await res.json().catch(()=>({}));
+      if(!res.ok){showStatus(body.erro||'Falha no login.','status-error');return;}
+      authToken=body.token; localStorage.setItem('admin_token',authToken);
+      document.getElementById('adminArea').style.display='block';
+      document.getElementById('authBox').style.display='none';
+      showStatus('Login efetuado com sucesso.','status-success');
+      await carregarProdutos();
+      await carregarSaidas();
+      await carregarEntradasEstoque();
+      await carregarPerdasEstoque();
+      await carregarGiroEstoque();
+      await carregarEstoqueBaixo();
+      await carregarPedidos();
+      await carregarDashboard();
+    }
+
+    document.getElementById('produtoForm').addEventListener('submit',salvarProduto);
+    document.getElementById('caixasQtd').addEventListener('input',calcularEstoque);
+    document.getElementById('pesoPorCaixa').addEventListener('input',calcularEstoque);
+    document.getElementById('pesoCaixaMin').addEventListener('input',calcularEstoque);
+    document.getElementById('pesoCaixaMax').addEventListener('input',calcularEstoque);
+    document.getElementById('pesoMedioUnidade').addEventListener('input',calcularEstoque);
+    document.getElementById('unidadesPorCaixa').addEventListener('input',calcularEstoque);
+    document.getElementById('unidade').addEventListener('change',calcularEstoque);
+    document.getElementById('saidaForm').addEventListener('submit',salvarSaida);
+    document.getElementById('entradaForm').addEventListener('submit',salvarEntradaEstoque);
+    document.getElementById('perdaForm').addEventListener('submit',salvarPerdaEstoque);
+    document.getElementById('btnCancelar').addEventListener('click',resetForm);
+    document.getElementById('btnLogin').addEventListener('click',loginAdmin);
+    document.getElementById('periodoDash').addEventListener('change',carregarDashboard);
+    async function downloadCsv(path, filename){
+      const res = await fetch(`${API}${path}`, { headers: { Authorization:`Bearer ${authToken}` } });
+      if(!res.ok){ showStatus('Falha ao exportar CSV.','status-error'); return; }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    document.getElementById('btnFiltrarPedidos').addEventListener('click',carregarPedidos);
+    document.getElementById('btnExportPedidos').addEventListener('click',()=>{
+      const query = buildPedidosQuery();
+      downloadCsv(`/admin/pedidos.csv${query}`,'pedidos.csv');
+    });
+    document.getElementById('btnExportSaidas').addEventListener('click',()=>downloadCsv('/admin/saidas.csv','saidas.csv'));
+    document.getElementById('btnEstoqueBaixo').addEventListener('click',carregarEstoqueBaixo);
+    document.getElementById('btnExportPerdas').addEventListener('click',()=>downloadCsv('/estoque/perdas.csv','perdas.csv'));
+    document.getElementById('btnExportGiro').addEventListener('click',()=>downloadCsv('/estoque/giro.csv','giro.csv'));
+    document.getElementById('btnExportEstoqueBaixo').addEventListener('click',()=>downloadCsv(`/estoque/baixo.csv?limite=${encodeURIComponent(document.getElementById('limiteEstoque').value || 10)}`,'estoque_baixo.csv'));
+
+    document.getElementById('imagemFile').addEventListener('change',async(e)=>{
+      const file=e.target.files&&e.target.files[0]; if(!file) return;
+      try{
+        const preview = await fileToDataUrl(file);
+        const p=document.getElementById('previewImagem'); p.src=preview; p.style.display='block';
+        imagemDataUrl = await uploadImagem(file);
+        showStatus('Imagem enviada e associada ao produto.','status-success');
+      }catch(err){
+        showStatus(err.message,'status-error');
+      }
+    });
+
+    (async function bootstrap(){
+      if(!authToken) return;
+      const res=await fetch(`${API}/auth/me`,{headers:{Authorization:`Bearer ${authToken}`}});
+      if(res.ok){
+        document.getElementById('adminArea').style.display='block';
+        document.getElementById('authBox').style.display='none';
+        await carregarProdutos();
+        await carregarSaidas();
+        await carregarEntradasEstoque();
+        await carregarPerdasEstoque();
+        await carregarGiroEstoque();
+        await carregarEstoqueBaixo();
+        await carregarPedidos();
+        await carregarDashboard();
+      }
+    })();
+  </script>
+  <footer class="centralizar">
+    <h4>Varejão do Povo</h4>
+    <p>Av. Cásper Líbero, 376, Ribeirão Preto - SP</p>
+    <p>WhatsApp: (16) 99259-6614 • Seg a Sáb 07:00 às 19:00</p>
+    <div class="social-links">
+      <a href="https://www.facebook.com/people/Varejao-do-Povo/100043319426102/" target="_blank" rel="noopener noreferrer">Facebook</a>
+      <a href="#" class="is-disabled" aria-disabled="true" tabindex="-1">Instagram (em breve)</a>
+    </div>
+  </footer></body>
+</html>
+

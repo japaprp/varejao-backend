@@ -1,0 +1,191 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Varejão do Povo</title>
+  <link rel="stylesheet" type="text/css" href="estilo.css">
+</head>
+<body>
+  <header>
+    <h1>Varejão do Povo</h1>
+    <p>Plataforma profissional para atrair clientes e aumentar vendas no varejo de hortifruti.</p>
+  </header>
+
+  <nav>
+    <div id="principal">
+      <a href="setor folhas.html">FOLHAS</a>
+      <a href="Setor Frutas.html">FRUTAS</a>
+      <a href="Setor Legumes.html">LEGUMES</a>
+      <a href="Carrinho.html">CARRINHO</a>
+      <a href="Pagamento.html">PAGAMENTO</a>
+      <a href="biografia.html">QUEM SOMOS</a>
+      <a href="localizacao.html">LOCALIZAÇÃO</a>
+      <a href="cliente.html">ÁREA CLIENTE</a>
+      <a href="admin.html">PAINEL ADMIN</a>
+    </div>
+  </nav>
+
+  <main>
+    <section class="hero-home">
+      <div class="hero-card">
+        <h2>Seu varejão pronto para vender mais</h2>
+        <p>Gestão de produtos, promoções, fidelização e experiência moderna para seus clientes.</p>
+      </div>
+      <div class="info-card">
+        <strong>Localização</strong>
+        <p>Atendemos loja física e pedidos online.</p>
+        <div class="acoes">
+          <a href="localizacao.html" >Ver no mapa</a>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="section-title">Promoções da Semana</h2>
+      <div id="promocoesGrid" class="carousel-row"></div>
+    </section>
+
+    <section>
+      <h2 class="section-title">Informações Importantes</h2>
+      <div id="informacoesBox" class="info-card"></div>
+    </section>
+
+    <section>
+      <h2 class="section-title">Cliente Fidelizado</h2>
+      <div id="fidelidadeBox" class="fidelidade-card"></div>
+    </section>
+
+    <section>
+      <h2 class="section-title">Por que comprar conosco</h2>
+      <div class="carousel-row">
+        <article class="promo-card">
+          <strong>Seleção diária</strong>
+          <p>Produtos frescos com controle de qualidade antes de chegar à sua mesa.</p>
+        </article>
+        <article class="promo-card">
+          <strong>Frete inteligente</strong>
+          <p>Taxa fixa de R$ 30,00 e frete grátis acima de R$ 100,00.</p>
+        </article>
+        <article class="promo-card">
+          <strong>Atendimento humano</strong>
+          <p>Suporte rápido no WhatsApp e equipe pronta para resolver.</p>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="centralizar">
+    <h4>Varejão do Povo</h4>
+    <p>Av. Cásper Líbero, 376, Ribeirão Preto - SP</p>
+    <p>WhatsApp: (16) 99259-6614 • Seg a Sáb 07:00 às 19:00</p>
+    <p>Estrutura profissional para vender mais e fidelizar clientes.</p>
+    <div class="social-links">
+      <a href="https://www.facebook.com/people/Varejao-do-Povo/100043319426102/" target="_blank" rel="noopener noreferrer">Facebook</a>
+      <a href="#" class="is-disabled" aria-disabled="true" tabindex="-1">Instagram (em breve)</a>
+    </div>
+  </footer>
+
+  <script>
+    function resolveApiBase() {
+      const params = new URLSearchParams(window.location.search);
+      const apiParam = params.get('api');
+      if (apiParam) {
+        localStorage.setItem('api_url', apiParam);
+        return apiParam;
+      }
+      return localStorage.getItem('api_url') || 'http://localhost:3001';
+    }
+    const API = resolveApiBase();
+
+    function money(v) { return Number(v).toFixed(2).replace('.', ','); }
+
+    async function addToCart(produtoId) {
+      try {
+        const res = await fetch(`${API}/carrinho`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ produtoId, quantidade: 1 })
+        });
+        if (!res.ok) throw new Error('Falha ao adicionar no carrinho.');
+      } catch (err) {
+        console.error(err.message);
+      }
+    }
+
+    function renderPromocoes(produtos) {
+      const grid = document.getElementById('promocoesGrid');
+      grid.innerHTML = '';
+
+      if (!produtos || !produtos.length) {
+        const empty = document.createElement('article');
+        empty.className = 'info-card';
+        empty.innerHTML = '<strong>Sem promoções no momento.</strong><p>Cadastre produtos com a opção “Em promoção” no painel admin.</p>';
+        grid.appendChild(empty);
+        return;
+      }
+
+      produtos.forEach((p) => {
+        const card = document.createElement('article');
+        card.className = 'promo-card';
+        card.innerHTML = `
+          <span class="badge">Oferta</span>
+          <img src="${p.imagem}" alt="${p.nome}" style="width:100%;max-height:130px;object-fit:cover;border-radius:10px;border:1px solid rgba(0,0,0,0.08);margin:6px 0;">
+          <strong>${p.nome}</strong>
+          <p class="price-line">R$ ${money(p.preco)}<span>/${p.unidade}</span></p>
+          <p>${p.descricaoCurta || ''}</p>
+          <button type="button" onclick="addToCart('${p.id}')">Adicionar</button>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    function renderInformacoes(info) {
+      const box = document.getElementById('informacoesBox');
+      box.innerHTML = `<h3>${info.titulo || 'Informações'}</h3>`;
+      const ul = document.createElement('ul');
+      (info.itens || []).forEach((item) => {
+        const li = document.createElement('li');
+        li.textContent = item;
+        ul.appendChild(li);
+      });
+      box.appendChild(ul);
+    }
+
+    function renderFidelidade(data) {
+      const box = document.getElementById('fidelidadeBox');
+      box.innerHTML = `
+        <h3>${data.nomePrograma || 'Fidelidade'}</h3>
+        <p>${data.descricao || ''}</p>
+      `;
+
+      const ul = document.createElement('ul');
+      (data.beneficios || []).forEach((item) => {
+        const li = document.createElement('li');
+        li.textContent = item;
+        ul.appendChild(li);
+      });
+      box.appendChild(ul);
+    }
+
+    async function init() {
+      const [promocoesRes, informacoesRes, fidelidadeRes] = await Promise.all([
+        fetch(`${API}/promocoes`),
+        fetch(`${API}/informacoes`),
+        fetch(`${API}/fidelidade`)
+      ]);
+
+      const promocoes = promocoesRes.ok ? await promocoesRes.json() : [];
+      const informacoes = await informacoesRes.json();
+      const fidelidade = await fidelidadeRes.json();
+
+      renderPromocoes(promocoes);
+      renderInformacoes(informacoes);
+      renderFidelidade(fidelidade);
+    }
+
+    init();
+  </script>
+</body>
+</html>
+

@@ -1,0 +1,219 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Área do Cliente</title>
+  <link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+  <header>
+    <h1>Área do Cliente</h1>
+    <p>Login, cadastro e consulta do programa fidelizado por CPF.</p>
+  </header>
+
+  <main>
+    <div class="acoes">
+      <a href="index.html">Início</a>
+      <a href="Carrinho.html">Carrinho</a>
+      <a href="Pagamento.html">Pagamento</a>
+    </div>
+
+    <p id="statusMsg" class="status-banner" aria-live="polite"></p>
+
+    <section class="admin-layout">
+      <aside class="admin-panel">
+        <h2>Entrar</h2>
+        <input id="loginEmail" placeholder="E-mail">
+        <input id="loginSenha" type="password" placeholder="Senha">
+        <div class="acoes"><button onclick="loginCliente()">Entrar</button></div>
+
+        <h2 style="margin-top:16px;">Cadastrar</h2>
+        <input id="cadNome" placeholder="Nome completo">
+        <input id="cadCpf" placeholder="CPF (somente números)">
+        <input id="cadEmail" placeholder="E-mail">
+        <input id="cadSenha" type="password" placeholder="Senha">
+        <div class="acoes"><button onclick="cadastrarCliente()">Criar conta</button></div>
+      </aside>
+
+      <section class="admin-table-wrap">
+        <h2>Programa Fidelizado</h2>
+        <p>Consulte seu progresso e cupons ganhos.</p>
+        <div class="acoes">
+          <input id="cpfConsulta" placeholder="Digite seu CPF">
+          <button onclick="consultarFidelidade()">Consultar</button>
+        </div>
+        <div id="fidelidadeResultado" class="info-card" style="margin-top:12px;"></div>
+      </section>
+    </section>
+
+    <section class="admin-layout" style="margin-top:16px;">
+      <section class="admin-table-wrap">
+        <h2>Histórico de Compras</h2>
+        <p>Visualize seus pedidos usando o CPF.</p>
+        <div class="acoes">
+          <input id="cpfHistorico" placeholder="CPF para histórico">
+          <button onclick="carregarHistorico()">Carregar histórico</button>
+        </div>
+        <table class="admin-table" style="margin-top:12px;">
+          <thead>
+            <tr><th>Data</th><th>Itens</th><th>Frete</th><th>Total</th><th>Status</th></tr>
+          </thead>
+          <tbody id="historicoBody"></tbody>
+        </table>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    function resolveApiBase() {
+      const params = new URLSearchParams(window.location.search);
+      const apiParam = params.get('api');
+      if (apiParam) {
+        localStorage.setItem('api_url', apiParam);
+        return apiParam;
+      }
+      return localStorage.getItem('api_url') || 'http://localhost:3001';
+    }
+    const API = resolveApiBase();
+
+    function showStatus(msg, type = 'status-info') {
+      const el = document.getElementById('statusMsg');
+      el.textContent = msg;
+      el.className = `status-banner ${type}`;
+    }
+
+    function money(v) { return Number(v).toFixed(2).replace('.', ','); }
+
+    async function loginCliente() {
+      const email = document.getElementById('loginEmail').value.trim();
+      const senha = document.getElementById('loginSenha').value;
+
+      const res = await fetch(`${API}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, senha })
+      });
+      const body = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        showStatus(body.erro || 'Falha no login.', 'status-error');
+        return;
+      }
+
+      localStorage.setItem('cliente_token', body.token);
+      localStorage.setItem('cliente_dados', JSON.stringify(body.usuario));
+      showStatus(`Bem-vindo, ${body.usuario.nome}!`, 'status-success');
+    }
+
+    async function cadastrarCliente() {
+      const payload = {
+        nome: document.getElementById('cadNome').value.trim(),
+        cpf: document.getElementById('cadCpf').value.trim(),
+        email: document.getElementById('cadEmail').value.trim(),
+        senha: document.getElementById('cadSenha').value
+      };
+
+      const res = await fetch(`${API}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const body = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        showStatus(body.erro || 'Falha ao cadastrar.', 'status-error');
+        return;
+      }
+
+      localStorage.setItem('cliente_token', body.token);
+      localStorage.setItem('cliente_dados', JSON.stringify(body.usuario));
+      showStatus('Conta criada com sucesso! Você já está logado.', 'status-success');
+    }
+
+    async function consultarFidelidade() {
+      const cpf = document.getElementById('cpfConsulta').value.trim();
+      const box = document.getElementById('fidelidadeResultado');
+      if (!cpf) {
+        showStatus('Informe um CPF para consulta.', 'status-error');
+        return;
+      }
+
+      const res = await fetch(`${API}/fidelidade/${encodeURIComponent(cpf)}`);
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        box.innerHTML = '<p>CPF ainda não encontrado no programa.</p>';
+        showStatus(body.erro || 'Não foi possível consultar fidelidade.', 'status-error');
+        return;
+      }
+
+      box.innerHTML = `
+        <h3>${body.nome || 'Cliente'}</h3>
+        <p>Total gasto: <strong>R$ ${money(body.totalGasto || 0)}</strong></p>
+        <p>Progresso para proxima recompensa: <strong>R$ ${money(body.progressoGasto || 0)}</strong> de R$ 200,00</p>
+        <p>Recompensas geradas: <strong>${body.recompensasGeradas || 0}</strong></p>
+        <p>Cupons ganhos: <strong>${(body.cupons || []).join(', ') || 'Nenhum ainda'}</strong></p>
+      `;
+      showStatus('Consulta de fidelidade carregada.', 'status-success');
+    }
+
+    async function carregarHistorico() {
+      const cpf = document.getElementById('cpfHistorico').value.trim();
+      const body = document.getElementById('historicoBody');
+      body.innerHTML = '';
+      if (!cpf) {
+        showStatus('Informe um CPF para buscar histórico.', 'status-error');
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API}/pedidos?cpf=${encodeURIComponent(cpf)}`);
+        if (!res.ok) throw new Error('Falha ao carregar histórico.');
+        const pedidos = await res.json();
+
+        if (!pedidos.length) {
+          body.innerHTML = '<tr><td colspan="5">Nenhum pedido encontrado.</td></tr>';
+          showStatus('Nenhum pedido encontrado para este CPF.', 'status-info');
+          return;
+        }
+
+        pedidos.forEach((p) => {
+          const dt = new Date(p.createdAt);
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${dt.toLocaleDateString('pt-BR')}</td>
+            <td>${(p.itens || []).length}</td>
+            <td>R$ ${money(p.frete || 0)}</td>
+            <td>R$ ${money(p.total || 0)}</td>
+            <td>${p.status || 'Finalizado'}</td>
+          `;
+          body.appendChild(tr);
+        });
+
+        showStatus('Histórico carregado com sucesso.', 'status-success');
+      } catch (err) {
+        showStatus(err.message, 'status-error');
+      }
+    }
+
+    (function preloadCpf() {
+      const raw = localStorage.getItem('cliente_dados');
+      if (!raw) return;
+      try {
+        const u = JSON.parse(raw);
+        if (u.cpf) document.getElementById('cpfConsulta').value = u.cpf;
+        if (u.cpf) document.getElementById('cpfHistorico').value = u.cpf;
+      } catch (_) {}
+    })();
+  </script>
+  <footer class="centralizar">
+    <h4>Varejão do Povo</h4>
+    <p>Av. Cásper Líbero, 376, Ribeirão Preto - SP</p>
+    <p>WhatsApp: (16) 99259-6614 • Seg a Sáb 07:00 às 19:00</p>
+    <div class="social-links">
+      <a href="https://www.facebook.com/people/Varejao-do-Povo/100043319426102/" target="_blank" rel="noopener noreferrer">Facebook</a>
+      <a href="#" class="is-disabled" aria-disabled="true" tabindex="-1">Instagram (em breve)</a>
+    </div>
+  </footer></body>
+</html>
+

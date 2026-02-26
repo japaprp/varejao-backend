@@ -1,0 +1,213 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Legumes</title>
+  <link rel="stylesheet" type="text/css" href="estilo.css">
+</head>
+<body>
+  <header>
+    <h1>Setor de Legumes</h1>
+    <p>Ajuste rápido no controle e adicione com um clique.</p>
+  </header>
+
+  <main class="page-shell">
+    <div class="acoes">
+      <a href="index.html">Início</a>
+      <a href="Carrinho.html">Carrinho</a>
+      <a href="Pagamento.html">Pagamento</a>
+      <a href="admin.html">Painel Admin</a>
+    </div>
+
+    <div class="catalog-tools">
+      <div class="search-box">
+        <input id="searchInput" placeholder="Buscar legume...">
+        <select id="sortSelect">
+          <option value="destaque">Ordenar: destaque</option>
+          <option value="preco-asc">Menor preço</option>
+          <option value="preco-desc">Maior preço</option>
+          <option value="nome">Nome A-Z</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <button type="button" data-filter="all" class="is-active">Todos</button>
+        <button type="button" data-filter="promocao">Promoções</button>
+        <button type="button" data-filter="destaque">Destaques</button>
+      </div>
+      <div class="cart-mini" id="miniCart">Carregando resumo...</div>
+    </div>
+
+    <p id="statusMsg" class="status-banner" aria-live="polite"></p>
+    <section id="gridProdutos" class="items-container" aria-label="Lista de legumes"></section>
+  </main>
+
+  <script>
+    function resolveApiBase() {
+      const params = new URLSearchParams(window.location.search);
+      const apiParam = params.get('api');
+      if (apiParam) {
+        localStorage.setItem('api_url', apiParam);
+        return apiParam;
+      }
+      return localStorage.getItem('api_url') || 'http://localhost:3001';
+    }
+    const API = resolveApiBase();
+    function money(v) { return Number(v).toFixed(2).replace('.', ','); }
+    function getStep(unidade) { return unidade === 'kg' ? 0.5 : 1; }
+
+    function changeQty(displayEl, unidade, delta) {
+      const step = getStep(unidade);
+      const current = Number(displayEl.dataset.value || step);
+      const next = Math.max(step, current + delta);
+      displayEl.dataset.value = String(next);
+      displayEl.textContent = unidade === 'kg' ? `${next.toFixed(1)} kg` : `${Math.round(next)} un`;
+    }
+
+    async function addToCart(produto, qtd) {
+      const status = document.getElementById('statusMsg');
+      try {
+        const res = await fetch(`${API}/carrinho`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ produtoId: produto.id, quantidade: qtd })
+        });
+        if (!res.ok) throw new Error('Não foi possível adicionar no carrinho.');
+        status.textContent = `${produto.nome} adicionado (${qtd} ${produto.unidade}).`;
+        status.className = 'status-banner status-success';
+        await updateMiniCart();
+      } catch (err) {
+        status.textContent = err.message;
+        status.className = 'status-banner status-error';
+      }
+    }
+
+    let allProdutos = [];
+    let filtroAtual = 'all';
+
+    function renderProdutos(produtos) {
+      const grid = document.getElementById('gridProdutos');
+      grid.innerHTML = '';
+
+      produtos.forEach((produto) => {
+        const card = document.createElement('article');
+        card.className = 'item';
+
+        const selo = document.createElement('span');
+        selo.className = 'badge';
+        selo.textContent = produto.selo || (produto.unidade === 'kg' ? 'Venda por kg' : 'Venda por unidade');
+
+        const img = document.createElement('img');
+        img.src = produto.imagem;
+        img.alt = produto.nome;
+        img.width = 130;
+        img.height = 100;
+
+        const price = document.createElement('div');
+        price.className = 'price-line';
+        price.innerHTML = `R$ ${money(produto.preco)}<span>/${produto.unidade}</span>`;
+
+        const nome = document.createElement('p');
+        nome.textContent = produto.nome;
+
+        const meta = document.createElement('div');
+        meta.className = 'meta-line';
+        meta.textContent = produto.descricaoCurta || '';
+
+        const control = document.createElement('div');
+        control.className = 'qty-control';
+
+        const minus = document.createElement('button');
+        minus.type = 'button';
+        minus.textContent = '-';
+
+        const display = document.createElement('div');
+        display.className = 'qty-display';
+        const initial = getStep(produto.unidade);
+        display.dataset.value = String(initial);
+        display.textContent = produto.unidade === 'kg' ? `${initial.toFixed(1)} kg` : `${initial} un`;
+
+        const plus = document.createElement('button');
+        plus.type = 'button';
+        plus.textContent = '+';
+
+        minus.addEventListener('click', () => changeQty(display, produto.unidade, -getStep(produto.unidade)));
+        plus.addEventListener('click', () => changeQty(display, produto.unidade, getStep(produto.unidade)));
+
+        control.append(minus, display, plus);
+
+        const addBtn = document.createElement('button');
+        addBtn.type = 'button';
+        addBtn.className = 'add-circle';
+        addBtn.textContent = '+';
+        addBtn.addEventListener('click', () => addToCart(produto, Number(display.dataset.value)));
+
+        card.append(selo, img, price, nome, meta, control, addBtn);
+        grid.appendChild(card);
+      });
+    }
+
+    function applyFilters() {
+      const termo = document.getElementById('searchInput').value.trim().toLowerCase();
+      const sort = document.getElementById('sortSelect').value;
+      let lista = allProdutos.filter((p) => p.nome.toLowerCase().includes(termo));
+
+      if (filtroAtual === 'promocao') lista = lista.filter((p) => p.promocao);
+      if (filtroAtual === 'destaque') lista = lista.filter((p) => p.destaque);
+
+      if (sort === 'preco-asc') lista.sort((a, b) => a.preco - b.preco);
+      if (sort === 'preco-desc') lista.sort((a, b) => b.preco - a.preco);
+      if (sort === 'nome') lista.sort((a, b) => a.nome.localeCompare(b.nome));
+      if (sort === 'destaque') lista.sort((a, b) => (b.destaque === true) - (a.destaque === true));
+
+      renderProdutos(lista);
+    }
+
+    async function updateMiniCart() {
+      const box = document.getElementById('miniCart');
+      try {
+        const res = await fetch(`${API}/checkout`);
+        if (!res.ok) throw new Error('Falha no resumo.');
+        const data = await res.json();
+        const totalBase = Number(data.totalBase || data.total || 0);
+        const frete = Number(data.frete || 0);
+        const total = Number(data.total || 0);
+        const itens = (data.itens || []).length;
+        const freteMsg = totalBase >= 100 ? 'Frete grátis' : `Frete R$ ${money(frete)}`;
+        box.innerHTML = `<strong>${itens} itens</strong> • ${freteMsg} • Total R$ ${money(total)}`;
+      } catch (err) {
+        box.textContent = 'Resumo indisponível.';
+      }
+    }
+
+    async function init() {
+      const res = await fetch(`${API}/produtos?setor=legumes`);
+      allProdutos = await res.json();
+      applyFilters();
+      await updateMiniCart();
+
+      document.getElementById('searchInput').addEventListener('input', applyFilters);
+      document.getElementById('sortSelect').addEventListener('change', applyFilters);
+      document.querySelectorAll('[data-filter]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('[data-filter]').forEach((b) => b.classList.remove('is-active'));
+          btn.classList.add('is-active');
+          filtroAtual = btn.getAttribute('data-filter');
+          applyFilters();
+        });
+      });
+    }
+
+    init();
+  </script>
+  <footer class="centralizar">
+    <h4>Varejão do Povo</h4>
+    <p>Av. Cásper Líbero, 376, Ribeirão Preto - SP</p>
+    <p>WhatsApp: (16) 99259-6614 • Seg a Sáb 07:00 às 19:00</p>
+    <div class="social-links">
+      <a href="https://www.facebook.com/people/Varejao-do-Povo/100043319426102/" target="_blank" rel="noopener noreferrer">Facebook</a>
+      <a href="#" class="is-disabled" aria-disabled="true" tabindex="-1">Instagram (em breve)</a>
+    </div>
+  </footer></body>
+</html>
+
