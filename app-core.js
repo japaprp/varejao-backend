@@ -1,12 +1,31 @@
 (() => {
+  const PROD_API = 'https://varejao-backend-83hm.onrender.com';
+  const DEV_API = 'http://localhost:3001';
+
   function resolveApiBase() {
     const params = new URLSearchParams(window.location.search);
     const apiParam = params.get('api');
+    const host = String(window.location.hostname || '').toLowerCase();
+    const isLocalHost = host === 'localhost' || host === '127.0.0.1' || host === '[::1]';
+
     if (apiParam) {
       localStorage.setItem('api_url', apiParam);
       return apiParam;
     }
-    return localStorage.getItem('api_url') || 'http://localhost:3001';
+
+    const persistedApi = localStorage.getItem('api_url');
+    if (persistedApi) {
+      const persistedIsLocal = persistedApi.includes('localhost') || persistedApi.includes('127.0.0.1');
+      if (!isLocalHost && persistedIsLocal) {
+        localStorage.setItem('api_url', PROD_API);
+        return PROD_API;
+      }
+      return persistedApi;
+    }
+
+    const fallbackApi = isLocalHost ? DEV_API : PROD_API;
+    localStorage.setItem('api_url', fallbackApi);
+    return fallbackApi;
   }
 
   function resolveCartId() {
