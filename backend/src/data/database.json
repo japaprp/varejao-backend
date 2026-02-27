@@ -1,4 +1,4 @@
-﻿{
+{
   "produtos": [
     {
       "id": "p001",
@@ -252,7 +252,7 @@
       "id": "u_admin",
       "nome": "Administrador",
       "email": "admin@varejao.com",
-      "senhaHash": "1843fdfd8ba5582236746ac48215a86dec2960a57b8294c92b504330038ad160",
+      "senhaHash": "a36aef5a11c4073fbe60314fc9df530a9d5f986533594d1f5190742ff9e0e408",
       "role": "admin",
       "cpf": "00000000000"
     }
@@ -293,6 +293,3 @@
     }
   ]
 }
-
-
-
