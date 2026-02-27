@@ -32,13 +32,13 @@
         <h2>Seu varejão pronto para vender mais</h2>
         <p>Gestão de produtos, promoções, fidelização e experiência moderna para seus clientes.</p>
       </div>
-      <div class="info-card">
+      <article class="promo-card">
         <strong>Localização</strong>
         <p>Atendemos loja física e pedidos online.</p>
         <div class="acoes">
           <a href="localizacao.html" >Ver no mapa</a>
         </div>
-      </div>
+      </article>
     </section>
 
     <section>
@@ -48,12 +48,12 @@
 
     <section>
       <h2 class="section-title">Informações Importantes</h2>
-      <div id="informacoesBox" class="info-card"></div>
+      <article id="informacoesBox" class="promo-card"></article>
     </section>
 
     <section>
       <h2 class="section-title">Cliente Fidelizado</h2>
-      <div id="fidelidadeBox" class="fidelidade-card"></div>
+      <article id="fidelidadeBox" class="promo-card"></article>
     </section>
 
     <section>
@@ -166,7 +166,7 @@
 
     function renderInformacoes(info) {
       const box = document.getElementById('informacoesBox');
-      box.innerHTML = `<h3>${info.titulo || 'Informações'}</h3>`;
+      box.innerHTML = `<strong>${info.titulo || 'Informações'}</strong>`;
       const ul = document.createElement('ul');
       (info.itens || []).forEach((item) => {
         const li = document.createElement('li');
@@ -179,7 +179,7 @@
     function renderFidelidade(data) {
       const box = document.getElementById('fidelidadeBox');
       box.innerHTML = `
-        <h3>${data.nomePrograma || 'Fidelidade'}</h3>
+        <strong>${data.nomePrograma || 'Fidelidade'}</strong>
         <p>${data.descricao || ''}</p>
       `;
 
