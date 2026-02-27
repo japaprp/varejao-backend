@@ -165,7 +165,7 @@
       "pesoCaixaMax": 0,
       "pesoMedioUnidade": 0,
       "unidadesPorCaixa": 0,
-      "imagem": "imagens/Verdura Folhas/alface_crespa-removebg-preview.png",
+      "imagem": "imagens/verdura-folhas/alface_crespa-removebg-preview.png",
       "descricaoCurta": "Folha fresca e crocante.",
       "selo": "Unidade grande",
       "promocao": true,
@@ -184,7 +184,7 @@
       "pesoCaixaMax": 0,
       "pesoMedioUnidade": 0,
       "unidadesPorCaixa": 0,
-      "imagem": "imagens/Verdura Folhas/repolho.jpg",
+      "imagem": "imagens/verdura-folhas/repolho.jpg",
       "descricaoCurta": "Ideal para saladas e refogados.",
       "selo": "Unidade média",
       "promocao": false,
@@ -203,7 +203,7 @@
       "pesoCaixaMax": 0,
       "pesoMedioUnidade": 0,
       "unidadesPorCaixa": 0,
-      "imagem": "imagens/Verdura Folhas/couve-manteiga.jpg",
+      "imagem": "imagens/verdura-folhas/couve-manteiga.jpg",
       "descricaoCurta": "Rica em nutrientes.",
       "selo": "Maço premium",
       "promocao": true,
@@ -222,7 +222,7 @@
       "pesoCaixaMax": 0,
       "pesoMedioUnidade": 0,
       "unidadesPorCaixa": 0,
-      "imagem": "imagens/Verdura Folhas/brocolis.jpg",
+      "imagem": "imagens/verdura-folhas/brocolis.jpg",
       "descricaoCurta": "Sabor e qualidade garantida.",
       "selo": "Unidade",
       "promocao": false,
@@ -293,4 +293,5 @@
     }
   ]
 }
+
 
