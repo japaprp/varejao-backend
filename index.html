@@ -166,17 +166,26 @@
       const adminLogged = isAdminLogged();
       const links = [];
 
-      if (!client) {
+      if (client) {
+        links.push('<a href="cliente.html">Minha conta</a>');
+        links.push('<a href="#" data-action="logout">Sair</a>');
+      } else if (adminLogged) {
+        links.push('<a href="admin.html">Painel administrativo</a>');
+        links.push('<a href="#" data-action="logout">Sair</a>');
+      } else {
         links.push('<a href="cliente.html">Entrar</a>');
         links.push('<a href="cadastro.html">Cadastrar</a>');
-      } else {
-        links.push('<a href="cliente.html">Minha conta</a>');
       }
 
       links.push('<a href="localizacao.html#quem-somos">Privacidade</a>');
-      if (adminLogged) links.push('<a href="admin.html">Painel administrativo</a>');
 
       menu.innerHTML = links.join('');
+    }
+
+    function clearAllAuthSessions() {
+      localStorage.removeItem('admin_token');
+      localStorage.removeItem('cliente_token');
+      localStorage.removeItem('cliente_dados');
     }
 
     function renderUserHub() {
@@ -487,6 +496,18 @@
         clearTimeout(userMenuHideTimer);
         userMenuHideTimer = null;
       }
+      menu.classList.remove('is-open');
+      menu.classList.add('is-hidden');
+      btn.setAttribute('aria-expanded', 'false');
+    });
+    document.getElementById('userHubMenu').addEventListener('click', (ev) => {
+      const link = ev.target.closest('a[data-action="logout"]');
+      if (!link) return;
+      ev.preventDefault();
+      clearAllAuthSessions();
+      renderUserHub();
+      const menu = document.getElementById('userHubMenu');
+      const btn = document.getElementById('userHubToggle');
       menu.classList.remove('is-open');
       menu.classList.add('is-hidden');
       btn.setAttribute('aria-expanded', 'false');

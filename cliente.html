@@ -509,6 +509,7 @@
     function logoutCliente() {
       localStorage.removeItem('cliente_token');
       localStorage.removeItem('cliente_dados');
+      localStorage.removeItem('admin_token');
       document.getElementById('loginSenha').value = '';
       document.getElementById('btnLogoutCliente').classList.add('is-hidden');
       document.getElementById('profilePhotoArea').classList.add('is-hidden');

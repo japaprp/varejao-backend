@@ -761,6 +761,8 @@
     function logoutAdmin() {
       authToken = '';
       localStorage.removeItem('admin_token');
+      localStorage.removeItem('cliente_token');
+      localStorage.removeItem('cliente_dados');
       setAdminSessionUI(false);
       showStatus('Sessão encerrada.', 'status-info');
       document.getElementById('loginSenha').value = '';
