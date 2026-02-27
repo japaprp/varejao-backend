@@ -66,9 +66,33 @@
       displayEl.textContent = unidade === 'kg' ? `${next.toFixed(1)} kg` : `${Math.round(next)} un`;
     }
 
+    function getLocalCart() {
+      try {
+        return JSON.parse(localStorage.getItem('cart_items') || '[]');
+      } catch {
+        return [];
+      }
+    }
+
+    function saveLocalCart(items) {
+      localStorage.setItem('cart_items', JSON.stringify(items));
+    }
+
+    function addLocalCartItem(produto, qtd) {
+      const items = getLocalCart();
+      const existing = items.find((i) => i.produtoId === produto.id);
+      if (existing) {
+        existing.quantidade = Number(existing.quantidade || 0) + Number(qtd || 0);
+      } else {
+        items.push({ produtoId: produto.id, quantidade: Number(qtd || 0) });
+      }
+      saveLocalCart(items);
+    }
+
     async function addToCart(produto, qtd) {
       const status = document.getElementById('statusMsg');
       try {
+        addLocalCartItem(produto, qtd);
         const res = await fetch(`${API}/carrinho`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

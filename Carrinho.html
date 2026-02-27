@@ -43,6 +43,29 @@
 
         function money(v) { return Number(v).toFixed(2).replace('.', ','); }
 
+        function getLocalCart() {
+            try {
+                return JSON.parse(localStorage.getItem('cart_items') || '[]');
+            } catch {
+                return [];
+            }
+        }
+
+        let rehydrated = false;
+
+        async function rehydrateBackendCart(items) {
+            for (const item of items) {
+                await fetch(`${API}/carrinho`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        produtoId: item.produtoId,
+                        quantidade: Number(item.quantidade || 0)
+                    })
+                });
+            }
+        }
+
         function showStatus(message, type = 'status-info') {
             const status = document.getElementById('statusMsg');
             status.textContent = message;
@@ -60,6 +83,14 @@
                 const res = await fetch(`${API}/checkout`);
                 if (!res.ok) throw new Error('Falha ao carregar dados do carrinho.');
                 const data = await res.json();
+                if ((!data.itens || !data.itens.length) && !rehydrated) {
+                    const localItems = getLocalCart();
+                    if (localItems.length) {
+                        rehydrated = true;
+                        await rehydrateBackendCart(localItems);
+                        return carregarCarrinho();
+                    }
+                }
 
                 (data.itens || []).forEach(item => {
                     const subtotal = Number(item.preco) * Number(item.quantidade);

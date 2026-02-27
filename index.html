@@ -100,7 +100,31 @@
 
     function money(v) { return Number(v).toFixed(2).replace('.', ','); }
 
+    function getLocalCart() {
+      try {
+        return JSON.parse(localStorage.getItem('cart_items') || '[]');
+      } catch {
+        return [];
+      }
+    }
+
+    function saveLocalCart(items) {
+      localStorage.setItem('cart_items', JSON.stringify(items));
+    }
+
+    function addLocalCartItem(produtoId, quantidade) {
+      const items = getLocalCart();
+      const existing = items.find((i) => i.produtoId === produtoId);
+      if (existing) {
+        existing.quantidade = Number(existing.quantidade || 0) + Number(quantidade || 0);
+      } else {
+        items.push({ produtoId, quantidade: Number(quantidade || 0) });
+      }
+      saveLocalCart(items);
+    }
+
     async function addToCart(produtoId) {
+      addLocalCartItem(produtoId, 1);
       try {
         const res = await fetch(`${API}/carrinho`, {
           method: 'POST',
