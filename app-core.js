@@ -30,6 +30,12 @@
 
   function resolveCartId() {
     const key = 'cart_id';
+    const params = new URLSearchParams(window.location.search);
+    const cartParam = params.get('cart');
+    if (cartParam) {
+      localStorage.setItem(key, cartParam);
+      return cartParam;
+    }
     let id = localStorage.getItem(key);
     if (!id) {
       id = (window.crypto && window.crypto.randomUUID)

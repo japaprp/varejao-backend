@@ -214,7 +214,9 @@
         const total = Number(data.total || 0);
         const itens = (data.itens || []).length;
         const freteMsg = totalBase >= 100 ? 'Frete grátis' : `Frete R$ ${money(frete)}`;
-        const checkoutLink = itens > 0 ? ' • <a href="Pagamento.html" class="mini-checkout-link">Finalizar compra</a>' : '';
+        const checkoutLink = itens > 0
+          ? ` • <a href="Pagamento.html?api=${encodeURIComponent(API)}&cart=${encodeURIComponent(CART_ID)}" class="mini-checkout-link">Finalizar compra</a>`
+          : '';
         box.innerHTML = `<strong>${itens} itens</strong> • ${freteMsg} • Total R$ ${money(total)}${checkoutLink}`;
       } catch (err) {
         box.textContent = 'Resumo indisponível.';
