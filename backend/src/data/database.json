@@ -13,7 +13,7 @@
       "pesoCaixaMax": 0,
       "pesoMedioUnidade": 0,
       "unidadesPorCaixa": 0,
-      "imagem": "imagens/Frutas/banana.jpg",
+      "imagem": "imagens/setor-frutas/banana.jpg",
       "descricaoCurta": "Doce e fresca para o dia a dia.",
       "selo": "500g aprox. 4-5 un",
       "promocao": true,
@@ -32,7 +32,7 @@
       "pesoCaixaMax": 0,
       "pesoMedioUnidade": 0,
       "unidadesPorCaixa": 0,
-      "imagem": "imagens/Frutas/mamao.webp",
+      "imagem": "imagens/setor-frutas/mamao.webp",
       "descricaoCurta": "Ideal para sucos e café da manhã.",
       "selo": "500g aprox. 1 un",
       "promocao": false,
@@ -51,7 +51,7 @@
       "pesoCaixaMax": 0,
       "pesoMedioUnidade": 0,
       "unidadesPorCaixa": 0,
-      "imagem": "imagens/Frutas/morango.jpg",
+      "imagem": "imagens/setor-frutas/morango.jpg",
       "descricaoCurta": "Selecionado e de alta qualidade.",
       "selo": "Bandeja premium",
       "promocao": true,
@@ -70,7 +70,7 @@
       "pesoCaixaMax": 0,
       "pesoMedioUnidade": 0,
       "unidadesPorCaixa": 0,
-      "imagem": "imagens/Frutas/laranja.jpg",
+      "imagem": "imagens/setor-frutas/laranja.jpg",
       "descricaoCurta": "Rica em vitamina C.",
       "selo": "500g aprox. 3-4 un",
       "promocao": false,
@@ -89,7 +89,7 @@
       "pesoCaixaMax": 0,
       "pesoMedioUnidade": 0,
       "unidadesPorCaixa": 0,
-      "imagem": "imagens/Legumes/cenoura.jpg",
+      "imagem": "imagens/setor-legumes/cenoura.jpg",
       "descricaoCurta": "Perfeita para saladas e refogados.",
       "selo": "500g aprox. 2-4 un",
       "promocao": true,
@@ -108,7 +108,7 @@
       "pesoCaixaMax": 25,
       "pesoMedioUnidade": 100,
       "unidadesPorCaixa": 0,
-      "imagem": "imagens/Legumes/tomate.jpg",
+      "imagem": "imagens/setor-legumes/tomate.jpg",
       "descricaoCurta": "Tomate rasteiro de qualidade.",
       "selo": "500g aprox. 3-5 un",
       "promocao": false,
@@ -127,7 +127,7 @@
       "pesoCaixaMax": 0,
       "pesoMedioUnidade": 0,
       "unidadesPorCaixa": 0,
-      "imagem": "imagens/Legumes/cebola.jpg",
+      "imagem": "imagens/setor-legumes/cebola.jpg",
       "descricaoCurta": "Essencial para sua cozinha.",
       "selo": "500g aprox. 2-3 un",
       "promocao": true,
@@ -146,7 +146,7 @@
       "pesoCaixaMax": 0,
       "pesoMedioUnidade": 0,
       "unidadesPorCaixa": 0,
-      "imagem": "imagens/Legumes/abobora.jpg",
+      "imagem": "imagens/setor-legumes/abobora.jpg",
       "descricaoCurta": "Versátil para várias receitas.",
       "selo": "500g aprox. 2-3 un",
       "promocao": false,
@@ -293,5 +293,6 @@
     }
   ]
 }
+
 
 
