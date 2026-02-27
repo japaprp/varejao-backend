@@ -1,152 +1,17 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Carrinho</title>
-    <link rel="stylesheet" href="estilo.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="refresh" content="0; url=Pagamento.html">
+  <title>Redirecionando para Checkout</title>
 </head>
 <body>
-    <header>
-        <h1>Carrinho de Compras</h1>
-        <p>Confira os itens e finalize seu pedido.</p>
-    </header>
-
-    <main>
-        <div class="acoes">
-            <a href="index.html">Voltar ao início</a>
-            <a href="Pagamento.html">Ir para pagamento</a>
-        </div>
-
-        <p id="statusMsg" class="status-banner" aria-live="polite"></p>
-        <p class="info-card" style="margin-bottom:12px;">
-            <strong>Entrega:</strong> taxa de R$ 30,00 ou grátis acima de R$ 100,00.
-        </p>
-        <ul id="listaCarrinho"></ul>
-        <h3 id="freteCarrinho">Frete: R$ 0,00</h3>
-        <h3 id="totalCarrinho">Total: R$ 0,00</h3>
-        <p id="freteStatus" class="status-banner" aria-live="polite"></p>
-        <button id="btnFinalizar" onclick="finalizarCompra()">Ir para pagamento</button>
-    </main>
-
-    <script>
-        function resolveApiBase() {
-            const params = new URLSearchParams(window.location.search);
-            const apiParam = params.get('api');
-            if (apiParam) {
-                localStorage.setItem('api_url', apiParam);
-                return apiParam;
-            }
-            return localStorage.getItem('api_url') || 'http://localhost:3001';
-        }
-        const API = resolveApiBase();
-
-        function money(v) { return Number(v).toFixed(2).replace('.', ','); }
-
-        function getLocalCart() {
-            try {
-                return JSON.parse(localStorage.getItem('cart_items') || '[]');
-            } catch {
-                return [];
-            }
-        }
-
-        let rehydrated = false;
-
-        async function rehydrateBackendCart(items) {
-            for (const item of items) {
-                await fetch(`${API}/carrinho`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        produtoId: item.produtoId,
-                        quantidade: Number(item.quantidade || 0)
-                    })
-                });
-            }
-        }
-
-        function showStatus(message, type = 'status-info') {
-            const status = document.getElementById('statusMsg');
-            status.textContent = message;
-            status.className = `status-banner ${type}`;
-        }
-
-        async function carregarCarrinho() {
-            const listaCarrinho = document.getElementById('listaCarrinho');
-            const totalCarrinho = document.getElementById('totalCarrinho');
-            const freteCarrinho = document.getElementById('freteCarrinho');
-            const freteStatus = document.getElementById('freteStatus');
-            listaCarrinho.innerHTML = '';
-
-            try {
-                const res = await fetch(`${API}/checkout`);
-                if (!res.ok) throw new Error('Falha ao carregar dados do carrinho.');
-                const data = await res.json();
-                if ((!data.itens || !data.itens.length) && !rehydrated) {
-                    const localItems = getLocalCart();
-                    if (localItems.length) {
-                        rehydrated = true;
-                        await rehydrateBackendCart(localItems);
-                        return carregarCarrinho();
-                    }
-                }
-
-                (data.itens || []).forEach(item => {
-                    const subtotal = Number(item.preco) * Number(item.quantidade);
-                    const li = document.createElement('li');
-                    li.textContent = `${item.produto} - ${item.quantidade} ${item.unidade} x R$ ${money(item.preco)} = R$ ${money(subtotal)}`;
-                    listaCarrinho.appendChild(li);
-                });
-
-                const totalBase = Number(data.totalBase || data.total || 0);
-                const frete = Number(data.frete || 0);
-                const totalFinal = Number(data.total || 0);
-
-                freteCarrinho.textContent = `Frete: R$ ${money(frete)}`;
-                totalCarrinho.textContent = `Total: R$ ${money(totalFinal)}`;
-                freteStatus.textContent = totalBase >= 100 ? 'Frete grátis aplicado.' : (totalBase > 0 ? 'Frete será cobrado no total.' : '');
-                freteStatus.className = totalBase >= 100 ? 'status-banner status-success' : 'status-banner status-info';
-
-                if (!data.itens || !data.itens.length) {
-                    showStatus('Seu carrinho está vazio no momento.', 'status-info');
-                } else {
-                    showStatus('Carrinho carregado com sucesso.', 'status-success');
-                }
-            } catch (err) {
-                totalCarrinho.textContent = 'Não foi possível carregar o carrinho.';
-                freteCarrinho.textContent = 'Frete: R$ 0,00';
-                freteStatus.textContent = '';
-                showStatus(err.message, 'status-error');
-            }
-        }
-
-        async function finalizarCompra() {
-            const btn = document.getElementById('btnFinalizar');
-            const originalText = btn.textContent;
-            btn.disabled = true;
-            btn.textContent = 'Finalizando...';
-
-            try {
-                showStatus('Redirecionando para o pagamento...', 'status-success');
-                setTimeout(() => { window.location.href = 'Pagamento.html'; }, 600);
-            } catch (err) {
-                showStatus(err.message, 'status-error');
-                btn.disabled = false;
-                btn.textContent = originalText;
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', carregarCarrinho);
-    </script>
-  <footer class="centralizar">
-    <h4>Varejão do Povo</h4>
-    <p>Av. Cásper Líbero, 376, Ribeirão Preto - SP</p>
-    <p>WhatsApp: (16) 99259-6614 • Seg a Sáb 07:00 às 19:00</p>
-    <div class="social-links">
-      <a href="https://www.facebook.com/people/Varejao-do-Povo/100043319426102/" target="_blank" rel="noopener noreferrer">Facebook</a>
-      <a href="#" class="is-disabled" aria-disabled="true" tabindex="-1">Instagram (em breve)</a>
-    </div>
-  </footer></body>
+  <script>
+    (function () {
+      const q = window.location.search || '';
+      window.location.replace(`Pagamento.html${q}`);
+    })();
+  </script>
+</body>
 </html>
-

@@ -3,26 +3,46 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Varejão do Povo: frutas, legumes e folhas com promoções semanais, entrega rápida e programa fidelizado.">
+  <meta property="og:title" content="Varejão do Povo - Hortifruti com qualidade e preço justo">
+  <meta property="og:description" content="Compre frutas, legumes e folhas com ofertas da semana, suporte rápido e checkout simplificado.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="imagens/pagina inicial/fundo-inicial.webp">
+  <meta property="og:locale" content="pt_BR">
+  <meta name="twitter:card" content="summary_large_image">
   <title>Varejão do Povo</title>
-  <link rel="stylesheet" type="text/css" href="estilo.css">
+  <link rel="stylesheet" type="text/css" href="estilo.css?v=20260227-15">
 </head>
 <body>
   <header>
-    <h1>Varejão do Povo</h1>
-    <p>Plataforma profissional para atrair clientes e aumentar vendas no varejo de hortifruti.</p>
+    <div class="header-grid">
+      <div>
+        <h1>Varejão do Povo</h1>
+        <p>Plataforma profissional para atrair clientes e aumentar vendas no varejo de hortifruti.</p>
+        <div class="home-search">
+          <input id="homeSearchInput" type="search" placeholder="Busque produto em toda a loja..." aria-label="Busca global de produtos">
+          <button id="homeSearchBtn" type="button">Buscar</button>
+        </div>
+      </div>
+      <div class="user-hub" id="userHub">
+        <button id="userHubToggle" class="user-hub-btn" type="button" aria-expanded="false" aria-controls="userHubMenu">
+          <span id="userHubAvatar" class="user-hub-avatar" aria-hidden="true">U</span>
+          <span class="user-hub-meta">
+            <strong id="userHubName">Entrar</strong>
+            <small id="userHubEmail">Login e cadastro</small>
+          </span>
+        </button>
+        <div id="userHubMenu" class="user-hub-menu is-hidden"></div>
+      </div>
+    </div>
   </header>
 
   <nav>
     <div id="principal">
-      <a href="setor folhas.html">FOLHAS</a>
-      <a href="Setor Frutas.html">FRUTAS</a>
-      <a href="Setor Legumes.html">LEGUMES</a>
-      <a href="Carrinho.html">CARRINHO</a>
-      <a href="Pagamento.html">PAGAMENTO</a>
-      <a href="biografia.html">QUEM SOMOS</a>
-      <a href="localizacao.html">LOCALIZAÇÃO</a>
-      <a href="cliente.html">ÁREA CLIENTE</a>
-      <a href="admin.html">PAINEL ADMIN</a>
+      <a href="setor-folhas.html">FOLHAS</a>
+      <a href="setor-frutas.html">FRUTAS</a>
+      <a href="setor-legumes.html">LEGUMES</a>
+      <a href="localizacao.html">INSTITUCIONAL</a>
     </div>
   </nav>
 
@@ -41,9 +61,19 @@
       </article>
     </section>
 
-    <section>
+    <section id="smartBanner" class="info-card mt-12">
+      <h2 class="section-title m-0">Status da Loja</h2>
+      <p id="smartBannerText" class="mt-10">Carregando informações em tempo real...</p>
+    </section>
+
+    <section id="promoSection">
       <h2 class="section-title">Promoções da Semana</h2>
       <div id="promocoesGrid" class="carousel-row"></div>
+    </section>
+
+    <section id="destaquesSection">
+      <h2 class="section-title">Destaques do Dia</h2>
+      <div id="destaquesGrid" class="carousel-row"></div>
     </section>
 
     <section>
@@ -57,48 +87,51 @@
     </section>
 
     <section>
-      <h2 class="section-title">Por que comprar conosco</h2>
+      <h2 class="section-title">Selos de Confiança</h2>
       <div class="carousel-row">
         <article class="promo-card">
-          <strong>Seleção diária</strong>
+          <strong>Pagamento Seguro</strong>
+          <p>Checkout protegido com fluxo profissional e confirmação transparente.</p>
+        </article>
+        <article class="promo-card">
+          <strong>Entrega Rápida</strong>
+          <p>Frete inteligente e operação preparada para pedidos do dia.</p>
+        </article>
+        <article class="promo-card">
+          <strong>Atendimento Humano</strong>
+          <p>Suporte rápido no WhatsApp para dúvidas, pedidos e pós-venda.</p>
+        </article>
+        <article class="promo-card">
+          <strong>Seleção Diária</strong>
           <p>Produtos frescos com controle de qualidade antes de chegar à sua mesa.</p>
-        </article>
-        <article class="promo-card">
-          <strong>Frete inteligente</strong>
-          <p>Taxa fixa de R$ 30,00 e frete grátis acima de R$ 100,00.</p>
-        </article>
-        <article class="promo-card">
-          <strong>Atendimento humano</strong>
-          <p>Suporte rápido no WhatsApp e equipe pronta para resolver.</p>
         </article>
       </div>
     </section>
+
   </main>
+  <a class="whatsapp-float" href="https://wa.me/5516992596614?text=Ol%C3%A1%2C%20preciso%20de%20suporte%20no%20Varej%C3%A3o%20do%20Povo." target="_blank" rel="noopener noreferrer" aria-label="Suporte via WhatsApp">WhatsApp</a>
 
   <footer class="centralizar">
     <h4>Varejão do Povo</h4>
     <p>Av. Cásper Líbero, 376, Ribeirão Preto - SP</p>
     <p>WhatsApp: (16) 99259-6614 • Seg a Sáb 07:00 às 19:00</p>
     <p>Estrutura profissional para vender mais e fidelizar clientes.</p>
+    <div class="author-credit">Desenvolvido por <strong>Yago Fellipe Amorim</strong> • Interesse em contratar: <a href="https://wa.me/5516991145034?text=Ol%C3%A1%2C%20Yago%2C%20vi%20seu%20site%20e%20quero%20falar%20sobre%20um%20projeto." target="_blank" rel="noopener noreferrer">falar no WhatsApp</a></div>
     <div class="social-links">
+      <a href="https://wa.me/5516992596614?text=Ol%C3%A1%2C%20preciso%20de%20suporte%20no%20Varej%C3%A3o%20do%20Povo." target="_blank" rel="noopener noreferrer">WhatsApp</a>
       <a href="https://www.facebook.com/people/Varejao-do-Povo/100043319426102/" target="_blank" rel="noopener noreferrer">Facebook</a>
       <a href="#" class="is-disabled" aria-disabled="true" tabindex="-1">Instagram (em breve)</a>
     </div>
   </footer>
 
+  <script src="app-core.js"></script>
   <script>
-    function resolveApiBase() {
-      const params = new URLSearchParams(window.location.search);
-      const apiParam = params.get('api');
-      if (apiParam) {
-        localStorage.setItem('api_url', apiParam);
-        return apiParam;
-      }
-      return localStorage.getItem('api_url') || 'http://localhost:3001';
-    }
-    const API = resolveApiBase();
-
-    function money(v) { return Number(v).toFixed(2).replace('.', ','); }
+    const API = AppCore.resolveApiBase();
+    const CART_ID = AppCore.resolveCartId();
+    const money = AppCore.money;
+    const safeText = AppCore.safeText;
+    const safeImageUrl = AppCore.safeImageUrl;
+    let allProdutosCache = [];
 
     function getLocalCart() {
       try {
@@ -110,6 +143,93 @@
 
     function saveLocalCart(items) {
       localStorage.setItem('cart_items', JSON.stringify(items));
+    }
+
+    function getLoggedClient() {
+      try {
+        const raw = localStorage.getItem('cliente_dados');
+        const token = localStorage.getItem('cliente_token');
+        if (!raw || !token) return null;
+        return JSON.parse(raw);
+      } catch {
+        return null;
+      }
+    }
+
+    function isAdminLogged() {
+      return Boolean(localStorage.getItem('admin_token'));
+    }
+
+    function buildUserMenu() {
+      const menu = document.getElementById('userHubMenu');
+      const client = getLoggedClient();
+      const adminLogged = isAdminLogged();
+      const links = [];
+
+      if (!client) {
+        links.push('<a href="cliente.html">Entrar</a>');
+        links.push('<a href="cadastro.html">Cadastrar</a>');
+      } else {
+        links.push('<a href="cliente.html">Minha conta</a>');
+      }
+
+      links.push('<a href="localizacao.html#quem-somos">Privacidade</a>');
+      if (adminLogged) links.push('<a href="admin.html">Painel administrativo</a>');
+
+      menu.innerHTML = links.join('');
+    }
+
+    function renderUserHub() {
+      const client = getLoggedClient();
+      const adminLogged = isAdminLogged();
+      const avatar = document.getElementById('userHubAvatar');
+      const name = document.getElementById('userHubName');
+      const email = document.getElementById('userHubEmail');
+      const adminAvatar = 'imagens/pagina inicial/fundo-inicial.webp';
+      let profileImage = '';
+      if (client) {
+        const email = String(client.email || '').trim().toLowerCase();
+        const key = email ? `cliente_profile_image_${email}` : 'cliente_profile_image';
+        profileImage =
+          localStorage.getItem(key)
+          || localStorage.getItem('cliente_profile_image')
+          || client.foto
+          || client.imagem
+          || client.avatarUrl
+          || client.picture
+          || '';
+      }
+
+      if (client?.nome) {
+        const first = client.nome.trim().charAt(0).toUpperCase() || 'U';
+        if (profileImage) {
+          const safeProfile = safeImageUrl(profileImage);
+          if (safeProfile) {
+            avatar.innerHTML = `<img src="${safeProfile}" alt="Foto de perfil" class="user-hub-avatar-img">`;
+            avatar.classList.add('has-image');
+          } else {
+            avatar.textContent = first;
+            avatar.classList.remove('has-image');
+          }
+        } else {
+          avatar.textContent = first;
+          avatar.classList.remove('has-image');
+        }
+        name.textContent = client.nome;
+        email.textContent = 'Minha conta • Privacidade';
+      } else if (adminLogged) {
+        avatar.innerHTML = `<img src="${adminAvatar}" alt="Conta administrativa" class="user-hub-avatar-img">`;
+        avatar.classList.add('has-image');
+        name.textContent = 'Administrador';
+        email.textContent = 'Minha conta • Privacidade';
+      } else {
+        avatar.textContent = 'U';
+        avatar.classList.remove('has-image');
+        name.textContent = 'Entrar';
+        email.textContent = 'Login e cadastro';
+      }
+
+      buildUserMenu();
     }
 
     function addLocalCartItem(produtoId, quantidade) {
@@ -128,7 +248,7 @@
       try {
         const res = await fetch(`${API}/carrinho`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'X-Cart-Id': CART_ID },
           body: JSON.stringify({ produtoId, quantidade: 1 })
         });
         if (!res.ok) throw new Error('Falha ao adicionar no carrinho.');
@@ -139,38 +259,141 @@
 
     function renderPromocoes(produtos) {
       const grid = document.getElementById('promocoesGrid');
+      const section = document.getElementById('promoSection');
       grid.innerHTML = '';
 
       if (!produtos || !produtos.length) {
-        const empty = document.createElement('article');
-        empty.className = 'info-card';
-        empty.innerHTML = '<strong>Sem promoções no momento.</strong><p>Cadastre produtos com a opção “Em promoção” no painel admin.</p>';
-        grid.appendChild(empty);
-        return;
+        section.classList.add('is-hidden');
+        return false;
       }
+      section.classList.remove('is-hidden');
 
       produtos.forEach((p) => {
         const card = document.createElement('article');
         card.className = 'promo-card';
-        card.innerHTML = `
-          <span class="badge">Oferta</span>
-          <img src="${p.imagem}" alt="${p.nome}" style="width:100%;max-height:130px;object-fit:cover;border-radius:10px;border:1px solid rgba(0,0,0,0.08);margin:6px 0;">
-          <strong>${p.nome}</strong>
-          <p class="price-line">R$ ${money(p.preco)}<span>/${p.unidade}</span></p>
-          <p>${p.descricaoCurta || ''}</p>
-          <button type="button" onclick="addToCart('${p.id}')">Adicionar</button>
-        `;
+
+        const badge = document.createElement('span');
+        badge.className = 'badge';
+        badge.textContent = 'Oferta';
+
+        const img = document.createElement('img');
+        img.src = safeImageUrl(p.imagem);
+        img.alt = safeText(p.nome);
+        img.className = 'promo-image';
+
+        const name = document.createElement('strong');
+        name.textContent = safeText(p.nome);
+
+        const price = document.createElement('p');
+        price.className = 'price-line';
+        price.textContent = `R$ ${money(p.preco)}`;
+        const unit = document.createElement('span');
+        unit.textContent = `/${safeText(p.unidade)}`;
+        price.appendChild(unit);
+
+        const desc = document.createElement('p');
+        desc.textContent = safeText(p.descricaoCurta);
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'add-circle';
+        btn.setAttribute('aria-label', `Adicionar ${safeText(p.nome)} ao carrinho`);
+        btn.innerHTML = '<span class="cart-glyph" aria-hidden="true">🛒</span>';
+        btn.addEventListener('click', () => addToCart(safeText(p.id)));
+
+        card.append(badge, img, name, price, desc, btn);
         grid.appendChild(card);
+      });
+      return true;
+    }
+
+    function renderDestaques(produtos) {
+      const grid = document.getElementById('destaquesGrid');
+      const section = document.getElementById('destaquesSection');
+      grid.innerHTML = '';
+      const destaques = (produtos || []).filter((p) => p.destaque);
+      if (!destaques.length) {
+        section.classList.add('is-hidden');
+        return false;
+      }
+      section.classList.remove('is-hidden');
+
+      destaques.slice(0, 6).forEach((p) => {
+        const card = document.createElement('article');
+        card.className = 'promo-card';
+
+        const badge = document.createElement('span');
+        badge.className = 'badge';
+        badge.textContent = 'Destaque';
+
+        const img = document.createElement('img');
+        img.src = safeImageUrl(p.imagem);
+        img.alt = safeText(p.nome);
+        img.className = 'promo-image';
+
+        const name = document.createElement('strong');
+        name.textContent = safeText(p.nome);
+
+        const price = document.createElement('p');
+        price.className = 'price-line';
+        price.textContent = `R$ ${money(p.preco)}`;
+        const unit = document.createElement('span');
+        unit.textContent = `/${safeText(p.unidade)}`;
+        price.appendChild(unit);
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'add-circle';
+        btn.setAttribute('aria-label', `Adicionar ${safeText(p.nome)} ao carrinho`);
+        btn.innerHTML = '<span class="cart-glyph" aria-hidden="true">🛒</span>';
+        btn.addEventListener('click', () => addToCart(safeText(p.id)));
+
+        card.append(badge, img, name, price, btn);
+        grid.appendChild(card);
+      });
+      return true;
+    }
+
+    function renderSmartBanner(promocoes, produtos) {
+      const box = document.getElementById('smartBannerText');
+      const now = new Date();
+      const day = now.getDay();
+      const hour = now.getHours();
+      const aberto = day >= 1 && day <= 6 && hour >= 7 && hour < 19;
+      const promos = (promocoes || []).length;
+      const destaques = (produtos || []).filter((p) => p.destaque).length;
+      box.textContent = `${aberto ? 'Loja aberta agora.' : 'Loja fechada no momento.'} ${promos > 0 ? `${promos} ofertas ativas hoje.` : 'Sem ofertas ativas agora.'} ${destaques > 0 ? `${destaques} destaques disponíveis.` : ''} Frete grátis acima de R$ 100,00.`;
+    }
+
+    function setupHomeSearch() {
+      const input = document.getElementById('homeSearchInput');
+      const btn = document.getElementById('homeSearchBtn');
+      function go() {
+        const term = input.value.trim();
+        if (!term) return;
+        const normalized = term.toLowerCase();
+        let setor = 'frutas';
+        const found = allProdutosCache.find((p) => String(p.nome || '').toLowerCase().includes(normalized));
+        if (found?.setor) setor = String(found.setor).toLowerCase();
+        const page = setor === 'folhas' ? 'setor-folhas.html' : (setor === 'legumes' ? 'setor-legumes.html' : 'setor-frutas.html');
+        window.location.href = `${page}?q=${encodeURIComponent(term)}`;
+      }
+      btn.addEventListener('click', go);
+      input.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter') go();
       });
     }
 
     function renderInformacoes(info) {
       const box = document.getElementById('informacoesBox');
-      box.innerHTML = `<strong>${info.titulo || 'Informações'}</strong>`;
+      box.innerHTML = '';
+      const title = document.createElement('strong');
+      title.textContent = safeText(info.titulo || 'Informações');
+      box.appendChild(title);
       const ul = document.createElement('ul');
       (info.itens || []).forEach((item) => {
         const li = document.createElement('li');
-        li.textContent = item;
+        li.textContent = safeText(item);
         ul.appendChild(li);
       });
       box.appendChild(ul);
@@ -178,38 +401,115 @@
 
     function renderFidelidade(data) {
       const box = document.getElementById('fidelidadeBox');
-      box.innerHTML = `
-        <strong>${data.nomePrograma || 'Fidelidade'}</strong>
-        <p>${data.descricao || ''}</p>
-      `;
+      box.innerHTML = '';
+      const title = document.createElement('strong');
+      title.textContent = safeText(data.nomePrograma || 'Fidelidade');
+      const desc = document.createElement('p');
+      desc.textContent = safeText(data.descricao || '');
+      box.append(title, desc);
 
       const ul = document.createElement('ul');
       (data.beneficios || []).forEach((item) => {
         const li = document.createElement('li');
-        li.textContent = item;
+        li.textContent = safeText(item);
         ul.appendChild(li);
       });
       box.appendChild(ul);
     }
 
     async function init() {
-      const [promocoesRes, informacoesRes, fidelidadeRes] = await Promise.all([
-        fetch(`${API}/promocoes`),
-        fetch(`${API}/informacoes`),
-        fetch(`${API}/fidelidade`)
-      ]);
+      renderUserHub();
+      const grid = document.getElementById('promocoesGrid');
+      grid.innerHTML = '<div class="loading-grid"><div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div></div>';
+      try {
+        const [promocoesRes, produtosRes, informacoesRes, fidelidadeRes] = await Promise.all([
+          fetch(`${API}/promocoes`),
+          fetch(`${API}/produtos`),
+          fetch(`${API}/informacoes`),
+          fetch(`${API}/fidelidade`)
+        ]);
 
-      const promocoes = promocoesRes.ok ? await promocoesRes.json() : [];
-      const informacoes = await informacoesRes.json();
-      const fidelidade = await fidelidadeRes.json();
+        const promocoes = promocoesRes.ok ? await promocoesRes.json() : [];
+        const produtos = produtosRes.ok ? await produtosRes.json() : [];
+        allProdutosCache = produtos;
+        const informacoes = informacoesRes.ok ? await informacoesRes.json() : { titulo: 'Informações', itens: ['Conteúdo indisponível no momento.'] };
+        const fidelidade = fidelidadeRes.ok ? await fidelidadeRes.json() : { nomePrograma: 'Fidelidade', descricao: 'Informações temporariamente indisponíveis.', beneficios: [] };
 
-      renderPromocoes(promocoes);
-      renderInformacoes(informacoes);
-      renderFidelidade(fidelidade);
+        renderPromocoes(promocoes);
+        renderDestaques(produtos);
+        renderSmartBanner(promocoes, produtos);
+        renderInformacoes(informacoes);
+        renderFidelidade(fidelidade);
+      } catch (err) {
+        console.error(err);
+        renderPromocoes([]);
+        renderDestaques([]);
+        renderSmartBanner([], []);
+        renderInformacoes({ titulo: 'Informações', itens: ['Não foi possível carregar os dados agora.'] });
+        renderFidelidade({ nomePrograma: 'Fidelidade', descricao: 'Não foi possível carregar os dados agora.', beneficios: [] });
+      }
     }
 
+    let userMenuHideTimer = null;
+    document.getElementById('userHubToggle').addEventListener('click', () => {
+      const client = getLoggedClient();
+      const adminLogged = isAdminLogged();
+      if (!client && !adminLogged) {
+        window.location.href = `cliente.html?api=${encodeURIComponent(API)}`;
+        return;
+      }
+      const menu = document.getElementById('userHubMenu');
+      const btn = document.getElementById('userHubToggle');
+      const isHidden = menu.classList.contains('is-hidden');
+      if (isHidden) {
+        if (userMenuHideTimer) {
+          clearTimeout(userMenuHideTimer);
+          userMenuHideTimer = null;
+        }
+        menu.classList.remove('is-hidden');
+        requestAnimationFrame(() => menu.classList.add('is-open'));
+        btn.setAttribute('aria-expanded', 'true');
+      } else {
+        menu.classList.remove('is-open');
+        userMenuHideTimer = setTimeout(() => {
+          menu.classList.add('is-hidden');
+          userMenuHideTimer = null;
+        }, 180);
+        btn.setAttribute('aria-expanded', 'false');
+      }
+    });
+    document.addEventListener('click', (ev) => {
+      const hub = document.getElementById('userHub');
+      if (hub.contains(ev.target)) return;
+      const menu = document.getElementById('userHubMenu');
+      const btn = document.getElementById('userHubToggle');
+      if (userMenuHideTimer) {
+        clearTimeout(userMenuHideTimer);
+        userMenuHideTimer = null;
+      }
+      menu.classList.remove('is-open');
+      menu.classList.add('is-hidden');
+      btn.setAttribute('aria-expanded', 'false');
+    });
+
+    setupHomeSearch();
     init();
   </script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

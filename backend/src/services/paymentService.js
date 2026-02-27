@@ -4,7 +4,7 @@ const BASE_URL = 'https://api.mercadopago.com';
 
 function ensureToken() {
   if (!MP_ACCESS_TOKEN) {
-    const err = new Error('MP_ACCESS_TOKEN não configurado.');
+    const err = new Error('MP_ACCESS_TOKEN nao configurado.');
     err.status = 500;
     throw err;
   }
@@ -56,7 +56,7 @@ export async function createPreference({ order }) {
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const err = new Error(data.message || 'Erro ao criar preferência no Mercado Pago.');
+    const err = new Error(data.message || 'Erro ao criar preferencia no Mercado Pago.');
     err.status = res.status;
     throw err;
   }

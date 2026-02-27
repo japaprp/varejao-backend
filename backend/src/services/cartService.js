@@ -7,10 +7,23 @@ import {
 import { applyLoyalty } from './loyaltyService.js';
 import { readDb, writeDb } from '../data/repository.js';
 
-const carrinho = [];
+const carts = new Map();
 
-function cartSubtotal() {
-  return carrinho.reduce((sum, item) => sum + (Number(item.preco) * Number(item.quantidade)), 0);
+function resolveCartId(cartId) {
+  const raw = String(cartId || '').trim();
+  return raw || 'default';
+}
+
+function getCart(cartId) {
+  const id = resolveCartId(cartId);
+  if (!carts.has(id)) {
+    carts.set(id, []);
+  }
+  return carts.get(id);
+}
+
+function cartSubtotal(cart) {
+  return cart.reduce((sum, item) => sum + (Number(item.preco) * Number(item.quantidade)), 0);
 }
 
 function calculateFrete(totalBase) {
@@ -18,8 +31,8 @@ function calculateFrete(totalBase) {
   return totalBase >= 100 ? 0 : 30;
 }
 
-export function listCart() {
-  return carrinho;
+export function listCart(cartId) {
+  return getCart(cartId);
 }
 
 export function listOrdersByCpf(cpf) {
@@ -79,7 +92,8 @@ export function updateOrderStatus(id, status) {
   return normalizeOrder(db.pedidos[idx]);
 }
 
-export function addCartItem({ produtoId, produto, quantidade }) {
+export function addCartItem({ produtoId, produto, quantidade }, cartId) {
+  const cart = getCart(cartId);
   const qtd = Number(quantidade);
   if ((!produtoId && !produto) || Number.isNaN(qtd) || qtd <= 0) {
     const err = new Error('Dados invalidos para o carrinho');
@@ -99,7 +113,7 @@ export function addCartItem({ produtoId, produto, quantidade }) {
     throw err;
   }
 
-  carrinho.push({
+  cart.push({
     produtoId: produtoRef.id,
     produto: produtoRef.nome,
     unidade: produtoRef.unidade,
@@ -110,8 +124,9 @@ export function addCartItem({ produtoId, produto, quantidade }) {
   return { sucesso: true };
 }
 
-export function getCheckoutPreview(codigoCupom = '') {
-  const subtotal = cartSubtotal();
+export function getCheckoutPreview(codigoCupom = '', cartId = '') {
+  const cart = getCart(cartId);
+  const subtotal = cartSubtotal(cart);
   let desconto = 0;
   let cupomAplicado = null;
 
@@ -122,7 +137,7 @@ export function getCheckoutPreview(codigoCupom = '') {
   }
 
   return {
-    itens: listCart(),
+    itens: cart,
     subtotal,
     desconto,
     totalBase: Math.max(0, subtotal - desconto),
@@ -143,8 +158,9 @@ function getOrderById(db, orderId) {
   return (db.pedidos || []).find((p) => p.id === orderId);
 }
 
-export function createPendingOrder({ cpf = '', nomeCliente = '', cupom = '' } = {}) {
-  const subtotal = cartSubtotal();
+export function createPendingOrder({ cpf = '', nomeCliente = '', cupom = '', cartId = '' } = {}) {
+  const cart = getCart(cartId);
+  const subtotal = cartSubtotal(cart);
   if (subtotal <= 0) {
     const err = new Error('Carrinho vazio');
     err.status = 400;
@@ -165,7 +181,7 @@ export function createPendingOrder({ cpf = '', nomeCliente = '', cupom = '' } = 
   const order = {
     id: `ped_${Date.now()}`,
     createdAt: new Date().toISOString(),
-    itens: [...carrinho],
+    itens: [...cart],
     subtotal,
     desconto,
     total,
@@ -182,7 +198,7 @@ export function createPendingOrder({ cpf = '', nomeCliente = '', cupom = '' } = 
   db.pedidos.push(order);
   writeDb(db);
 
-  carrinho.length = 0;
+  cart.length = 0;
   return order;
 }
 
@@ -229,8 +245,9 @@ export function finalizePaidOrder(orderId, paymentInfo = {}) {
   return { ...normalizeOrder(order), fidelidade };
 }
 
-export function checkoutCart({ cpf = '', nomeCliente = '', cupom = '' } = {}) {
-  const subtotal = cartSubtotal();
+export function checkoutCart({ cpf = '', nomeCliente = '', cupom = '', cartId = '' } = {}) {
+  const cart = getCart(cartId);
+  const subtotal = cartSubtotal(cart);
   if (subtotal <= 0) {
     const err = new Error('Carrinho vazio');
     err.status = 400;
@@ -253,7 +270,7 @@ export function checkoutCart({ cpf = '', nomeCliente = '', cupom = '' } = {}) {
 
   const db = readDb();
   // Atualiza estoque com base nos itens vendidos
-  for (const item of carrinho) {
+  for (const item of cart) {
     const prod = (db.produtos || []).find((p) => p.id === item.produtoId);
     if (!prod) continue;
     const novoEstoque = Number(prod.estoque || 0) - Number(item.quantidade || 0);
@@ -267,7 +284,7 @@ export function checkoutCart({ cpf = '', nomeCliente = '', cupom = '' } = {}) {
   db.pedidos.push({
     id: `ped_${Date.now()}`,
     createdAt: new Date().toISOString(),
-    itens: [...carrinho],
+    itens: [...cart],
     subtotal,
     desconto,
     total,
@@ -282,7 +299,7 @@ export function checkoutCart({ cpf = '', nomeCliente = '', cupom = '' } = {}) {
 
   const fidelidade = applyLoyalty(cpf, nomeCliente, total);
 
-  carrinho.length = 0;
+  cart.length = 0;
   return {
     sucesso: true,
     mensagem: 'Compra finalizada!',

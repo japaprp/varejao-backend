@@ -3,8 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Painel administrativo do Varejão do Povo para gestão de produtos, estoque, financeiro e pedidos.">
+  <meta property="og:title" content="Varejão do Povo">
+  <meta property="og:description" content="Hortifruti com qualidade, promoções e suporte rápido.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="imagens/pagina inicial/fundo-inicial.webp">
+  <meta property="og:locale" content="pt_BR">
+  <meta name="twitter:card" content="summary_large_image">
   <title>Painel Admin</title>
-  <link rel="stylesheet" href="estilo.css">
+  <link rel="stylesheet" href="estilo.css?v=20260227-15">
 </head>
 <body>
   <header>
@@ -13,29 +20,29 @@
   </header>
 
   <main>
-    <div class="acoes">
+    <div class="acoes page-links">
       <a href="index.html">Início</a>
-      <a href="Setor Frutas.html">Frutas</a>
-      <a href="Setor Legumes.html">Legumes</a>
-      <a href="setor folhas.html">Folhas</a>
+      <a href="setor-frutas.html">Frutas</a>
+      <a href="setor-legumes.html">Legumes</a>
+      <a href="setor-folhas.html">Folhas</a>
     </div>
 
-    <section id="authBox" class="admin-panel" style="margin-bottom:16px;">
+    <section id="authBox" class="admin-panel mb-16">
       <h2>Acesso administrativo</h2>
-      <p>Use: <strong>admin@varejao.com</strong> / <strong>admin123</strong></p>
-      <div class="acoes" style="margin-top:10px;">
-        <input id="loginEmail" placeholder="E-mail" value="admin@varejao.com">
-        <input id="loginSenha" placeholder="Senha" type="password" value="admin123">
+      <p>Use suas credenciais de administrador.</p>
+      <div class="acoes mt-10">
+        <input id="loginEmail" placeholder="E-mail">
+        <input id="loginSenha" placeholder="Senha" type="password">
         <button id="btnLogin" type="button">Entrar</button>
       </div>
     </section>
 
     <p id="statusMsg" class="status-banner" aria-live="polite"></p>
 
-    <section id="adminArea" style="display:none;">
-      <section class="admin-panel" style="margin-bottom:16px;">
-        <div class="acoes" style="justify-content:space-between;align-items:center;">
-          <h2 style="margin:0;">Dashboard de Métricas</h2>
+    <section id="adminArea" class="is-hidden">
+      <section class="admin-panel mb-16">
+        <div class="acoes justify-between items-center">
+          <h2 class="m-0">Dashboard de Métricas</h2>
           <div class="acoes">
             <select id="periodoDash">
               <option value="dia">Dia</option>
@@ -43,19 +50,20 @@
               <option value="mes" selected>Mês</option>
               <option value="ano">Ano</option>
             </select>
-            <button type="button" onclick="carregarDashboard()">Atualizar</button>
+            <button type="button" id="btnAtualizarDash">Atualizar</button>
+            <button type="button" id="btnLogoutAdmin" class="is-hidden">Sair</button>
           </div>
         </div>
 
-        <div id="metricasGrid" class="carousel-row" style="margin-top:12px;"></div>
+        <div id="metricasGrid" class="carousel-row mt-12"></div>
 
-        <section class="admin-panel" style="margin-top:12px;">
+        <section class="admin-panel mt-12">
           <h3>Assistente de Performance</h3>
           <p>Leituras automáticas para orientar decisões de vendas.</p>
           <ul id="insightsList"></ul>
         </section>
 
-        <div class="admin-layout" style="margin-top:12px;">
+        <div class="admin-layout mt-12">
           <div class="admin-table-wrap">
             <h3>Série (Entradas/Saídas/Lucro)</h3>
             <table class="admin-table">
@@ -73,14 +81,14 @@
           </div>
         </div>
 
-        <section class="admin-panel" style="margin-top:12px;">
+        <section class="admin-panel mt-12">
           <h3>Gráfico de Performance</h3>
           <p>Entradas, frete e saídas por período.</p>
           <canvas id="chartPerformance" width="900" height="260"></canvas>
         </section>
       </section>
 
-      <section class="admin-layout" style="margin-bottom:16px;">
+      <section class="admin-layout mb-16">
         <aside class="admin-panel">
           <h2>Lançar Saída</h2>
           <form id="saidaForm">
@@ -93,7 +101,7 @@
 
         <section class="admin-table-wrap">
           <h2>Saídas Financeiras</h2>
-          <div class="acoes" style="margin-bottom:8px;">
+          <div class="acoes mb-8">
             <button type="button" id="btnExportSaidas">Exportar CSV</button>
           </div>
           <table class="admin-table">
@@ -103,7 +111,7 @@
         </section>
       </section>
 
-      <section class="admin-layout" style="margin-bottom:16px;">
+      <section class="admin-layout mb-16">
         <aside class="admin-panel">
           <h2>Entrada de Estoque (Caixas)</h2>
           <form id="entradaForm">
@@ -126,7 +134,7 @@
         </section>
       </section>
 
-      <section class="admin-layout" style="margin-bottom:16px;">
+      <section class="admin-layout mb-16">
         <aside class="admin-panel">
           <h2>Saída por Perdas</h2>
           <form id="perdaForm">
@@ -143,7 +151,7 @@
 
         <section class="admin-table-wrap">
           <h2>Histórico de Perdas</h2>
-          <div class="acoes" style="margin-bottom:8px;">
+          <div class="acoes mb-8">
             <button type="button" id="btnExportPerdas">Exportar CSV</button>
           </div>
           <table class="admin-table">
@@ -153,9 +161,9 @@
         </section>
       </section>
 
-      <section class="admin-table-wrap" style="margin-bottom:16px;">
+      <section class="admin-table-wrap mb-16">
         <h2>Giro de Estoque</h2>
-        <div class="acoes" style="margin-bottom:8px;">
+        <div class="acoes mb-8">
           <button type="button" id="btnExportGiro">Exportar CSV</button>
         </div>
         <table class="admin-table">
@@ -164,9 +172,9 @@
         </table>
       </section>
 
-      <section class="admin-table-wrap" style="margin-bottom:16px;">
+      <section class="admin-table-wrap mb-16">
         <h2>Alertas de Estoque Baixo</h2>
-        <div class="acoes" style="margin-bottom:8px;">
+        <div class="acoes mb-8">
           <input id="limiteEstoque" type="number" step="0.01" min="0" placeholder="Limite (ex: 10)">
           <button type="button" id="btnEstoqueBaixo">Atualizar</button>
           <button type="button" id="btnExportEstoqueBaixo">Exportar CSV</button>
@@ -177,9 +185,9 @@
         </table>
       </section>
 
-      <section class="admin-table-wrap" style="margin-bottom:16px;">
+      <section class="admin-table-wrap mb-16">
         <h2>Pedidos Recentes</h2>
-        <div class="acoes" style="margin-bottom:8px;">
+        <div class="acoes mb-8">
           <input id="filtroCpf" placeholder="CPF">
           <input id="filtroDataInicio" type="date">
           <input id="filtroDataFim" type="date">
@@ -219,8 +227,12 @@
               <option value="folhas">Folhas</option>
             </select>
             <input id="preco" type="number" step="0.01" min="0" placeholder="Preço" required>
-            <select id="unidade" required><option value="kg">kg</option><option value="un">un</option></select>
-            <div class="admin-layout" style="grid-template-columns: 1fr 1fr; gap:10px;">
+            <label for="unidade">Unidade de venda</label>
+            <select id="unidade" required>
+              <option value="kg">kg</option>
+              <option value="bandeja">bandeja</option>
+            </select>
+            <div class="admin-layout grid-cols-2">
               <input id="caixasQtd" type="number" min="0" placeholder="Quantidade de caixas">
               <input id="pesoPorCaixa" type="number" step="0.01" min="0" placeholder="Peso por caixa (kg)">
               <input id="pesoCaixaMin" type="number" step="0.01" min="0" placeholder="Peso caixa mín (kg)">
@@ -230,10 +242,11 @@
               <input id="estoque" type="number" min="0" placeholder="Estoque calculado" required readonly>
             </div>
             <small id="estimativaUnidades" class="status-banner status-info"></small>
-            <label>Imagem do produto</label>
+            <label for="imagemFile">Imagem do produto (arquivo da sua máquina)</label>
             <input id="imagemFile" type="file" accept="image/*">
+            <small class="status-banner status-muted">Você pode selecionar a foto do produto no seu computador.</small>
             <input id="imagem" placeholder="Ou caminho da imagem (opcional)">
-            <img id="previewImagem" alt="Prévia" style="display:none;max-width:100%;border-radius:10px;border:1px solid #ddd;">
+            <img id="previewImagem" alt="Prévia" class="img-preview">
             <input id="selo" placeholder="Selo (ex: 500g aprox. 2-3 un)">
             <textarea id="descricaoCurta" rows="3" placeholder="Descrição curta"></textarea>
             <label><input type="checkbox" id="promocao"> Em promoção</label>
@@ -260,23 +273,16 @@
     </section>
   </main>
 
+  <script src="app-core.js"></script>
   <script>
-    function resolveApiBase() {
-      const params = new URLSearchParams(window.location.search);
-      const apiParam = params.get('api');
-      if (apiParam) {
-        localStorage.setItem('api_url', apiParam);
-        return apiParam;
-      }
-      return localStorage.getItem('api_url') || 'http://localhost:3001';
-    }
-    const API = resolveApiBase();
+    const API = AppCore.resolveApiBase();
     let authToken = localStorage.getItem('admin_token') || '';
     let imagemDataUrl = '';
 
     function authHeaders() { return { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` }; }
     function money(v) { return Number(v || 0).toFixed(2).replace('.', ','); }
     function showStatus(msg, type='status-info'){ const el=document.getElementById('statusMsg'); el.textContent=msg; el.className=`status-banner ${type}`; }
+    function esc(v){ return String(v ?? '').replace(/[&<>"']/g, (m)=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
 
     async function fileToDataUrl(file){ return new Promise((ok,err)=>{ const r=new FileReader(); r.onload=()=>ok(String(r.result||'')); r.onerror=err; r.readAsDataURL(file);}); }
     async function uploadImagem(file){
@@ -380,11 +386,11 @@
       produtosCache = produtos;
       const selectEntrada = document.getElementById('entradaProduto');
       if (selectEntrada) {
-        selectEntrada.innerHTML = produtos.map(p=>`<option value="${p.id}">${p.nome}</option>`).join('');
+        selectEntrada.innerHTML = produtos.map(p=>`<option value="${esc(p.id)}">${esc(p.nome)}</option>`).join('');
       }
       const selectPerda = document.getElementById('perdaProduto');
       if (selectPerda) {
-        selectPerda.innerHTML = produtos.map(p=>`<option value="${p.id}">${p.nome}</option>`).join('');
+        selectPerda.innerHTML = produtos.map(p=>`<option value="${esc(p.id)}">${esc(p.nome)}</option>`).join('');
       }
       const tbody=document.getElementById('produtosTableBody'); tbody.innerHTML='';
       produtos.forEach(p=>{
@@ -392,7 +398,7 @@
         const estimativa = (p.pesoCaixaMin && p.pesoCaixaMax && p.pesoMedioUnidade)
           ? `${Math.floor((p.pesoCaixaMin*1000)/p.pesoMedioUnidade)}–${Math.floor((p.pesoCaixaMax*1000)/p.pesoMedioUnidade)} un/caixa`
           : (p.unidadesPorCaixa ? `${p.unidadesPorCaixa} un/caixa` : '');
-        tr.innerHTML=`<td>${p.nome}</td><td>${p.setor}</td><td>R$ ${money(p.preco)}</td><td>${p.unidade}</td><td>${p.estoque ?? 0}</td><td>${estimativa}</td><td>${p.promocao?'Sim':'Não'}</td><td class="admin-actions"><button type="button" data-edit="${p.id}">Editar</button><button type="button" data-del="${p.id}">Excluir</button></td>`;
+        tr.innerHTML=`<td>${esc(p.nome)}</td><td>${esc(p.setor)}</td><td>R$ ${money(p.preco)}</td><td>${esc(p.unidade)}</td><td>${esc(p.estoque ?? 0)}</td><td>${esc(estimativa)}</td><td>${p.promocao?'Sim':'Não'}</td><td class="admin-actions"><button type="button" data-edit="${esc(p.id)}">Editar</button><button type="button" data-del="${esc(p.id)}">Excluir</button></td>`;
         tbody.appendChild(tr);
       });
       tbody.querySelectorAll('[data-edit]').forEach(btn=>btn.addEventListener('click',()=>{ const id=btn.getAttribute('data-edit'); const p=produtos.find(x=>x.id===id); if(p) preencherForm(p); }));
@@ -430,16 +436,16 @@
         ['Ticket Médio',`R$ ${money(resumo.ticketMedio)}`]
       ];
       const grid=document.getElementById('metricasGrid'); grid.innerHTML='';
-      cards.forEach(c=>{ const el=document.createElement('article'); el.className='promo-card'; el.innerHTML=`<small>${c[0]}</small><strong>${c[1]}</strong>`; grid.appendChild(el); });
+      cards.forEach(c=>{ const el=document.createElement('article'); el.className='promo-card metric-card'; el.innerHTML=`<small>${c[0]}</small><strong>${c[1]}</strong>`; grid.appendChild(el); });
 
       renderInsights(resumo, top);
       renderChart(series);
 
       const sbody=document.getElementById('seriesBody'); sbody.innerHTML='';
-      series.forEach(r=>{ const tr=document.createElement('tr'); tr.innerHTML=`<td>${r.label}</td><td>R$ ${money(r.entrada)}</td><td>R$ ${money(r.frete)}</td><td>R$ ${money(r.saida)}</td><td>R$ ${money(r.lucro)}</td>`; sbody.appendChild(tr); });
+      series.forEach(r=>{ const tr=document.createElement('tr'); tr.innerHTML=`<td>${esc(r.label)}</td><td>R$ ${money(r.entrada)}</td><td>R$ ${money(r.frete)}</td><td>R$ ${money(r.saida)}</td><td>R$ ${money(r.lucro)}</td>`; sbody.appendChild(tr); });
 
       const tbody=document.getElementById('topBody'); tbody.innerHTML='';
-      top.forEach(r=>{ const tr=document.createElement('tr'); tr.innerHTML=`<td>${r.produto}</td><td>${r.quantidade.toFixed(2)} ${r.unidade}</td><td>R$ ${money(r.faturamento)}</td>`; tbody.appendChild(tr); });
+      top.forEach(r=>{ const tr=document.createElement('tr'); tr.innerHTML=`<td>${esc(r.produto)}</td><td>${Number(r.quantidade || 0).toFixed(2)} ${esc(r.unidade)}</td><td>R$ ${money(r.faturamento)}</td>`; tbody.appendChild(tr); });
     }
 
     function renderChart(series){
@@ -547,7 +553,7 @@
       list.forEach(e=>{
         const dt=new Date(e.data);
         const tr=document.createElement('tr');
-        tr.innerHTML=`<td>${dt.toLocaleDateString('pt-BR')}</td><td>${e.produto}</td><td>${e.caixasQtd}</td><td>${e.quantidade} ${e.unidade}</td>`;
+        tr.innerHTML=`<td>${dt.toLocaleDateString('pt-BR')}</td><td>${esc(e.produto)}</td><td>${esc(e.caixasQtd)}</td><td>${esc(e.quantidade)} ${esc(e.unidade)}</td>`;
         body.appendChild(tr);
       });
     }
@@ -559,7 +565,7 @@
       list.forEach(e=>{
         const dt=new Date(e.data);
         const tr=document.createElement('tr');
-        tr.innerHTML=`<td>${dt.toLocaleDateString('pt-BR')}</td><td>${e.produto}</td><td>${e.quantidade} ${e.unidade}</td><td>${e.motivo}</td>`;
+        tr.innerHTML=`<td>${dt.toLocaleDateString('pt-BR')}</td><td>${esc(e.produto)}</td><td>${esc(e.quantidade)} ${esc(e.unidade)}</td><td>${esc(e.motivo)}</td>`;
         body.appendChild(tr);
       });
     }
@@ -587,7 +593,7 @@
       const body=document.getElementById('giroBody'); body.innerHTML='';
       list.forEach(e=>{
         const tr=document.createElement('tr');
-        tr.innerHTML=`<td>${e.produto}</td><td>${e.entrada.toFixed(2)}</td><td>${e.saidaVenda.toFixed(2)}</td><td>${e.perda.toFixed(2)}</td><td>${e.saidaTotal.toFixed(2)}</td>`;
+        tr.innerHTML=`<td>${esc(e.produto)}</td><td>${Number(e.entrada || 0).toFixed(2)}</td><td>${Number(e.saidaVenda || 0).toFixed(2)}</td><td>${Number(e.perda || 0).toFixed(2)}</td><td>${Number(e.saidaTotal || 0).toFixed(2)}</td>`;
         body.appendChild(tr);
       });
     }
@@ -599,7 +605,7 @@
       const body=document.getElementById('estoqueBaixoBody'); body.innerHTML='';
       list.forEach(p=>{
         const tr=document.createElement('tr');
-        tr.innerHTML=`<td>${p.nome}</td><td>${p.estoque ?? 0}</td><td>${p.unidade || ''}</td>`;
+        tr.innerHTML=`<td>${esc(p.nome)}</td><td>${esc(p.estoque ?? 0)}</td><td>${esc(p.unidade || '')}</td>`;
         body.appendChild(tr);
       });
     }
@@ -632,7 +638,7 @@
       list.forEach(s=>{
         const dt=new Date(s.data);
         const tr=document.createElement('tr');
-        tr.innerHTML=`<td>${dt.toLocaleDateString('pt-BR')}</td><td>${s.descricao}</td><td>${s.categoria||''}</td><td>R$ ${money(s.valor)}</td><td><button type="button" data-del-saida="${s.id}">Excluir</button></td>`;
+        tr.innerHTML=`<td>${dt.toLocaleDateString('pt-BR')}</td><td>${esc(s.descricao)}</td><td>${esc(s.categoria||'')}</td><td>R$ ${money(s.valor)}</td><td><button type="button" data-del-saida="${esc(s.id)}">Excluir</button></td>`;
         body.appendChild(tr);
       });
       body.querySelectorAll('[data-del-saida]').forEach(btn=>btn.addEventListener('click',async()=>{
@@ -680,7 +686,7 @@
             <option value="Cancelado"${p.status==='Cancelado'?' selected':''}>Cancelado</option>
           </select>
         `;
-        tr.innerHTML=`<td>${dt.toLocaleDateString('pt-BR')}</td><td>${(p.itens||[]).length}</td><td>R$ ${money(p.frete||0)}</td><td>R$ ${money(p.total||0)}</td><td>${statusSelect}</td><td>${p.cpf||''}</td><td>${p.nomeCliente||''}</td><td><button type="button" data-save-status="${p.id}">Salvar</button></td>`;
+        tr.innerHTML=`<td>${dt.toLocaleDateString('pt-BR')}</td><td>${(p.itens||[]).length}</td><td>R$ ${money(p.frete||0)}</td><td>R$ ${money(p.total||0)}</td><td>${statusSelect}</td><td>${esc(p.cpf||'')}</td><td>${esc(p.nomeCliente||'')}</td><td><button type="button" data-save-status="${esc(p.id)}">Salvar</button></td>`;
         body.appendChild(tr);
       });
 
@@ -723,9 +729,9 @@
       const res=await fetch(`${API}/auth/login`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,senha})});
       const body=await res.json().catch(()=>({}));
       if(!res.ok){showStatus(body.erro||'Falha no login.','status-error');return;}
-      authToken=body.token; localStorage.setItem('admin_token',authToken);
-      document.getElementById('adminArea').style.display='block';
-      document.getElementById('authBox').style.display='none';
+      authToken=body.token;
+      localStorage.setItem('admin_token',authToken);
+      setAdminSessionUI(true);
       showStatus('Login efetuado com sucesso.','status-success');
       await carregarProdutos();
       await carregarSaidas();
@@ -735,6 +741,29 @@
       await carregarEstoqueBaixo();
       await carregarPedidos();
       await carregarDashboard();
+    }
+
+    function setAdminSessionUI(logged) {
+      const adminArea = document.getElementById('adminArea');
+      const authBox = document.getElementById('authBox');
+      const btnLogout = document.getElementById('btnLogoutAdmin');
+      if (logged) {
+        adminArea.style.display='block';
+        authBox.style.display='none';
+        btnLogout.classList.remove('is-hidden');
+      } else {
+        adminArea.style.display='none';
+        authBox.style.display='block';
+        btnLogout.classList.add('is-hidden');
+      }
+    }
+
+    function logoutAdmin() {
+      authToken = '';
+      localStorage.removeItem('admin_token');
+      setAdminSessionUI(false);
+      showStatus('Sessão encerrada.', 'status-info');
+      document.getElementById('loginSenha').value = '';
     }
 
     document.getElementById('produtoForm').addEventListener('submit',salvarProduto);
@@ -750,7 +779,9 @@
     document.getElementById('perdaForm').addEventListener('submit',salvarPerdaEstoque);
     document.getElementById('btnCancelar').addEventListener('click',resetForm);
     document.getElementById('btnLogin').addEventListener('click',loginAdmin);
+    document.getElementById('btnLogoutAdmin').addEventListener('click',logoutAdmin);
     document.getElementById('periodoDash').addEventListener('change',carregarDashboard);
+    document.getElementById('btnAtualizarDash').addEventListener('click',carregarDashboard);
     async function downloadCsv(path, filename){
       const res = await fetch(`${API}${path}`, { headers: { Authorization:`Bearer ${authToken}` } });
       if(!res.ok){ showStatus('Falha ao exportar CSV.','status-error'); return; }
@@ -788,12 +819,18 @@
       }
     });
 
+    document.querySelectorAll('input, select, textarea').forEach((el) => {
+      if (el.getAttribute('aria-label')) return;
+      const placeholder = el.getAttribute('placeholder');
+      const fallback = placeholder || el.id || 'campo';
+      el.setAttribute('aria-label', fallback);
+    });
+
     (async function bootstrap(){
       if(!authToken) return;
       const res=await fetch(`${API}/auth/me`,{headers:{Authorization:`Bearer ${authToken}`}});
       if(res.ok){
-        document.getElementById('adminArea').style.display='block';
-        document.getElementById('authBox').style.display='none';
+        setAdminSessionUI(true);
         await carregarProdutos();
         await carregarSaidas();
         await carregarEntradasEstoque();
@@ -802,17 +839,40 @@
         await carregarEstoqueBaixo();
         await carregarPedidos();
         await carregarDashboard();
+      } else {
+        logoutAdmin();
       }
     })();
   </script>
+  <a class="whatsapp-float" href="https://wa.me/5516992596614?text=Ol%C3%A1%2C%20preciso%20de%20suporte%20no%20Varej%C3%A3o%20do%20Povo." target="_blank" rel="noopener noreferrer" aria-label="Suporte via WhatsApp">WhatsApp</a>
   <footer class="centralizar">
     <h4>Varejão do Povo</h4>
     <p>Av. Cásper Líbero, 376, Ribeirão Preto - SP</p>
     <p>WhatsApp: (16) 99259-6614 • Seg a Sáb 07:00 às 19:00</p>
+    <div class="author-credit">Desenvolvido por <strong>Yago Fellipe Amorim</strong> • Interesse em contratar: <a href="https://wa.me/5516991145034?text=Ol%C3%A1%2C%20Yago%2C%20vi%20seu%20site%20e%20quero%20falar%20sobre%20um%20projeto." target="_blank" rel="noopener noreferrer">falar no WhatsApp</a></div>
     <div class="social-links">
+      <a href="https://wa.me/5516992596614?text=Ol%C3%A1%2C%20preciso%20de%20suporte%20no%20Varej%C3%A3o%20do%20Povo." target="_blank" rel="noopener noreferrer">WhatsApp</a>
       <a href="https://www.facebook.com/people/Varejao-do-Povo/100043319426102/" target="_blank" rel="noopener noreferrer">Facebook</a>
       <a href="#" class="is-disabled" aria-disabled="true" tabindex="-1">Instagram (em breve)</a>
     </div>
   </footer></body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

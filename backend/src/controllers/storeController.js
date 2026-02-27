@@ -17,7 +17,14 @@ import {
 } from '../services/cartService.js';
 import { getFidelidade, getInformacoes, getPromocoes } from '../services/contentService.js';
 import { getLoyaltyByCpf } from '../services/loyaltyService.js';
-import { loginUser, registerUser } from '../services/authService.js';
+import {
+  getFacebookAuthConfig,
+  getGoogleAuthConfig,
+  loginUser,
+  loginWithFacebookToken,
+  loginWithGoogleToken,
+  registerUser
+} from '../services/authService.js';
 import { validateCoupon } from '../services/couponService.js';
 import { createSaida, deleteSaida, listSaidas } from '../services/financeService.js';
 import {
@@ -35,6 +42,10 @@ import {
   getTopProdutos
 } from '../services/analyticsService.js';
 import { createPreference, getPayment } from '../services/paymentService.js';
+
+function getCartId(req) {
+  return req.headers['x-cart-id'] || req.query.cartId || req.body?.cartId || '';
+}
 
 export function uploadImagemController(req, res) {
   if (!req.file) {
@@ -56,6 +67,32 @@ export function register(req, res, next) {
 export function login(req, res, next) {
   try {
     const result = loginUser(req.body || {});
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export function getGoogleAuthConfigController(req, res) {
+  res.json(getGoogleAuthConfig());
+}
+
+export async function loginGoogle(req, res, next) {
+  try {
+    const result = await loginWithGoogleToken(req.body || {});
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export function getFacebookAuthConfigController(req, res) {
+  res.json(getFacebookAuthConfig());
+}
+
+export async function loginFacebook(req, res, next) {
+  try {
+    const result = await loginWithFacebookToken(req.body || {});
     res.json(result);
   } catch (error) {
     next(error);
@@ -110,7 +147,7 @@ export function removeProduto(req, res) {
 
 export function postCarrinho(req, res, next) {
   try {
-    const result = addCartItem(req.body);
+    const result = addCartItem(req.body, getCartId(req));
     res.json(result);
   } catch (error) {
     next(error);
@@ -118,13 +155,13 @@ export function postCarrinho(req, res, next) {
 }
 
 export function getCarrinho(req, res) {
-  res.json(listCart());
+  res.json(listCart(getCartId(req)));
 }
 
 export function getCheckout(req, res, next) {
   try {
     const cupom = req.query.cupom || '';
-    res.json(getCheckoutPreview(cupom));
+    res.json(getCheckoutPreview(cupom, getCartId(req)));
   } catch (error) {
     next(error);
   }
@@ -132,7 +169,7 @@ export function getCheckout(req, res, next) {
 
 export function postFinalizar(req, res, next) {
   try {
-    res.json(checkoutCart(req.body || {}));
+    res.json(checkoutCart({ ...(req.body || {}), cartId: getCartId(req) }));
   } catch (error) {
     next(error);
   }
@@ -140,7 +177,7 @@ export function postFinalizar(req, res, next) {
 
 export async function postPagamentoPreferencia(req, res, next) {
   try {
-    const order = createPendingOrder(req.body || {});
+    const order = createPendingOrder({ ...(req.body || {}), cartId: getCartId(req) });
     const preference = await createPreference({ order });
     res.status(201).json({
       preferenceId: preference.id,

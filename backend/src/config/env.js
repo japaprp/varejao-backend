@@ -3,3 +3,7 @@ export const MP_ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN || '';
 export const MP_PUBLIC_KEY = process.env.MP_PUBLIC_KEY || '';
 export const FRONTEND_URL = process.env.FRONTEND_URL || '';
 export const MP_WEBHOOK_URL = process.env.MP_WEBHOOK_URL || '';
+export const CORS_ALLOWED_ORIGINS = process.env.CORS_ALLOWED_ORIGINS || FRONTEND_URL || '';
+export const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
+export const FACEBOOK_APP_ID = process.env.FACEBOOK_APP_ID || '';
+export const FACEBOOK_APP_SECRET = process.env.FACEBOOK_APP_SECRET || '';

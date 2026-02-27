@@ -19,6 +19,10 @@ Sistema de compras online com front-end em HTML/CSS/JS e back-end em Node.js/Exp
    - `MP_PUBLIC_KEY`
    - `FRONTEND_URL` (URL publica do site)
    - `MP_WEBHOOK_URL` (`https://SEU_BACKEND.onrender.com/pagamento/webhook`)
+   - `CORS_ALLOWED_ORIGINS` (lista separada por virgula com os dominios permitidos)
+   - `GOOGLE_CLIENT_ID` (OAuth Client ID do Google para login social)
+   - `FACEBOOK_APP_ID` (App ID do Facebook Login)
+   - `FACEBOOK_APP_SECRET` (App Secret do Facebook Login)
 7. Salve e aguarde o deploy.
 
 Ao finalizar, o Render fornece a URL do backend, por exemplo:
@@ -44,6 +48,10 @@ MP_ACCESS_TOKEN=SEU_ACCESS_TOKEN
 MP_PUBLIC_KEY=SEU_PUBLIC_KEY
 FRONTEND_URL=https://seusite.com
 MP_WEBHOOK_URL=https://varejao-backend.onrender.com/pagamento/webhook
+CORS_ALLOWED_ORIGINS=https://seusite.com
+GOOGLE_CLIENT_ID=SEU_GOOGLE_CLIENT_ID
+FACEBOOK_APP_ID=SEU_FACEBOOK_APP_ID
+FACEBOOK_APP_SECRET=SEU_FACEBOOK_APP_SECRET
 ```
 
 ## Rodar local

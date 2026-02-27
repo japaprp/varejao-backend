@@ -1,0 +1,284 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Setor de folhas do Varejão do Povo com filtros inteligentes e compra rápida por kg ou bandeja.">
+  <meta property="og:title" content="Varejão do Povo">
+  <meta property="og:description" content="Hortifruti com qualidade, promoções e suporte rápido.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="imagens/pagina inicial/fundo-inicial.webp">
+  <meta property="og:locale" content="pt_BR">
+  <meta name="twitter:card" content="summary_large_image">
+  <title>Folhas</title>
+  <link rel="stylesheet" type="text/css" href="estilo.css?v=20260227-15">
+</head>
+<body>
+  <header>
+    <h1>Setor de Folhas</h1>
+    <p>Qualidade premium para seu varejão e seus clientes.</p>
+  </header>
+
+  <main class="page-shell">
+    <div class="acoes page-links">
+      <a href="index.html">Início</a>
+    </div>
+
+    <div class="catalog-tools">
+      <div class="search-box">
+        <input id="searchInput" placeholder="Buscar folha...">
+        <select id="sortSelect">
+          <option value="destaque">Ordenar: destaque</option>
+          <option value="preco-asc">Menor preço</option>
+          <option value="preco-desc">Maior preço</option>
+          <option value="nome">Nome A-Z</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <button type="button" data-filter="all" class="is-active">Todos</button>
+        <button type="button" data-filter="promocao">Promoções</button>
+        <button type="button" data-filter="destaque">Destaques</button>
+      </div>
+      <div class="cart-mini" id="miniCart">Carregando resumo...</div>
+    </div>
+
+    <p id="statusMsg" class="status-banner" aria-live="polite"></p>
+    <section id="gridProdutos" class="items-container" aria-label="Lista de folhas"></section>
+  </main>
+
+  <script src="app-core.js"></script>
+  <script>
+    const API = AppCore.resolveApiBase();
+    const CART_ID = AppCore.resolveCartId();
+    const money = AppCore.money;
+    function getStep(unidade) { return unidade === 'kg' ? 0.5 : 1; }
+
+    function changeQty(displayEl, unidade, delta) {
+      const step = getStep(unidade);
+      const current = Number(displayEl.dataset.value || step);
+      const next = Math.max(step, current + delta);
+      displayEl.dataset.value = String(next);
+      displayEl.textContent = unidade === 'kg'
+        ? `${next.toFixed(1)} kg`
+        : `${Math.round(next)} ${unidade === 'bandeja' ? 'bandeja' : 'un'}`;
+    }
+
+    function getLocalCart() {
+      try {
+        return JSON.parse(localStorage.getItem('cart_items') || '[]');
+      } catch {
+        return [];
+      }
+    }
+
+    function saveLocalCart(items) {
+      localStorage.setItem('cart_items', JSON.stringify(items));
+    }
+
+    function addLocalCartItem(produto, qtd) {
+      const items = getLocalCart();
+      const existing = items.find((i) => i.produtoId === produto.id);
+      if (existing) {
+        existing.quantidade = Number(existing.quantidade || 0) + Number(qtd || 0);
+      } else {
+        items.push({ produtoId: produto.id, quantidade: Number(qtd || 0) });
+      }
+      saveLocalCart(items);
+    }
+
+    async function addToCart(produto, qtd) {
+      const status = document.getElementById('statusMsg');
+      try {
+        addLocalCartItem(produto, qtd);
+        const res = await fetch(`${API}/carrinho`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Cart-Id': CART_ID },
+          body: JSON.stringify({ produtoId: produto.id, quantidade: qtd })
+        });
+        if (!res.ok) throw new Error('Não foi possível adicionar no carrinho.');
+        status.textContent = `${produto.nome} adicionado (${qtd} ${produto.unidade}).`;
+        status.className = 'status-banner status-success';
+        await updateMiniCart();
+      } catch (err) {
+        status.textContent = err.message;
+        status.className = 'status-banner status-error';
+      }
+    }
+
+    let allProdutos = [];
+    let filtroAtual = 'all';
+
+    function renderProdutos(produtos) {
+      const grid = document.getElementById('gridProdutos');
+      grid.innerHTML = '';
+
+      if (!produtos.length) {
+        const empty = document.createElement('article');
+        empty.className = 'ui-state-card';
+        empty.innerHTML = '<strong>Nenhum produto encontrado.</strong><p>Ajuste os filtros ou tente outra busca.</p>';
+        grid.appendChild(empty);
+        return;
+      }
+
+      produtos.forEach((produto) => {
+        const card = document.createElement('article');
+        card.className = 'promo-card setor-card';
+
+        const selo = document.createElement('span');
+        selo.className = 'badge';
+        selo.textContent = produto.selo || (produto.unidade === 'kg' ? 'Venda por kg' : `Venda por ${produto.unidade || 'unidade'}`);
+
+        const img = document.createElement('img');
+        img.src = produto.imagem;
+        img.alt = produto.nome;
+        img.width = 130;
+        img.height = 100;
+
+        const price = document.createElement('div');
+        price.className = 'price-line';
+        price.innerHTML = `R$ ${money(produto.preco)}<span>/${produto.unidade}</span>`;
+
+        const nome = document.createElement('strong');
+        nome.textContent = produto.nome;
+
+        const desc = String(produto.descricaoCurta || '').trim();
+
+        const control = document.createElement('div');
+        control.className = 'qty-control';
+
+        const minus = document.createElement('button');
+        minus.type = 'button';
+        minus.textContent = '-';
+
+        const display = document.createElement('div');
+        display.className = 'qty-display';
+        const initial = getStep(produto.unidade);
+        display.dataset.value = String(initial);
+        display.textContent = produto.unidade === 'kg'
+          ? `${initial.toFixed(1)} kg`
+          : `${initial} ${produto.unidade === 'bandeja' ? 'bandeja' : 'un'}`;
+
+        const plus = document.createElement('button');
+        plus.type = 'button';
+        plus.textContent = '+';
+
+        minus.addEventListener('click', () => changeQty(display, produto.unidade, -getStep(produto.unidade)));
+        plus.addEventListener('click', () => changeQty(display, produto.unidade, getStep(produto.unidade)));
+
+        control.append(minus, display, plus);
+
+        const addBtn = document.createElement('button');
+        addBtn.type = 'button';
+        addBtn.className = 'add-circle';
+        addBtn.setAttribute('aria-label', `Adicionar ${produto.nome} ao carrinho`);
+        addBtn.innerHTML = '<span class="cart-glyph" aria-hidden="true">🛒</span>';
+        addBtn.addEventListener('click', () => addToCart(produto, Number(display.dataset.value)));
+
+        card.append(selo, img, nome, price);
+        if (desc) {
+          const meta = document.createElement('div');
+          meta.className = 'meta-line';
+          meta.textContent = desc;
+          card.append(meta);
+        }
+        card.append(control, addBtn);
+        grid.appendChild(card);
+      });
+    }
+
+    function applyFilters() {
+      const termo = document.getElementById('searchInput').value.trim().toLowerCase();
+      const sort = document.getElementById('sortSelect').value;
+      let lista = allProdutos.filter((p) => p.nome.toLowerCase().includes(termo));
+
+      if (filtroAtual === 'promocao') lista = lista.filter((p) => p.promocao);
+      if (filtroAtual === 'destaque') lista = lista.filter((p) => p.destaque);
+
+      if (sort === 'preco-asc') lista.sort((a, b) => a.preco - b.preco);
+      if (sort === 'preco-desc') lista.sort((a, b) => b.preco - a.preco);
+      if (sort === 'nome') lista.sort((a, b) => a.nome.localeCompare(b.nome));
+      if (sort === 'destaque') lista.sort((a, b) => (b.destaque === true) - (a.destaque === true));
+
+      renderProdutos(lista);
+    }
+
+    async function updateMiniCart() {
+      const box = document.getElementById('miniCart');
+      try {
+        const res = await fetch(`${API}/checkout`, { headers: { 'X-Cart-Id': CART_ID } });
+        if (!res.ok) throw new Error('Falha no resumo.');
+        const data = await res.json();
+        const totalBase = Number(data.totalBase || data.total || 0);
+        const frete = Number(data.frete || 0);
+        const total = Number(data.total || 0);
+        const itens = (data.itens || []).length;
+        const freteMsg = totalBase >= 100 ? 'Frete grátis' : `Frete R$ ${money(frete)}`;
+        const checkoutLink = itens > 0 ? ' • <a href="Pagamento.html" class="mini-checkout-link">Finalizar compra</a>' : '';
+        box.innerHTML = `<strong>${itens} itens</strong> • ${freteMsg} • Total R$ ${money(total)}${checkoutLink}`;
+      } catch (err) {
+        box.textContent = 'Resumo indisponível.';
+      }
+    }
+
+    async function init() {
+      const grid = document.getElementById('gridProdutos');
+      grid.innerHTML = '<div class="loading-grid"><div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div></div>';
+      try {
+        const res = await fetch(`${API}/produtos?setor=folhas`);
+        if (!res.ok) throw new Error('Falha ao carregar produtos de folhas.');
+        allProdutos = await res.json();
+        const query = new URLSearchParams(window.location.search).get('q');
+        if (query) document.getElementById('searchInput').value = query;
+        applyFilters();
+        await updateMiniCart();
+      } catch (err) {
+        const status = document.getElementById('statusMsg');
+        status.textContent = err.message || 'Não foi possível carregar os produtos.';
+        status.className = 'status-banner status-error';
+      }
+
+      document.getElementById('searchInput').addEventListener('input', applyFilters);
+      document.getElementById('sortSelect').addEventListener('change', applyFilters);
+      document.querySelectorAll('[data-filter]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('[data-filter]').forEach((b) => b.classList.remove('is-active'));
+          btn.classList.add('is-active');
+          filtroAtual = btn.getAttribute('data-filter');
+          applyFilters();
+        });
+      });
+    }
+
+    init();
+  </script>
+  <a class="whatsapp-float" href="https://wa.me/5516992596614?text=Ol%C3%A1%2C%20preciso%20de%20suporte%20no%20Varej%C3%A3o%20do%20Povo." target="_blank" rel="noopener noreferrer" aria-label="Suporte via WhatsApp">WhatsApp</a>
+  <footer class="centralizar">
+    <h4>Varejão do Povo</h4>
+    <p>Av. Cásper Líbero, 376, Ribeirão Preto - SP</p>
+    <p>WhatsApp: (16) 99259-6614 • Seg a Sáb 07:00 às 19:00</p>
+    <div class="author-credit">Desenvolvido por <strong>Yago Fellipe Amorim</strong> • Interesse em contratar: <a href="https://wa.me/5516991145034?text=Ol%C3%A1%2C%20Yago%2C%20vi%20seu%20site%20e%20quero%20falar%20sobre%20um%20projeto." target="_blank" rel="noopener noreferrer">falar no WhatsApp</a></div>
+    <div class="social-links">
+      <a href="https://wa.me/5516992596614?text=Ol%C3%A1%2C%20preciso%20de%20suporte%20no%20Varej%C3%A3o%20do%20Povo." target="_blank" rel="noopener noreferrer">WhatsApp</a>
+      <a href="https://www.facebook.com/people/Varejao-do-Povo/100043319426102/" target="_blank" rel="noopener noreferrer">Facebook</a>
+      <a href="#" class="is-disabled" aria-disabled="true" tabindex="-1">Instagram (em breve)</a>
+    </div>
+  </footer></body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

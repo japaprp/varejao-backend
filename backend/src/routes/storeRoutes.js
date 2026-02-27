@@ -39,15 +39,30 @@ import {
   exportPedidosCsv,
   exportSaidasCsv,
   uploadImagemController,
-  putPedidoStatus
+  putPedidoStatus,
+  getGoogleAuthConfigController,
+  loginGoogle,
+  getFacebookAuthConfigController,
+  loginFacebook
 } from '../controllers/storeController.js';
 import { requireAdmin, requireAuth, requireRole } from '../middlewares/authMiddleware.js';
+import { authLimiter, paymentLimiter } from '../middlewares/rateLimitMiddleware.js';
 import { upload } from '../middlewares/uploadMiddleware.js';
+import {
+  validateFacebookPayload,
+  validateGooglePayload,
+  validateLoginPayload,
+  validateRegisterPayload
+} from '../middlewares/validationMiddleware.js';
 
 const router = Router();
 
-router.post('/auth/register', register);
-router.post('/auth/login', login);
+router.post('/auth/register', authLimiter, validateRegisterPayload, register);
+router.post('/auth/login', authLimiter, validateLoginPayload, login);
+router.get('/auth/google/config', getGoogleAuthConfigController);
+router.post('/auth/google', authLimiter, validateGooglePayload, loginGoogle);
+router.get('/auth/facebook/config', getFacebookAuthConfigController);
+router.post('/auth/facebook', authLimiter, validateFacebookPayload, loginFacebook);
 router.get('/auth/me', requireAuth, me);
 
 router.get('/produtos', getProdutos);
@@ -66,8 +81,8 @@ router.post('/carrinho', postCarrinho);
 router.get('/carrinho', getCarrinho);
 router.get('/checkout', getCheckout);
 router.post('/finalizar', postFinalizar);
-router.post('/pagamento/preferencia', postPagamentoPreferencia);
-router.post('/pagamento/webhook', postPagamentoWebhook);
+router.post('/pagamento/preferencia', paymentLimiter, postPagamentoPreferencia);
+router.post('/pagamento/webhook', paymentLimiter, postPagamentoWebhook);
 router.get('/pedidos', getPedidosPorCpf);
 router.get('/admin/pedidos', requireAuth, requireRole(['admin', 'operador']), getPedidosAdmin);
 router.put('/admin/pedidos/:id/status', requireAuth, requireAdmin, putPedidoStatus);

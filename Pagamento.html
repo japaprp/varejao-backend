@@ -3,28 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pagamento</title>
-    <link rel="stylesheet" href="estilo.css">
+    <meta name="description" content="Finalize sua compra no Varejão do Povo com cupom, fidelidade e pagamento Mercado Pago.">
+    <meta property="og:title" content="Varejão do Povo">
+  <meta property="og:description" content="Hortifruti com qualidade, promoções e suporte rápido.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="imagens/pagina inicial/fundo-inicial.webp">
+  <meta property="og:locale" content="pt_BR">
+  <meta name="twitter:card" content="summary_large_image">
+  <title>Checkout</title>
+    <link rel="stylesheet" href="estilo.css?v=20260227-15">
 </head>
 <body>
     <header>
-        <h1>Finalizar Compra</h1>
-        <p>Revise o resumo, aplique cupom e informe seu CPF para fidelidade.</p>
-        <p class="info-card" style="margin-top:10px;">
+        <h1>Checkout Unificado</h1>
+        <p>Resumo do pedido e pagamento em uma única página.</p>
+        <p class="info-card mt-10">
           <strong>Entrega:</strong> taxa de R$ 30,00 ou grátis acima de R$ 100,00.
         </p>
     </header>
 
     <main>
-        <div class="acoes">
-            <a href="Carrinho.html">Voltar ao carrinho</a>
+        <div class="acoes page-links">
             <a href="index.html">Início</a>
+            <a href="setor-frutas.html">Continuar comprando</a>
             <a href="cliente.html">Área do cliente</a>
         </div>
 
         <p id="statusMsg" class="status-banner" aria-live="polite"></p>
 
-        <h2>Resumo da Compra</h2>
+        <h2>Resumo do Pedido</h2>
         <ul id="resumoCompra"></ul>
         <h3 id="subtotal">Subtotal: R$ 0,00</h3>
         <h3 id="desconto">Desconto: R$ 0,00</h3>
@@ -34,33 +41,26 @@
 
         <h2>Dados do cliente</h2>
         <div class="admin-panel">
-          <input id="nomeCliente" placeholder="Seu nome (opcional)">
-          <input id="cpfCliente" placeholder="CPF para fidelidade (somente números)">
+          <input id="nomeCliente" placeholder="Seu nome (opcional)" aria-label="Nome do cliente">
+          <input id="cpfCliente" placeholder="CPF para fidelidade (somente números)" aria-label="CPF do cliente">
           <div class="acoes">
-            <input id="cupomInput" placeholder="Cupom (ex: BEMVINDO10)">
-            <button type="button" id="btnCupom" onclick="aplicarCupom()">Aplicar cupom</button>
+            <input id="cupomInput" placeholder="Cupom (ex: BEMVINDO10)" aria-label="Cupom de desconto">
+            <button type="button" id="btnCupom">Aplicar cupom</button>
           </div>
         </div>
 
-        <h2>Pagamento via Mercado Pago:</h2>
+        <h2>Pagamento via Mercado Pago</h2>
         <div class="acoes">
-            <button id="btn-credito" onclick="processarPagamento('credito', this)">Pagar com cartão</button>
-            <button id="btn-debito" onclick="processarPagamento('debito', this)">Pagar com débito</button>
-            <button id="btn-pix" onclick="processarPagamento('pix', this)">Pagar com Pix</button>
+            <button id="btn-credito" type="button">Pagar com cartão</button>
+            <button id="btn-debito" type="button">Pagar com débito</button>
+            <button id="btn-pix" type="button">Pagar com Pix</button>
         </div>
     </main>
 
+    <script src="app-core.js"></script>
     <script>
-        function resolveApiBase() {
-            const params = new URLSearchParams(window.location.search);
-            const apiParam = params.get('api');
-            if (apiParam) {
-                localStorage.setItem('api_url', apiParam);
-                return apiParam;
-            }
-            return localStorage.getItem('api_url') || 'http://localhost:3001';
-        }
-        const API = resolveApiBase();
+        const API = AppCore.resolveApiBase();
+        const CART_ID = AppCore.resolveCartId();
         let cupomAplicado = '';
         let rehydrated = false;
 
@@ -84,7 +84,7 @@
             for (const item of items) {
                 await fetch(`${API}/carrinho`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', 'X-Cart-Id': CART_ID },
                     body: JSON.stringify({
                         produtoId: item.produtoId,
                         quantidade: Number(item.quantidade || 0)
@@ -112,7 +112,9 @@
             resumoCompra.innerHTML = '';
 
             try {
-                const res = await fetch(`${API}/checkout${cupom ? `?cupom=${encodeURIComponent(cupom)}` : ''}`);
+                const res = await fetch(`${API}/checkout${cupom ? `?cupom=${encodeURIComponent(cupom)}` : ''}`, {
+                    headers: { 'X-Cart-Id': CART_ID }
+                });
                 if (!res.ok) {
                     const body = await res.json().catch(() => ({}));
                     throw new Error(body.erro || 'Falha ao carregar resumo da compra.');
@@ -151,7 +153,7 @@
                 freteStatus.className = totalBase >= 100 ? 'status-banner status-success' : 'status-banner status-info';
 
                 if (!data.itens.length) {
-                    showStatus('Seu carrinho está vazio. Adicione itens antes de pagar.', 'status-info');
+                    showStatus('Seu pedido está vazio. Adicione itens antes de pagar.', 'status-info');
                 } else if (cupom) {
                     showStatus(`Cupom ${cupom} aplicado com sucesso.`, 'status-success');
                 } else {
@@ -189,7 +191,7 @@
 
                 const finalizarRes = await fetch(`${API}/pagamento/preferencia`, {
                   method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
+                  headers: { 'Content-Type': 'application/json', 'X-Cart-Id': CART_ID },
                   body: JSON.stringify(payload)
                 });
 
@@ -209,16 +211,46 @@
         document.addEventListener('DOMContentLoaded', () => {
             renderReturnStatus();
             carregarResumo('');
+            document.querySelectorAll('input, select, textarea').forEach((el) => {
+                if (el.getAttribute('aria-label')) return;
+                const placeholder = el.getAttribute('placeholder');
+                const fallback = placeholder || el.id || 'campo';
+                el.setAttribute('aria-label', fallback);
+            });
+            document.getElementById('btnCupom').addEventListener('click', aplicarCupom);
+            document.getElementById('btn-credito').addEventListener('click', function () { processarPagamento('credito', this); });
+            document.getElementById('btn-debito').addEventListener('click', function () { processarPagamento('debito', this); });
+            document.getElementById('btn-pix').addEventListener('click', function () { processarPagamento('pix', this); });
         });
     </script>
+  <a class="whatsapp-float" href="https://wa.me/5516992596614?text=Ol%C3%A1%2C%20preciso%20de%20suporte%20no%20Varej%C3%A3o%20do%20Povo." target="_blank" rel="noopener noreferrer" aria-label="Suporte via WhatsApp">WhatsApp</a>
   <footer class="centralizar">
     <h4>Varejão do Povo</h4>
     <p>Av. Cásper Líbero, 376, Ribeirão Preto - SP</p>
     <p>WhatsApp: (16) 99259-6614 • Seg a Sáb 07:00 às 19:00</p>
+    <div class="author-credit">Desenvolvido por <strong>Yago Fellipe Amorim</strong> • Interesse em contratar: <a href="https://wa.me/5516991145034?text=Ol%C3%A1%2C%20Yago%2C%20vi%20seu%20site%20e%20quero%20falar%20sobre%20um%20projeto." target="_blank" rel="noopener noreferrer">falar no WhatsApp</a></div>
     <div class="social-links">
+      <a href="https://wa.me/5516992596614?text=Ol%C3%A1%2C%20preciso%20de%20suporte%20no%20Varej%C3%A3o%20do%20Povo." target="_blank" rel="noopener noreferrer">WhatsApp</a>
       <a href="https://www.facebook.com/people/Varejao-do-Povo/100043319426102/" target="_blank" rel="noopener noreferrer">Facebook</a>
       <a href="#" class="is-disabled" aria-disabled="true" tabindex="-1">Instagram (em breve)</a>
     </div>
   </footer></body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

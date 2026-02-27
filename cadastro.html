@@ -1,0 +1,174 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Cadastro completo de cliente do Varejao do Povo.">
+  <meta property="og:title" content="Varejão do Povo">
+  <meta property="og:description" content="Hortifruti com qualidade, promoções e suporte rápido.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="imagens/pagina inicial/fundo-inicial.webp">
+  <meta property="og:locale" content="pt_BR">
+  <meta name="twitter:card" content="summary_large_image">
+  <title>Cadastro do Cliente</title>
+  <link rel="stylesheet" href="estilo.css?v=20260227-15">
+</head>
+<body>
+  <header>
+    <h1>Cadastro do Cliente</h1>
+    <p>Preencha seus dados para criar sua conta.</p>
+  </header>
+
+  <main>
+    <div class="acoes page-links">
+      <a href="cliente.html">Voltar para login</a>
+      <a href="index.html">Inicio</a>
+    </div>
+
+    <p id="statusMsg" class="status-banner" aria-live="polite"></p>
+
+    <section class="admin-table-wrap mt-16">
+      <div class="cadastro-grid">
+        <div>
+          <label class="field-label" for="cadNome">Nome completo</label>
+          <input id="cadNome" class="form-input" placeholder="Nome completo" autocomplete="name" required>
+        </div>
+        <div>
+          <label class="field-label" for="cadCpf">CPF</label>
+          <input id="cadCpf" class="form-input" placeholder="CPF (somente numeros)" inputmode="numeric" required>
+        </div>
+        <div>
+          <label class="field-label" for="cadTelefone">Telefone</label>
+          <input id="cadTelefone" class="form-input" placeholder="Telefone com DDD" inputmode="tel" required>
+        </div>
+        <div>
+          <label class="field-label" for="cadEmail">E-mail</label>
+          <input id="cadEmail" class="form-input" type="email" placeholder="E-mail" autocomplete="email" required>
+        </div>
+        <div>
+          <label class="field-label" for="cadCep">CEP</label>
+          <input id="cadCep" class="form-input" placeholder="CEP (somente numeros)" inputmode="numeric" required>
+        </div>
+        <div>
+          <label class="field-label" for="cadCidade">Cidade</label>
+          <input id="cadCidade" class="form-input" placeholder="Cidade" required>
+        </div>
+        <div class="full-row">
+          <label class="field-label" for="cadRua">Rua</label>
+          <input id="cadRua" class="form-input" placeholder="Rua" required>
+        </div>
+        <div>
+          <label class="field-label" for="cadBairro">Bairro</label>
+          <input id="cadBairro" class="form-input" placeholder="Bairro" required>
+        </div>
+        <div>
+          <label class="field-label" for="cadSenha">Senha</label>
+          <input id="cadSenha" class="form-input" type="password" placeholder="Senha" autocomplete="new-password" required>
+        </div>
+      </div>
+      <div class="acoes mt-16">
+        <button id="btnCadastrarCliente" type="button">Finalizar cadastro</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="app-core.js"></script>
+  <script>
+    const API = AppCore.resolveApiBase();
+
+    function showStatus(msg, type = 'status-info') {
+      const el = document.getElementById('statusMsg');
+      el.textContent = msg;
+      el.className = `status-banner ${type}`;
+    }
+
+    function onlyDigits(v) {
+      return String(v || '').replace(/\D/g, '');
+    }
+
+    function formatCpf(v) {
+      const d = onlyDigits(v).slice(0, 11);
+      return d
+        .replace(/^(\d{3})(\d)/, '$1.$2')
+        .replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3')
+        .replace(/\.(\d{3})(\d)/, '.$1-$2');
+    }
+
+    function formatCep(v) {
+      const d = onlyDigits(v).slice(0, 8);
+      return d.replace(/^(\d{5})(\d)/, '$1-$2');
+    }
+
+    function formatTelefone(v) {
+      const d = onlyDigits(v).slice(0, 11);
+      if (d.length <= 10) {
+        return d.replace(/^(\d{2})(\d)/, '($1) $2').replace(/(\d{4})(\d)/, '$1-$2');
+      }
+      return d.replace(/^(\d{2})(\d)/, '($1) $2').replace(/(\d{5})(\d)/, '$1-$2');
+    }
+
+    async function cadastrarCliente() {
+      const payload = {
+        nome: document.getElementById('cadNome').value.trim(),
+        cpf: document.getElementById('cadCpf').value.trim(),
+        cep: document.getElementById('cadCep').value.trim(),
+        rua: document.getElementById('cadRua').value.trim(),
+        bairro: document.getElementById('cadBairro').value.trim(),
+        cidade: document.getElementById('cadCidade').value.trim(),
+        telefone: document.getElementById('cadTelefone').value.trim(),
+        email: document.getElementById('cadEmail').value.trim(),
+        senha: document.getElementById('cadSenha').value
+      };
+
+      const res = await fetch(`${API}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const body = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        showStatus(body.erro || 'Falha ao cadastrar.', 'status-error');
+        return;
+      }
+
+      localStorage.setItem('cliente_token', body.token);
+      localStorage.setItem('cliente_dados', JSON.stringify(body.usuario));
+      showStatus('Conta criada com sucesso! Redirecionando...', 'status-success');
+      setTimeout(() => {
+        window.location.href = `cliente.html?api=${encodeURIComponent(API)}`;
+      }, 700);
+    }
+
+    function bindMasks() {
+      const cpfEl = document.getElementById('cadCpf');
+      const cepEl = document.getElementById('cadCep');
+      const telEl = document.getElementById('cadTelefone');
+      cpfEl.addEventListener('input', () => { cpfEl.value = formatCpf(cpfEl.value); });
+      cepEl.addEventListener('input', () => { cepEl.value = formatCep(cepEl.value); });
+      telEl.addEventListener('input', () => { telEl.value = formatTelefone(telEl.value); });
+    }
+
+    document.getElementById('btnCadastrarCliente').addEventListener('click', cadastrarCliente);
+    document.addEventListener('DOMContentLoaded', () => {
+      bindMasks();
+    });
+  </script>
+  <a class="whatsapp-float" href="https://wa.me/5516992596614?text=Ol%C3%A1%2C%20preciso%20de%20suporte%20no%20Varej%C3%A3o%20do%20Povo." target="_blank" rel="noopener noreferrer" aria-label="Suporte via WhatsApp">WhatsApp</a>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

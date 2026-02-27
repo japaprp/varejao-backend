@@ -252,7 +252,7 @@
       "id": "u_admin",
       "nome": "Administrador",
       "email": "admin@varejao.com",
-      "senhaHash": "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9",
+      "senhaHash": "1843fdfd8ba5582236746ac48215a86dec2960a57b8294c92b504330038ad160",
       "role": "admin",
       "cpf": "00000000000"
     }
