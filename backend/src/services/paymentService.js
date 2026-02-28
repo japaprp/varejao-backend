@@ -20,8 +20,9 @@ function buildBackUrls() {
   };
 }
 
-export async function createPreference({ order }) {
+export async function createPreference({ order, metodoPreferido = '' }) {
   ensureToken();
+  const metodo = String(metodoPreferido || '').toLowerCase();
 
   const backUrls = buildBackUrls();
   const payload = {
@@ -35,6 +36,21 @@ export async function createPreference({ order }) {
     ],
     external_reference: order.id
   };
+
+  if (metodo === 'pix') {
+    payload.payment_methods = {
+      excluded_payment_types: [{ id: 'credit_card' }, { id: 'debit_card' }, { id: 'ticket' }],
+      installments: 1
+    };
+  } else if (metodo === 'credito') {
+    payload.payment_methods = {
+      excluded_payment_types: [{ id: 'debit_card' }, { id: 'ticket' }, { id: 'bank_transfer' }, { id: 'atm' }]
+    };
+  } else if (metodo === 'debito') {
+    payload.payment_methods = {
+      excluded_payment_types: [{ id: 'credit_card' }, { id: 'ticket' }, { id: 'bank_transfer' }, { id: 'atm' }]
+    };
+  }
 
   if (backUrls) {
     payload.back_urls = backUrls;

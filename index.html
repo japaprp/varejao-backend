@@ -140,6 +140,7 @@
     const safeText = AppCore.safeText;
     const safeImageUrl = AppCore.safeImageUrl;
     let allProdutosCache = [];
+    let adminSessionValid = false;
 
     function getLocalCart() {
       try {
@@ -165,7 +166,37 @@
     }
 
     function isAdminLogged() {
-      return Boolean(localStorage.getItem('admin_token'));
+      return adminSessionValid;
+    }
+
+    async function validateAdminSession() {
+      const token = localStorage.getItem('admin_token');
+      if (!token) {
+        adminSessionValid = false;
+        return false;
+      }
+      try {
+        const res = await fetch(`${API}/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!res.ok) {
+          localStorage.removeItem('admin_token');
+          adminSessionValid = false;
+          return false;
+        }
+        const me = await res.json().catch(() => ({}));
+        const role = String(me.role || '').toLowerCase();
+        const isAdmin = role === 'admin';
+        if (!isAdmin) {
+          localStorage.removeItem('admin_token');
+        }
+        adminSessionValid = isAdmin;
+        return isAdmin;
+      } catch {
+        localStorage.removeItem('admin_token');
+        adminSessionValid = false;
+        return false;
+      }
     }
 
     function buildUserMenu() {
@@ -266,7 +297,7 @@
       const floatingCheckout = document.getElementById('homeFloatingCheckout');
       const navCart = document.getElementById('homeCartNavLink');
       const currentItems = Array.isArray(items) ? items : getLocalCart();
-      const totalItens = currentItems.reduce((sum, item) => sum + Number(item.quantidade || 0), 0);
+      const totalItens = currentItems.length;
       if (totalItens > 0) {
         checkoutLink.classList.remove('is-hidden');
         checkoutLink.textContent = `Ir para pagamento (${totalItens})`;
@@ -463,6 +494,7 @@
     }
 
     async function init() {
+      await validateAdminSession();
       renderUserHub();
       renderHomeCartCta();
       const grid = document.getElementById('promocoesGrid');

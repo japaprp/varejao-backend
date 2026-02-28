@@ -178,7 +178,10 @@ export function postFinalizar(req, res, next) {
 export async function postPagamentoPreferencia(req, res, next) {
   try {
     const order = createPendingOrder({ ...(req.body || {}), cartId: getCartId(req) });
-    const preference = await createPreference({ order });
+    const preference = await createPreference({
+      order,
+      metodoPreferido: req.body?.metodoPreferido || ''
+    });
     res.status(201).json({
       preferenceId: preference.id,
       initPoint: preference.init_point,
