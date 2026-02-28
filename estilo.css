@@ -884,7 +884,7 @@ select:focus-visible {
 }
 
 .product-row {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   align-items: stretch;
 }
 
@@ -896,6 +896,12 @@ select:focus-visible {
 
 .product-row .add-circle {
   margin-top: auto;
+}
+
+@media (max-width: 1024px) {
+  .product-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .promo-card,
