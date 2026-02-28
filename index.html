@@ -332,6 +332,30 @@
       }
     }
 
+    function chooseBalancedColumns(total, maxCols = 5) {
+      const count = Number(total || 0);
+      if (count <= 0) return 1;
+      const limit = Math.min(maxCols, count);
+      if (count <= limit) return count;
+      let bestCols = limit;
+      let bestScore = Number.POSITIVE_INFINITY;
+      for (let cols = limit; cols >= 2; cols -= 1) {
+        const rem = count % cols;
+        const score = rem === 0 ? 0 : (rem === 1 ? 3 : 1);
+        if (score < bestScore || (score === bestScore && cols > bestCols)) {
+          bestScore = score;
+          bestCols = cols;
+        }
+      }
+      return bestCols;
+    }
+
+    function applyBalancedProductGrid(gridEl, itemCount) {
+      if (!gridEl) return;
+      const cols = chooseBalancedColumns(itemCount, 5);
+      gridEl.style.setProperty('--row-cols', String(cols));
+    }
+
     function renderPromocoes(produtos) {
       const grid = document.getElementById('promocoesGrid');
       const section = document.getElementById('promoSection');
@@ -342,6 +366,7 @@
         return false;
       }
       section.classList.remove('is-hidden');
+      applyBalancedProductGrid(grid, produtos.length);
 
       produtos.forEach((p) => {
         const card = document.createElement('article');
@@ -392,8 +417,10 @@
         return false;
       }
       section.classList.remove('is-hidden');
+      const lista = destaques.slice(0, 10);
+      applyBalancedProductGrid(grid, lista.length);
 
-      destaques.slice(0, 6).forEach((p) => {
+      lista.forEach((p) => {
         const card = document.createElement('article');
         card.className = 'promo-card';
 

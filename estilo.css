@@ -884,7 +884,8 @@ select:focus-visible {
 }
 
 .product-row {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  --row-cols: 5;
+  grid-template-columns: repeat(var(--row-cols), minmax(0, 1fr));
   align-items: stretch;
 }
 
