@@ -312,15 +312,36 @@
       }
     }
 
-    async function addToCart(produtoId, produtoNome = 'Produto') {
+    function getQtyStep(unidade = '') {
+      return String(unidade).toLowerCase() === 'kg' ? 0.5 : 1;
+    }
+
+    function formatQtyLabel(valor, unidade = '') {
+      const unit = String(unidade).toLowerCase();
+      if (unit === 'kg') return `${Number(valor).toFixed(1)} kg`;
+      if (unit === 'bandeja') return `${Math.round(Number(valor))} bandeja`;
+      return `${Math.round(Number(valor))} un`;
+    }
+
+    function changeQty(displayEl, unidade, delta) {
+      const step = getQtyStep(unidade);
+      const current = Number(displayEl.dataset.value || step);
+      const next = Math.max(step, current + delta);
+      displayEl.dataset.value = String(next);
+      displayEl.textContent = formatQtyLabel(next, unidade);
+    }
+
+    async function addToCart(produtoId, produtoNome = 'Produto', quantidade = 1) {
       const statusEl = document.getElementById('homeCartStatus');
-      const localItems = addLocalCartItem(produtoId, 1);
+      const qty = Number(quantidade || 0);
+      if (!qty || qty <= 0) return;
+      const localItems = addLocalCartItem(produtoId, qty);
       renderHomeCartCta(localItems);
       try {
         const res = await fetch(`${API}/carrinho`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-Cart-Id': CART_ID },
-          body: JSON.stringify({ produtoId, quantidade: 1 })
+          body: JSON.stringify({ produtoId, quantidade: qty })
         });
         if (!res.ok) throw new Error('Falha ao adicionar no carrinho.');
         statusEl.textContent = `${safeText(produtoNome)} adicionado ao carrinho. Clique em CARRINHO para finalizar.`;
@@ -394,14 +415,39 @@
         const desc = document.createElement('p');
         desc.textContent = safeText(p.descricaoCurta);
 
+        const control = document.createElement('div');
+        control.className = 'qty-control';
+
+        const minus = document.createElement('button');
+        minus.type = 'button';
+        minus.textContent = '-';
+
+        const display = document.createElement('div');
+        display.className = 'qty-display';
+        const initial = getQtyStep(p.unidade);
+        display.dataset.value = String(initial);
+        display.textContent = formatQtyLabel(initial, p.unidade);
+
+        const plus = document.createElement('button');
+        plus.type = 'button';
+        plus.textContent = '+';
+
+        minus.addEventListener('click', () => changeQty(display, p.unidade, -getQtyStep(p.unidade)));
+        plus.addEventListener('click', () => changeQty(display, p.unidade, getQtyStep(p.unidade)));
+        control.append(minus, display, plus);
+
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'add-circle';
         btn.setAttribute('aria-label', `Adicionar ${safeText(p.nome)} ao carrinho`);
         btn.innerHTML = '<span class="cart-glyph" aria-hidden="true">&#128722;</span>';
-        btn.addEventListener('click', () => addToCart(safeText(p.id), safeText(p.nome)));
+        btn.addEventListener('click', () => addToCart(safeText(p.id), safeText(p.nome), Number(display.dataset.value || initial)));
 
-        card.append(badge, img, name, price, desc, btn);
+        const actionRow = document.createElement('div');
+        actionRow.className = 'card-actions';
+        actionRow.append(control, btn);
+
+        card.append(badge, img, name, price, desc, actionRow);
         grid.appendChild(card);
       });
       return true;
@@ -443,14 +489,39 @@
         unit.textContent = `/${safeText(p.unidade)}`;
         price.appendChild(unit);
 
+        const control = document.createElement('div');
+        control.className = 'qty-control';
+
+        const minus = document.createElement('button');
+        minus.type = 'button';
+        minus.textContent = '-';
+
+        const display = document.createElement('div');
+        display.className = 'qty-display';
+        const initial = getQtyStep(p.unidade);
+        display.dataset.value = String(initial);
+        display.textContent = formatQtyLabel(initial, p.unidade);
+
+        const plus = document.createElement('button');
+        plus.type = 'button';
+        plus.textContent = '+';
+
+        minus.addEventListener('click', () => changeQty(display, p.unidade, -getQtyStep(p.unidade)));
+        plus.addEventListener('click', () => changeQty(display, p.unidade, getQtyStep(p.unidade)));
+        control.append(minus, display, plus);
+
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'add-circle';
         btn.setAttribute('aria-label', `Adicionar ${safeText(p.nome)} ao carrinho`);
         btn.innerHTML = '<span class="cart-glyph" aria-hidden="true">&#128722;</span>';
-        btn.addEventListener('click', () => addToCart(safeText(p.id), safeText(p.nome)));
+        btn.addEventListener('click', () => addToCart(safeText(p.id), safeText(p.nome), Number(display.dataset.value || initial)));
 
-        card.append(badge, img, name, price, btn);
+        const actionRow = document.createElement('div');
+        actionRow.className = 'card-actions';
+        actionRow.append(control, btn);
+
+        card.append(badge, img, name, price, actionRow);
         grid.appendChild(card);
       });
       return true;
