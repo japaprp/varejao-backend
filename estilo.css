@@ -786,6 +786,10 @@ select:focus-visible {
   .loading-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .product-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 560px) {
@@ -804,6 +808,10 @@ select:focus-visible {
   .items-container,
   .carousel-row,
   .loading-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .product-row {
     grid-template-columns: 1fr;
   }
 
@@ -875,15 +883,42 @@ select:focus-visible {
   gap: 14px;
 }
 
+.product-row {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+}
+
+.product-row .promo-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.product-row .add-circle {
+  margin-top: auto;
+}
+
 .promo-card,
 .info-card,
 .fidelidade-card {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(244, 248, 246, 0.97));
   border: 1px solid var(--border-soft);
-  border-radius: 12px;
+  border-radius: 18px;
   box-shadow: var(--shadow-soft);
-  padding: 12px;
+  padding: 14px;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  position: relative;
+}
+
+.promo-card::after,
+.info-card::after,
+.fidelidade-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  border: 1px solid rgba(255, 255, 255, 0.45);
 }
 
 .promo-card:hover {
@@ -922,23 +957,28 @@ select:focus-visible {
   gap: 6px;
   align-items: center;
   width: 100%;
+  padding: 2px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #f2f5f3, #e8eeeb);
+  border: 1px solid rgba(20, 82, 56, 0.14);
 }
 
 .qty-control button {
   margin-top: 0;
   width: 34px;
   height: 34px;
-  border-radius: 50%;
+  border-radius: 8px;
   padding: 0;
-  font-size: 1.2rem;
+  font-size: 1rem;
   line-height: 1;
+  box-shadow: none;
 }
 
 .qty-display {
   text-align: center;
   border: 1px solid rgba(20, 82, 56, 0.25);
-  background: linear-gradient(180deg, #ffffff, var(--surface-soft));
-  border-radius: 10px;
+  background: linear-gradient(180deg, #ffffff, #f0f3f1);
+  border-radius: 8px;
   padding: 8px 6px;
   font-weight: 700;
   color: #173a2b;
@@ -997,15 +1037,18 @@ select:focus-visible {
 }
 
 .setor-card .qty-control {
-  margin-top: 4px;
+  margin-top: 6px;
 }
 
 .setor-card .add-circle {
-  width: 62px;
-  height: 62px;
-  font-size: 1.5rem;
+  width: 42px;
+  height: 38px;
+  font-size: 1rem;
   line-height: 1;
-  align-self: center;
+  align-self: auto;
+  margin-top: 0;
+  border-radius: 8px;
+  box-shadow: 0 8px 14px rgba(8, 35, 24, 0.2);
   transition: transform 0.16s ease, box-shadow 0.16s ease, filter 0.16s ease;
 }
 
@@ -1017,6 +1060,18 @@ select:focus-visible {
 .setor-card strong {
   font-size: 1.16rem;
   line-height: 1.25;
+}
+
+.card-actions {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.card-actions .qty-control {
+  margin-top: 0;
 }
 
 .promo-image {
