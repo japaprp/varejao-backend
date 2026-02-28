@@ -66,6 +66,7 @@
     let CART_ID = AppCore.resolveCartId();
     let cupomAplicado = '';
     let rehydrated = false;
+    let paymentCompleted = false;
 
     function money(v) { return Number(v).toFixed(2).replace('.', ','); }
 
@@ -96,14 +97,35 @@
       }
     }
 
+    function clearLocalCheckoutState() {
+      localStorage.removeItem('cart_items');
+      localStorage.removeItem('cart_id');
+      CART_ID = AppCore.resolveCartId();
+      cupomAplicado = '';
+      rehydrated = true;
+    }
+
     function renderReturnStatus() {
       const params = new URLSearchParams(window.location.search);
-      const status = params.get('status') || params.get('collection_status');
+      const statusRaw = (params.get('status') || params.get('collection_status') || '').toLowerCase();
+      const paymentId = params.get('payment_id') || params.get('collection_id') || '';
+      const orderId = params.get('external_reference') || '';
+      const approved =
+        statusRaw === 'approved'
+        || statusRaw === 'success'
+        || (statusRaw === '' && Boolean(paymentId));
+
+      if (approved) {
+        paymentCompleted = true;
+        clearLocalCheckoutState();
+        const orderText = orderId ? ` Pedido: ${orderId}.` : '';
+        showStatus(`Pagamento efetuado com sucesso.${orderText} Carrinho atualizado.`, 'status-success');
+        return;
+      }
+
+      const status = statusRaw;
       if (!status) return;
-      if (status === 'approved') {
-        showStatus('Pagamento aprovado. Seu pedido esta confirmado!', 'status-success');
-        localStorage.removeItem('cart_items');
-      } else if (status === 'pending') {
+      if (status === 'pending' || status === 'in_process') {
         showStatus('Pagamento pendente. Assim que confirmado, liberaremos seu pedido.', 'status-info');
       } else {
         showStatus('Pagamento nao aprovado. Tente novamente ou escolha outra forma.', 'status-error');
@@ -124,7 +146,7 @@
         }
 
         const data = await res.json();
-        if ((!data.itens || !data.itens.length) && !rehydrated) {
+        if ((!data.itens || !data.itens.length) && !rehydrated && !paymentCompleted) {
           const localItems = getLocalCart();
           if (localItems.length) {
             rehydrated = true;
@@ -156,7 +178,11 @@
         freteStatus.className = totalBase >= 100 ? 'status-banner status-success' : 'status-banner status-info';
 
         if (!data.itens.length) {
-          showStatus('Seu pedido esta vazio. Adicione itens antes de pagar.', 'status-info');
+          if (paymentCompleted) {
+            showStatus('Pagamento efetuado. Nao ha itens pendentes no carrinho.', 'status-success');
+          } else {
+            showStatus('Seu pedido esta vazio. Adicione itens antes de pagar.', 'status-info');
+          }
         } else if (cupom) {
           showStatus(`Cupom ${cupom} aplicado com sucesso.`, 'status-success');
         } else {
@@ -212,11 +238,7 @@
     }
 
     async function esvaziarCarrinho() {
-      localStorage.removeItem('cart_items');
-      localStorage.removeItem('cart_id');
-      CART_ID = AppCore.resolveCartId();
-      cupomAplicado = '';
-      rehydrated = true;
+      clearLocalCheckoutState();
       document.getElementById('cupomInput').value = '';
       await carregarResumo('');
       showStatus('Carrinho esvaziado. Adicione novos itens para continuar.', 'status-info');
