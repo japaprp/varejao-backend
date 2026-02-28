@@ -220,8 +220,24 @@ export async function postPagamentoWebhook(req, res, next) {
 }
 
 export function getPedidosPorCpf(req, res) {
-  const cpf = req.query.cpf || '';
-  res.json(listOrdersByCpf(cpf));
+  const requestedCpf = String(req.query.cpf || '').replace(/\D/g, '');
+  const userCpf = String(req.user?.cpf || '').replace(/\D/g, '');
+  const role = String(req.user?.role || '').toLowerCase();
+  const isPrivileged = role === 'admin' || role === 'operador';
+
+  if (isPrivileged) {
+    return res.json(listOrdersByCpf(requestedCpf));
+  }
+
+  const targetCpf = userCpf || requestedCpf;
+  if (!targetCpf) {
+    return res.status(400).json({ erro: 'CPF do usuario nao disponivel para consulta.' });
+  }
+  if (requestedCpf && requestedCpf !== userCpf) {
+    return res.status(403).json({ erro: 'Acesso negado ao historico de outro CPF.' });
+  }
+
+  return res.json(listOrdersByCpf(targetCpf));
 }
 
 function csvEscape(value) {
@@ -338,7 +354,20 @@ export function getFidelidadeController(req, res) {
 }
 
 export function getFidelidadeCpfController(req, res) {
-  const data = getLoyaltyByCpf(req.params.cpf);
+  const requestedCpf = String(req.params.cpf || '').replace(/\D/g, '');
+  const userCpf = String(req.user?.cpf || '').replace(/\D/g, '');
+  const role = String(req.user?.role || '').toLowerCase();
+  const isPrivileged = role === 'admin' || role === 'operador';
+  const targetCpf = isPrivileged ? requestedCpf : userCpf;
+
+  if (!targetCpf) {
+    return res.status(400).json({ erro: 'CPF do usuario nao disponivel para consulta.' });
+  }
+  if (!isPrivileged && requestedCpf && requestedCpf !== userCpf) {
+    return res.status(403).json({ erro: 'Acesso negado ao fidelidade de outro CPF.' });
+  }
+
+  const data = getLoyaltyByCpf(targetCpf);
   if (!data) {
     return res.status(404).json({ erro: 'CPF não encontrado no programa de fidelidade' });
   }

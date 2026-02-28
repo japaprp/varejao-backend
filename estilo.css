@@ -11,9 +11,9 @@
   --brand: #1f8f5f;
   --brand-dark: #156b46;
   --accent: #e99b05;
-  --border-soft: rgba(17, 61, 42, 0.16);
-  --shadow: 0 14px 30px rgba(15, 47, 34, 0.2);
-  --shadow-soft: 0 8px 20px rgba(13, 39, 28, 0.16);
+  --border-soft: rgba(17, 61, 42, 0.24);
+  --shadow: 0 16px 34px rgba(12, 40, 29, 0.24);
+  --shadow-soft: 0 10px 22px rgba(10, 34, 24, 0.18);
   --radius-lg: 18px;
   --radius-md: 12px;
   --font-heading: 'Sora', 'Segoe UI', sans-serif;
@@ -83,6 +83,24 @@ header p {
   color: rgba(244, 252, 247, 0.9);
   text-shadow: 0 2px 10px rgba(0, 0, 0, 0.42);
   font-size: 1.22rem;
+}
+
+.brand-slogan {
+  margin-top: 10px;
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 7px 14px 7px 44px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.36);
+  color: #ecfff4;
+  font-family: var(--font-heading);
+  font-size: 0.9rem;
+  letter-spacing: 0.2px;
+  background:
+    linear-gradient(160deg, rgba(12, 44, 32, 0.88), rgba(18, 78, 54, 0.72)),
+    url('imagens/slogan/image_ab3c8267.png') left center / 64px 100% no-repeat;
+  box-shadow: 0 8px 16px rgba(6, 24, 18, 0.32);
 }
 
 .home-search {
@@ -277,9 +295,11 @@ main {
   max-width: 1340px;
   width: calc(100% - 32px);
   margin: 10px auto 24px;
-  padding: 24px;
+  padding: 18px;
   border-radius: var(--radius-lg);
   background: linear-gradient(170deg, rgba(250, 252, 251, 0.96), rgba(244, 248, 246, 0.95));
+  border: 1px solid rgba(14, 52, 37, 0.16);
+  backdrop-filter: blur(6px);
   box-shadow: var(--shadow);
 }
 
@@ -491,6 +511,31 @@ footer p {
   border: 1px solid rgba(255, 255, 255, 0.35);
   box-shadow: 0 12px 20px rgba(8, 40, 23, 0.34);
   font-weight: 800;
+}
+
+.home-floating-checkout {
+  position: fixed;
+  right: 16px;
+  bottom: 72px;
+  z-index: 39;
+  min-width: 168px;
+  text-align: center;
+  text-decoration: none;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.36);
+  background: linear-gradient(160deg, rgba(14, 63, 44, 0.96), rgba(31, 143, 95, 0.94));
+  color: #f5fff9;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  padding: 10px 14px;
+  box-shadow: 0 12px 22px rgba(4, 22, 15, 0.34);
+}
+
+.home-floating-checkout:hover,
+.home-floating-checkout:focus {
+  transform: translateY(-1px);
+  filter: saturate(1.06);
 }
 
 .items-container {
@@ -786,6 +831,14 @@ select:focus-visible {
     padding: 9px 12px;
     font-size: 0.9rem;
   }
+
+  .home-floating-checkout {
+    right: 12px;
+    bottom: 66px;
+    min-width: 146px;
+    padding: 8px 10px;
+    font-size: 0.88rem;
+  }
 }
 
 .hero-home {
@@ -817,25 +870,26 @@ select:focus-visible {
 
 .carousel-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  justify-content: start;
   gap: 14px;
 }
 
 .promo-card,
 .info-card,
 .fidelidade-card {
-  background: var(--surface-strong);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(244, 248, 246, 0.97));
   border: 1px solid var(--border-soft);
-  border-radius: 14px;
+  border-radius: 12px;
   box-shadow: var(--shadow-soft);
-  padding: 14px;
+  padding: 12px;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .promo-card:hover {
   transform: translateY(-2px);
-  border-color: rgba(21, 107, 70, 0.28);
-  box-shadow: 0 14px 24px rgba(12, 43, 30, 0.16);
+  border-color: rgba(21, 107, 70, 0.36);
+  box-shadow: 0 16px 28px rgba(8, 34, 24, 0.2);
 }
 
 .promo-card strong {
@@ -1344,3 +1398,4 @@ canvas#chartPerformance {
     scroll-behavior: auto !important;
   }
 }
+

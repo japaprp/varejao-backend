@@ -73,7 +73,7 @@ router.delete('/produtos/:id', requireAuth, requireAdmin, removeProduto);
 router.get('/promocoes', getPromocoesController);
 router.get('/informacoes', getInformacoesController);
 router.get('/fidelidade', getFidelidadeController);
-router.get('/fidelidade/:cpf', getFidelidadeCpfController);
+router.get('/fidelidade/:cpf', requireAuth, getFidelidadeCpfController);
 
 router.get('/cupons/validar', validarCupomController);
 
@@ -83,7 +83,7 @@ router.get('/checkout', getCheckout);
 router.post('/finalizar', postFinalizar);
 router.post('/pagamento/preferencia', paymentLimiter, postPagamentoPreferencia);
 router.post('/pagamento/webhook', paymentLimiter, postPagamentoWebhook);
-router.get('/pedidos', getPedidosPorCpf);
+router.get('/pedidos', requireAuth, getPedidosPorCpf);
 router.get('/admin/pedidos', requireAuth, requireRole(['admin', 'operador']), getPedidosAdmin);
 router.put('/admin/pedidos/:id/status', requireAuth, requireAdmin, putPedidoStatus);
 router.get('/admin/pedidos.csv', requireAuth, requireRole(['admin', 'operador']), exportPedidosCsv);

@@ -1,240 +1,255 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Finalize sua compra no Varejão do Povo com cupom, fidelidade e pagamento Mercado Pago.">
-    <meta property="og:title" content="Varejão do Povo">
-  <meta property="og:description" content="Hortifruti com qualidade, promoções e suporte rápido.">
-  <meta property="og:type" content="website">
-  <meta property="og:image" content="imagens/pagina-inicial/fundo-inicial.webp">
-  <meta property="og:locale" content="pt_BR">
-  <meta name="twitter:card" content="summary_large_image">
-  <title>Checkout</title>
-    <link rel="stylesheet" href="estilo.css?v=20260227-16">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Finalize sua compra no Varejão do Povo com cupom, fidelidade e pagamento Mercado Pago.">
+  <meta property="og:title" content="Varejão do Povo">
+ <meta property="og:description" content="Hortifruti com qualidade, promoções e suporte rápido.">
+ <meta property="og:type" content="website">
+ <meta property="og:image" content="imagens/pagina-inicial/fundo-inicial.webp">
+ <meta property="og:locale" content="pt_BR">
+ <meta name="twitter:card" content="summary_large_image">
+ <title>Checkout</title>
+  <link rel="stylesheet" href="estilo.css?v=20260227-16">
 </head>
 <body>
-    <header>
-        <h1>Checkout Unificado</h1>
-        <p>Resumo do pedido e pagamento em uma única página.</p>
-        <p class="info-card mt-10">
-          <strong>Entrega:</strong> taxa de R$ 30,00 ou grátis acima de R$ 100,00.
-        </p>
-    </header>
+  <header>
+    <h1>Checkout Unificado</h1>
+    <p>Resumo do pedido e pagamento em uma única página.</p>
+    <p class="info-card mt-10">
+     <strong>Entrega:</strong> taxa de R$ 30,00 ou grátis acima de R$ 100,00.
+    </p>
+  </header>
 
-    <main>
-        <div class="acoes page-links">
-            <a href="index.html">Início</a>
-            <a href="setor-frutas.html">Continuar comprando</a>
-            <a href="cliente.html">Área do cliente</a>
-        </div>
-
-        <p id="statusMsg" class="status-banner" aria-live="polite"></p>
-
-        <h2>Resumo do Pedido</h2>
-        <ul id="resumoCompra"></ul>
-        <h3 id="subtotal">Subtotal: R$ 0,00</h3>
-        <h3 id="desconto">Desconto: R$ 0,00</h3>
-        <h3 id="frete">Frete: R$ 0,00</h3>
-        <h3 id="totalCarrinho">Total: R$ 0,00</h3>
-        <p id="freteStatus" class="status-banner" aria-live="polite"></p>
-
-        <h2>Dados do cliente</h2>
-        <div class="admin-panel">
-          <input id="nomeCliente" placeholder="Seu nome (opcional)" aria-label="Nome do cliente">
-          <input id="cpfCliente" placeholder="CPF para fidelidade (somente números)" aria-label="CPF do cliente">
-          <div class="acoes">
-            <input id="cupomInput" placeholder="Cupom (ex: BEMVINDO10)" aria-label="Cupom de desconto">
-            <button type="button" id="btnCupom">Aplicar cupom</button>
-          </div>
-        </div>
-
-        <h2>Pagamento via Mercado Pago</h2>
-        <div class="acoes">
-            <button id="btn-credito" type="button">Pagar com cartão</button>
-            <button id="btn-debito" type="button">Pagar com débito</button>
-            <button id="btn-pix" type="button">Pagar com Pix</button>
-        </div>
-    </main>
-
-    <script src="app-core.js?v=20260227-1"></script>
-    <script>
-        const API = AppCore.resolveApiBase();
-        const CART_ID = AppCore.resolveCartId();
-        let cupomAplicado = '';
-        let rehydrated = false;
-
-        function money(v) { return Number(v).toFixed(2).replace('.', ','); }
-
-        function showStatus(message, type = 'status-info') {
-            const status = document.getElementById('statusMsg');
-            status.textContent = message;
-            status.className = `status-banner ${type}`;
-        }
-
-        function getLocalCart() {
-            try {
-                return JSON.parse(localStorage.getItem('cart_items') || '[]');
-            } catch {
-                return [];
-            }
-        }
-
-        async function rehydrateBackendCart(items) {
-            for (const item of items) {
-                await fetch(`${API}/carrinho`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-Cart-Id': CART_ID },
-                    body: JSON.stringify({
-                        produtoId: item.produtoId,
-                        quantidade: Number(item.quantidade || 0)
-                    })
-                });
-            }
-        }
-
-        function renderReturnStatus() {
-            const params = new URLSearchParams(window.location.search);
-            const status = params.get('status') || params.get('collection_status');
-            if (!status) return;
-            if (status === 'approved') {
-                showStatus('Pagamento aprovado. Seu pedido está confirmado!', 'status-success');
-                localStorage.removeItem('cart_items');
-            } else if (status === 'pending') {
-                showStatus('Pagamento pendente. Assim que confirmado, liberaremos seu pedido.', 'status-info');
-            } else {
-                showStatus('Pagamento não aprovado. Tente novamente ou escolha outra forma.', 'status-error');
-            }
-        }
-
-        async function carregarResumo(cupom = '') {
-            const resumoCompra = document.getElementById('resumoCompra');
-            resumoCompra.innerHTML = '';
-
-            try {
-                const res = await fetch(`${API}/checkout${cupom ? `?cupom=${encodeURIComponent(cupom)}` : ''}`, {
-                    headers: { 'X-Cart-Id': CART_ID }
-                });
-                if (!res.ok) {
-                    const body = await res.json().catch(() => ({}));
-                    throw new Error(body.erro || 'Falha ao carregar resumo da compra.');
-                }
-
-                const data = await res.json();
-                if ((!data.itens || !data.itens.length) && !rehydrated) {
-                    const localItems = getLocalCart();
-                    if (localItems.length) {
-                        rehydrated = true;
-                        await rehydrateBackendCart(localItems);
-                        return carregarResumo(cupom);
-                    }
-                }
-
-                data.itens.forEach(item => {
-                    const subtotal = Number(item.preco) * Number(item.quantidade);
-                    const li = document.createElement('li');
-                    li.textContent = `${item.produto} - ${item.quantidade} ${item.unidade} - R$ ${money(subtotal)}`;
-                    resumoCompra.appendChild(li);
-                });
-
-                const subtotal = Number(data.subtotal || 0);
-                const desconto = Number(data.desconto || 0);
-                const totalBase = Number(data.totalBase || data.total || 0);
-                const frete = Number(data.frete || 0);
-                const totalFinal = Number(data.total || 0);
-
-                document.getElementById('subtotal').textContent = `Subtotal: R$ ${money(subtotal)}`;
-                document.getElementById('desconto').textContent = `Desconto: R$ ${money(desconto)}`;
-                document.getElementById('frete').textContent = `Frete: R$ ${money(frete)}`;
-                document.getElementById('totalCarrinho').textContent = `Total: R$ ${money(totalFinal)}`;
-
-                const freteStatus = document.getElementById('freteStatus');
-                freteStatus.textContent = totalBase >= 100 ? 'Frete grátis aplicado.' : (totalBase > 0 ? 'Frete será cobrado no total.' : '');
-                freteStatus.className = totalBase >= 100 ? 'status-banner status-success' : 'status-banner status-info';
-
-                if (!data.itens.length) {
-                    showStatus('Seu pedido está vazio. Adicione itens antes de pagar.', 'status-info');
-                } else if (cupom) {
-                    showStatus(`Cupom ${cupom} aplicado com sucesso.`, 'status-success');
-                } else {
-                    showStatus('Resumo carregado. Você será redirecionado ao Mercado Pago para concluir o pagamento.', 'status-success');
-                }
-            } catch (err) {
-                showStatus(err.message, 'status-error');
-            }
-        }
-
-        async function aplicarCupom() {
-            const cupom = document.getElementById('cupomInput').value.trim();
-            if (!cupom) {
-                cupomAplicado = '';
-                await carregarResumo('');
-                return;
-            }
-            cupomAplicado = cupom;
-            await carregarResumo(cupom);
-        }
-
-        async function processarPagamento(metodo, buttonEl) {
-            const botoes = document.querySelectorAll('button[id^="btn-"]');
-            const textoOriginal = buttonEl.textContent;
-            botoes.forEach(btn => { btn.disabled = true; });
-            buttonEl.textContent = 'Processando...';
-
-            try {
-                const payload = {
-                  cpf: document.getElementById('cpfCliente').value.trim(),
-                  nomeCliente: document.getElementById('nomeCliente').value.trim(),
-                  cupom: cupomAplicado,
-                  metodoPreferido: metodo
-                };
-
-                const finalizarRes = await fetch(`${API}/pagamento/preferencia`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json', 'X-Cart-Id': CART_ID },
-                  body: JSON.stringify(payload)
-                });
-
-                const body = await finalizarRes.json().catch(() => ({}));
-                if (!finalizarRes.ok) throw new Error(body.erro || 'Falha ao iniciar o pagamento.');
-                const link = body.initPoint || body.sandboxInitPoint;
-                if (!link) throw new Error('Link de pagamento não disponível.');
-                showStatus('Redirecionando para o Mercado Pago...', 'status-success');
-                setTimeout(() => { window.location.href = link; }, 600);
-            } catch (err) {
-                showStatus(err.message, 'status-error');
-                buttonEl.textContent = textoOriginal;
-                botoes.forEach(btn => { btn.disabled = false; });
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            renderReturnStatus();
-            carregarResumo('');
-            document.querySelectorAll('input, select, textarea').forEach((el) => {
-                if (el.getAttribute('aria-label')) return;
-                const placeholder = el.getAttribute('placeholder');
-                const fallback = placeholder || el.id || 'campo';
-                el.setAttribute('aria-label', fallback);
-            });
-            document.getElementById('btnCupom').addEventListener('click', aplicarCupom);
-            document.getElementById('btn-credito').addEventListener('click', function () { processarPagamento('credito', this); });
-            document.getElementById('btn-debito').addEventListener('click', function () { processarPagamento('debito', this); });
-            document.getElementById('btn-pix').addEventListener('click', function () { processarPagamento('pix', this); });
-        });
-    </script>
-  <a class="whatsapp-float" href="https://wa.me/5516992596614?text=Ol%C3%A1%2C%20preciso%20de%20suporte%20no%20Varej%C3%A3o%20do%20Povo." target="_blank" rel="noopener noreferrer" aria-label="Suporte via WhatsApp">WhatsApp</a>
-  <footer class="centralizar">
-    <h4>Varejão do Povo</h4>
-    <p>Av. Cásper Líbero, 376, Ribeirão Preto - SP</p>
-    <p>WhatsApp: (16) 99259-6614 • Seg a Sáb 07:00 às 19:00</p>
-    <div class="author-credit">Desenvolvido por <strong>Yago Fellipe Amorim</strong> • Interesse em contratar: <a href="https://wa.me/5516991145034?text=Ol%C3%A1%2C%20Yago%2C%20vi%20seu%20site%20e%20quero%20falar%20sobre%20um%20projeto." target="_blank" rel="noopener noreferrer">falar no WhatsApp</a></div>
-    <div class="social-links">
-      <a href="https://wa.me/5516992596614?text=Ol%C3%A1%2C%20preciso%20de%20suporte%20no%20Varej%C3%A3o%20do%20Povo." target="_blank" rel="noopener noreferrer">WhatsApp</a>
-      <a href="https://www.facebook.com/people/Varejao-do-Povo/100043319426102/" target="_blank" rel="noopener noreferrer">Facebook</a>
-      <a href="#" class="is-disabled" aria-disabled="true" tabindex="-1">Instagram (em breve)</a>
+  <main>
+    <div class="acoes page-links">
+      <a href="index.html">Início</a>
+      <a href="setor-frutas.html">Continuar comprando</a>
+      <a href="cliente.html">Área do cliente</a>
     </div>
-  </footer></body>
+
+    <p id="statusMsg" class="status-banner" aria-live="polite"></p>
+
+    <h2>Resumo do Pedido</h2>
+    <div class="acoes">
+     <button id="btnEsvaziarCarrinho" type="button">Esvaziar carrinho</button>
+    </div>
+    <ul id="resumoCompra"></ul>
+    <h3 id="subtotal">Subtotal: R$ 0,00</h3>
+    <h3 id="desconto">Desconto: R$ 0,00</h3>
+    <h3 id="frete">Frete: R$ 0,00</h3>
+    <h3 id="totalCarrinho">Total: R$ 0,00</h3>
+    <p id="freteStatus" class="status-banner" aria-live="polite"></p>
+
+    <h2>Dados do cliente</h2>
+    <div class="admin-panel">
+     <input id="nomeCliente" placeholder="Seu nome (opcional)" aria-label="Nome do cliente">
+     <input id="cpfCliente" placeholder="CPF para fidelidade (somente numeros)" aria-label="CPF do cliente">
+     <div class="acoes">
+      <input id="cupomInput" placeholder="Cupom (ex: BEMVINDO10)" aria-label="Cupom de desconto">
+      <button type="button" id="btnCupom">Aplicar cupom</button>
+     </div>
+    </div>
+
+    <h2>Pagamento via Mercado Pago</h2>
+    <div class="acoes">
+      <button id="btn-credito" type="button">Pagar com cartao</button>
+      <button id="btn-debito" type="button">Pagar com debito</button>
+      <button id="btn-pix" type="button">Pagar com Pix</button>
+    </div>
+  </main>
+
+  <script src="app-core.js?v=20260227-2"></script>
+  <script>
+    const API = AppCore.resolveApiBase();
+    let CART_ID = AppCore.resolveCartId();
+    let cupomAplicado = '';
+    let rehydrated = false;
+
+    function money(v) { return Number(v).toFixed(2).replace('.', ','); }
+
+    function showStatus(message, type = 'status-info') {
+      const status = document.getElementById('statusMsg');
+      status.textContent = message;
+      status.className = `status-banner ${type}`;
+    }
+
+    function getLocalCart() {
+      try {
+        return JSON.parse(localStorage.getItem('cart_items') || '[]');
+      } catch {
+        return [];
+      }
+    }
+
+    async function rehydrateBackendCart(items) {
+      for (const item of items) {
+        await fetch(`${API}/carrinho`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Cart-Id': CART_ID },
+          body: JSON.stringify({
+            produtoId: item.produtoId,
+            quantidade: Number(item.quantidade || 0)
+          })
+        });
+      }
+    }
+
+    function renderReturnStatus() {
+      const params = new URLSearchParams(window.location.search);
+      const status = params.get('status') || params.get('collection_status');
+      if (!status) return;
+      if (status === 'approved') {
+        showStatus('Pagamento aprovado. Seu pedido esta confirmado!', 'status-success');
+        localStorage.removeItem('cart_items');
+      } else if (status === 'pending') {
+        showStatus('Pagamento pendente. Assim que confirmado, liberaremos seu pedido.', 'status-info');
+      } else {
+        showStatus('Pagamento nao aprovado. Tente novamente ou escolha outra forma.', 'status-error');
+      }
+    }
+
+    async function carregarResumo(cupom = '') {
+      const resumoCompra = document.getElementById('resumoCompra');
+      resumoCompra.innerHTML = '';
+
+      try {
+        const res = await fetch(`${API}/checkout${cupom ? `?cupom=${encodeURIComponent(cupom)}` : ''}`, {
+          headers: { 'X-Cart-Id': CART_ID }
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.erro || 'Falha ao carregar resumo da compra.');
+        }
+
+        const data = await res.json();
+        if ((!data.itens || !data.itens.length) && !rehydrated) {
+          const localItems = getLocalCart();
+          if (localItems.length) {
+            rehydrated = true;
+            await rehydrateBackendCart(localItems);
+            return carregarResumo(cupom);
+          }
+        }
+
+        data.itens.forEach(item => {
+          const subtotal = Number(item.preco) * Number(item.quantidade);
+          const li = document.createElement('li');
+          li.textContent = `${item.produto} - ${item.quantidade} ${item.unidade} - R$ ${money(subtotal)}`;
+          resumoCompra.appendChild(li);
+        });
+
+        const subtotal = Number(data.subtotal || 0);
+        const desconto = Number(data.desconto || 0);
+        const totalBase = Number(data.totalBase || data.total || 0);
+        const frete = Number(data.frete || 0);
+        const totalFinal = Number(data.total || 0);
+
+        document.getElementById('subtotal').textContent = `Subtotal: R$ ${money(subtotal)}`;
+        document.getElementById('desconto').textContent = `Desconto: R$ ${money(desconto)}`;
+        document.getElementById('frete').textContent = `Frete: R$ ${money(frete)}`;
+        document.getElementById('totalCarrinho').textContent = `Total: R$ ${money(totalFinal)}`;
+
+        const freteStatus = document.getElementById('freteStatus');
+        freteStatus.textContent = totalBase >= 100 ? 'Frete grátis aplicado.' : (totalBase > 0 ? 'Frete sera cobrado no total.' : '');
+        freteStatus.className = totalBase >= 100 ? 'status-banner status-success' : 'status-banner status-info';
+
+        if (!data.itens.length) {
+          showStatus('Seu pedido esta vazio. Adicione itens antes de pagar.', 'status-info');
+        } else if (cupom) {
+          showStatus(`Cupom ${cupom} aplicado com sucesso.`, 'status-success');
+        } else {
+          showStatus('Resumo carregado. Voce sera redirecionado ao Mercado Pago para concluir o pagamento.', 'status-success');
+        }
+      } catch (err) {
+        showStatus(err.message, 'status-error');
+      }
+    }
+
+    async function aplicarCupom() {
+      const cupom = document.getElementById('cupomInput').value.trim();
+      if (!cupom) {
+        cupomAplicado = '';
+        await carregarResumo('');
+        return;
+      }
+      cupomAplicado = cupom;
+      await carregarResumo(cupom);
+    }
+
+    async function processarPagamento(metodo, buttonEl) {
+      const botoes = document.querySelectorAll('button[id^="btn-"]');
+      const textoOriginal = buttonEl.textContent;
+      botoes.forEach(btn => { btn.disabled = true; });
+      buttonEl.textContent = 'Processando...';
+
+      try {
+        const payload = {
+         cpf: document.getElementById('cpfCliente').value.trim(),
+         nomeCliente: document.getElementById('nomeCliente').value.trim(),
+         cupom: cupomAplicado,
+         metodoPreferido: metodo
+        };
+
+        const finalizarRes = await fetch(`${API}/pagamento/preferencia`, {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json', 'X-Cart-Id': CART_ID },
+         body: JSON.stringify(payload)
+        });
+
+        const body = await finalizarRes.json().catch(() => ({}));
+        if (!finalizarRes.ok) throw new Error(body.erro || 'Falha ao iniciar o pagamento.');
+        const link = body.initPoint || body.sandboxInitPoint;
+        if (!link) throw new Error('Link de pagamento nao disponivel.');
+        showStatus('Redirecionando para o Mercado Pago...', 'status-success');
+        setTimeout(() => { window.location.href = link; }, 600);
+      } catch (err) {
+        showStatus(err.message, 'status-error');
+        buttonEl.textContent = textoOriginal;
+        botoes.forEach(btn => { btn.disabled = false; });
+      }
+    }
+
+    async function esvaziarCarrinho() {
+      localStorage.removeItem('cart_items');
+      localStorage.removeItem('cart_id');
+      CART_ID = AppCore.resolveCartId();
+      cupomAplicado = '';
+      rehydrated = true;
+      document.getElementById('cupomInput').value = '';
+      await carregarResumo('');
+      showStatus('Carrinho esvaziado. Adicione novos itens para continuar.', 'status-info');
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      renderReturnStatus();
+      carregarResumo('');
+      document.querySelectorAll('input, select, textarea').forEach((el) => {
+        if (el.getAttribute('aria-label')) return;
+        const placeholder = el.getAttribute('placeholder');
+        const fallback = placeholder || el.id || 'campo';
+        el.setAttribute('aria-label', fallback);
+      });
+      document.getElementById('btnCupom').addEventListener('click', aplicarCupom);
+      document.getElementById('btn-credito').addEventListener('click', function () { processarPagamento('credito', this); });
+      document.getElementById('btn-debito').addEventListener('click', function () { processarPagamento('debito', this); });
+      document.getElementById('btn-pix').addEventListener('click', function () { processarPagamento('pix', this); });
+      document.getElementById('btnEsvaziarCarrinho').addEventListener('click', esvaziarCarrinho);
+    });
+  </script>
+ <a class="whatsapp-float" href="https://wa.me/5516992596614?text=Ol%C3%A1%2C%20preciso%20de%20suporte%20no%20Varej%C3%A3o%20do%20Povo." target="_blank" rel="noopener noreferrer" aria-label="Suporte via WhatsApp">WhatsApp</a>
+ <footer class="centralizar">
+  <h4>Varejão do Povo</h4>
+  <p>Av. Casper Libero, 376, Ribeirao Preto - SP</p>
+  <p>WhatsApp: (16) 99259-6614 Seg a Sab 07:00 as 19:00</p>
+  <div class="author-credit">Desenvolvido por <strong>Yago Fellipe Amorim</strong> - Interesse em contratar: <a href="https://wa.me/5516991145034?text=Ol%C3%A1%2C%20Yago%2C%20vi%20seu%20site%20e%20quero%20falar%20sobre%20um%20projeto." target="_blank" rel="noopener noreferrer">falar no WhatsApp</a></div>
+  <div class="social-links">
+   <a href="https://wa.me/5516992596614?text=Ol%C3%A1%2C%20preciso%20de%20suporte%20no%20Varej%C3%A3o%20do%20Povo." target="_blank" rel="noopener noreferrer">WhatsApp</a>
+   <a href="https://www.facebook.com/people/Varejao-do-Povo/100043319426102/" target="_blank" rel="noopener noreferrer">Facebook</a>
+   <a href="#" class="is-disabled" aria-disabled="true" tabindex="-1">Instagram (em breve)</a>
+  </div>
+ </footer></body>
 </html>
 
 

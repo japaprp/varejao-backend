@@ -19,6 +19,7 @@
       <div>
         <h1>Varejão do Povo</h1>
         <p>Plataforma profissional para atrair clientes e aumentar vendas no varejo de hortifruti.</p>
+        <div class="brand-slogan" aria-label="Slogan da marca">Frescor diário com padrão profissional</div>
         <div class="home-search">
           <input id="homeSearchInput" type="search" placeholder="Busque produto em toda a loja..." aria-label="Busca global de produtos">
           <button id="homeSearchBtn" type="button">Buscar</button>
@@ -42,6 +43,8 @@
       <a href="setor-folhas.html">FOLHAS</a>
       <a href="setor-frutas.html">FRUTAS</a>
       <a href="setor-legumes.html">LEGUMES</a>
+      <a id="homeCartNavLink" href="Pagamento.html">CARRINHO</a>
+      <a href="Pagamento.html">PAGAMENTO</a>
       <a href="localizacao.html">INSTITUCIONAL</a>
     </div>
   </nav>
@@ -64,6 +67,10 @@
     <section id="smartBanner" class="info-card mt-12">
       <h2 class="section-title m-0">Status da Loja</h2>
       <p id="smartBannerText" class="mt-10">Carregando informações em tempo real...</p>
+      <p id="homeCartStatus" class="status-banner status-info mt-10"></p>
+      <div class="acoes mt-10">
+        <a id="homeCheckoutLink" href="Pagamento.html" class="is-hidden">Ir para pagamento</a>
+      </div>
     </section>
 
     <section id="promoSection">
@@ -109,6 +116,7 @@
     </section>
 
   </main>
+  <a id="homeFloatingCheckout" class="home-floating-checkout is-hidden" href="Pagamento.html" aria-label="Abrir carrinho e pagamento">Carrinho • 0</a>
   <a class="whatsapp-float" href="https://wa.me/5516992596614?text=Ol%C3%A1%2C%20preciso%20de%20suporte%20no%20Varej%C3%A3o%20do%20Povo." target="_blank" rel="noopener noreferrer" aria-label="Suporte via WhatsApp">WhatsApp</a>
 
   <footer class="centralizar">
@@ -124,7 +132,7 @@
     </div>
   </footer>
 
-  <script src="app-core.js?v=20260227-1"></script>
+  <script src="app-core.js?v=20260227-2"></script>
   <script>
     const API = AppCore.resolveApiBase();
     const CART_ID = AppCore.resolveCartId();
@@ -250,10 +258,34 @@
         items.push({ produtoId, quantidade: Number(quantidade || 0) });
       }
       saveLocalCart(items);
+      return items;
     }
 
-    async function addToCart(produtoId) {
-      addLocalCartItem(produtoId, 1);
+    function renderHomeCartCta(items = null) {
+      const checkoutLink = document.getElementById('homeCheckoutLink');
+      const floatingCheckout = document.getElementById('homeFloatingCheckout');
+      const navCart = document.getElementById('homeCartNavLink');
+      const currentItems = Array.isArray(items) ? items : getLocalCart();
+      const totalItens = currentItems.reduce((sum, item) => sum + Number(item.quantidade || 0), 0);
+      if (totalItens > 0) {
+        checkoutLink.classList.remove('is-hidden');
+        checkoutLink.textContent = `Ir para pagamento (${totalItens})`;
+        floatingCheckout.classList.remove('is-hidden');
+        floatingCheckout.textContent = `Carrinho • ${totalItens}`;
+        navCart.textContent = `CARRINHO (${totalItens})`;
+      } else {
+        checkoutLink.classList.add('is-hidden');
+        checkoutLink.textContent = 'Ir para pagamento';
+        floatingCheckout.classList.add('is-hidden');
+        floatingCheckout.textContent = 'Carrinho • 0';
+        navCart.textContent = 'CARRINHO';
+      }
+    }
+
+    async function addToCart(produtoId, produtoNome = 'Produto') {
+      const statusEl = document.getElementById('homeCartStatus');
+      const localItems = addLocalCartItem(produtoId, 1);
+      renderHomeCartCta(localItems);
       try {
         const res = await fetch(`${API}/carrinho`, {
           method: 'POST',
@@ -261,8 +293,12 @@
           body: JSON.stringify({ produtoId, quantidade: 1 })
         });
         if (!res.ok) throw new Error('Falha ao adicionar no carrinho.');
+        statusEl.textContent = `${safeText(produtoNome)} adicionado ao carrinho. Clique em CARRINHO para finalizar.`;
+        statusEl.className = 'status-banner status-success mt-10';
       } catch (err) {
         console.error(err.message);
+        statusEl.textContent = `${safeText(produtoNome)} salvo no carrinho local. Você pode finalizar no pagamento.`;
+        statusEl.className = 'status-banner status-info mt-10';
       }
     }
 
@@ -307,8 +343,8 @@
         btn.type = 'button';
         btn.className = 'add-circle';
         btn.setAttribute('aria-label', `Adicionar ${safeText(p.nome)} ao carrinho`);
-        btn.innerHTML = '<span class="cart-glyph" aria-hidden="true">🛒</span>';
-        btn.addEventListener('click', () => addToCart(safeText(p.id)));
+        btn.innerHTML = '<span class="cart-glyph" aria-hidden="true">&#128722;</span>';
+        btn.addEventListener('click', () => addToCart(safeText(p.id), safeText(p.nome)));
 
         card.append(badge, img, name, price, desc, btn);
         grid.appendChild(card);
@@ -354,8 +390,8 @@
         btn.type = 'button';
         btn.className = 'add-circle';
         btn.setAttribute('aria-label', `Adicionar ${safeText(p.nome)} ao carrinho`);
-        btn.innerHTML = '<span class="cart-glyph" aria-hidden="true">🛒</span>';
-        btn.addEventListener('click', () => addToCart(safeText(p.id)));
+        btn.innerHTML = '<span class="cart-glyph" aria-hidden="true">&#128722;</span>';
+        btn.addEventListener('click', () => addToCart(safeText(p.id), safeText(p.nome)));
 
         card.append(badge, img, name, price, btn);
         grid.appendChild(card);
@@ -428,6 +464,7 @@
 
     async function init() {
       renderUserHub();
+      renderHomeCartCta();
       const grid = document.getElementById('promocoesGrid');
       grid.innerHTML = '<div class="loading-grid"><div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div></div>';
       try {
@@ -518,6 +555,7 @@
   </script>
 </body>
 </html>
+
 
 
 

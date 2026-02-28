@@ -109,7 +109,7 @@
     </section>
   </main>
 
-  <script src="app-core.js?v=20260227-1"></script>
+  <script src="app-core.js?v=20260227-2"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script>
     const API = AppCore.resolveApiBase();
@@ -140,6 +140,18 @@
         .replace(/\.(\d{3})(\d)/, '.$1-$2');
     }
 
+    function authHeadersCliente() {
+      const token = localStorage.getItem('cliente_token') || '';
+      if (!token) return {};
+      return { Authorization: `Bearer ${token}` };
+    }
+
+    function redirectClienteParaHome() {
+      setTimeout(() => {
+        window.location.href = `index.html?api=${encodeURIComponent(API)}`;
+      }, 700);
+    }
+
     async function loginCliente() {
       const email = document.getElementById('loginEmail').value.trim();
       const senha = document.getElementById('loginSenha').value;
@@ -168,6 +180,7 @@
       }
       showStatus(`Bem-vindo, ${body.usuario.nome}!`, 'status-success');
       renderClienteSession();
+      redirectClienteParaHome();
     }
 
     async function loginComGoogle(idToken) {
@@ -185,6 +198,7 @@
       localStorage.setItem('cliente_dados', JSON.stringify(body.usuario));
       showStatus(`Bem-vindo, ${body.usuario.nome}!`, 'status-success');
       renderClienteSession();
+      redirectClienteParaHome();
     }
 
     async function loginComFacebook(accessToken) {
@@ -202,6 +216,7 @@
       localStorage.setItem('cliente_dados', JSON.stringify(body.usuario));
       showStatus(`Bem-vindo, ${body.usuario.nome}!`, 'status-success');
       renderClienteSession();
+      redirectClienteParaHome();
     }
 
     async function initGoogleAuth() {
@@ -349,7 +364,9 @@
         return;
       }
 
-      const res = await fetch(`${API}/fidelidade/${encodeURIComponent(cpf)}`);
+      const res = await fetch(`${API}/fidelidade/${encodeURIComponent(cpf)}`, {
+        headers: authHeadersCliente()
+      });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
         box.innerHTML = '<p>CPF ainda não encontrado no programa.</p>';
@@ -377,7 +394,9 @@
       }
 
       try {
-        const res = await fetch(`${API}/pedidos?cpf=${encodeURIComponent(cpf)}`);
+        const res = await fetch(`${API}/pedidos?cpf=${encodeURIComponent(cpf)}`, {
+          headers: authHeadersCliente()
+        });
         if (!res.ok) throw new Error('Falha ao carregar histórico.');
         const pedidos = await res.json();
 
@@ -579,6 +598,7 @@
     </div>
   </footer></body>
 </html>
+
 
 
 

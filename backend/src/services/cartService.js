@@ -7,19 +7,27 @@ import {
 import { applyLoyalty } from './loyaltyService.js';
 import { readDb, writeDb } from '../data/repository.js';
 
-const carts = new Map();
-
 function resolveCartId(cartId) {
   const raw = String(cartId || '').trim();
   return raw || 'default';
 }
 
-function getCart(cartId) {
+function normalizeCpf(value) {
+  return String(value || '').replace(/\D/g, '');
+}
+
+function ensureCollections(db) {
+  db.carrinhos = db.carrinhos || {};
+  db.pedidos = db.pedidos || [];
+}
+
+function getCartFromDb(db, cartId) {
+  ensureCollections(db);
   const id = resolveCartId(cartId);
-  if (!carts.has(id)) {
-    carts.set(id, []);
+  if (!Array.isArray(db.carrinhos[id])) {
+    db.carrinhos[id] = [];
   }
-  return carts.get(id);
+  return db.carrinhos[id];
 }
 
 function cartSubtotal(cart) {
@@ -32,14 +40,17 @@ function calculateFrete(totalBase) {
 }
 
 export function listCart(cartId) {
-  return getCart(cartId);
+  const db = readDb();
+  return getCartFromDb(db, cartId);
 }
 
 export function listOrdersByCpf(cpf) {
   const db = readDb();
-  const target = String(cpf || '').trim();
+  const target = normalizeCpf(cpf);
   if (!target) return [];
-  return (db.pedidos || []).filter((p) => String(p.cpf || '') === target).map(normalizeOrder);
+  return (db.pedidos || [])
+    .filter((p) => normalizeCpf(p.cpf) === target)
+    .map(normalizeOrder);
 }
 
 function normalizeOrder(pedido) {
@@ -93,7 +104,8 @@ export function updateOrderStatus(id, status) {
 }
 
 export function addCartItem({ produtoId, produto, quantidade }, cartId) {
-  const cart = getCart(cartId);
+  const db = readDb();
+  const cart = getCartFromDb(db, cartId);
   const qtd = Number(quantidade);
   if ((!produtoId && !produto) || Number.isNaN(qtd) || qtd <= 0) {
     const err = new Error('Dados invalidos para o carrinho');
@@ -121,11 +133,13 @@ export function addCartItem({ produtoId, produto, quantidade }, cartId) {
     quantidade: qtd
   });
 
+  writeDb(db);
   return { sucesso: true };
 }
 
 export function getCheckoutPreview(codigoCupom = '', cartId = '') {
-  const cart = getCart(cartId);
+  const db = readDb();
+  const cart = getCartFromDb(db, cartId);
   const subtotal = cartSubtotal(cart);
   let desconto = 0;
   let cupomAplicado = null;
@@ -159,7 +173,8 @@ function getOrderById(db, orderId) {
 }
 
 export function createPendingOrder({ cpf = '', nomeCliente = '', cupom = '', cartId = '' } = {}) {
-  const cart = getCart(cartId);
+  const db = readDb();
+  const cart = getCartFromDb(db, cartId);
   const subtotal = cartSubtotal(cart);
   if (subtotal <= 0) {
     const err = new Error('Carrinho vazio');
@@ -177,7 +192,6 @@ export function createPendingOrder({ cpf = '', nomeCliente = '', cupom = '', car
 
   const { totalBase, frete, total } = buildOrderTotals({ subtotal, desconto });
 
-  const db = readDb();
   const order = {
     id: `ped_${Date.now()}`,
     createdAt: new Date().toISOString(),
@@ -188,7 +202,7 @@ export function createPendingOrder({ cpf = '', nomeCliente = '', cupom = '', car
     totalBase,
     frete,
     cupomAplicado,
-    cpf: cpf || null,
+    cpf: normalizeCpf(cpf) || null,
     nomeCliente: nomeCliente || null,
     status: 'Aguardando pagamento',
     payment: {
@@ -196,9 +210,9 @@ export function createPendingOrder({ cpf = '', nomeCliente = '', cupom = '', car
     }
   };
   db.pedidos.push(order);
+  db.carrinhos[resolveCartId(cartId)] = [];
   writeDb(db);
 
-  cart.length = 0;
   return order;
 }
 
@@ -246,7 +260,8 @@ export function finalizePaidOrder(orderId, paymentInfo = {}) {
 }
 
 export function checkoutCart({ cpf = '', nomeCliente = '', cupom = '', cartId = '' } = {}) {
-  const cart = getCart(cartId);
+  const db = readDb();
+  const cart = getCartFromDb(db, cartId);
   const subtotal = cartSubtotal(cart);
   if (subtotal <= 0) {
     const err = new Error('Carrinho vazio');
@@ -268,7 +283,6 @@ export function checkoutCart({ cpf = '', nomeCliente = '', cupom = '', cartId = 
   const frete = calculateFrete(totalBase);
   const total = totalBase + frete;
 
-  const db = readDb();
   // Atualiza estoque com base nos itens vendidos
   for (const item of cart) {
     const prod = (db.produtos || []).find((p) => p.id === item.produtoId);
@@ -291,15 +305,15 @@ export function checkoutCart({ cpf = '', nomeCliente = '', cupom = '', cartId = 
     totalBase,
     frete,
     cupomAplicado,
-    cpf: cpf || null,
+    cpf: normalizeCpf(cpf) || null,
     nomeCliente: nomeCliente || null,
     status: 'Finalizado'
   });
+  db.carrinhos[resolveCartId(cartId)] = [];
   writeDb(db);
 
   const fidelidade = applyLoyalty(cpf, nomeCliente, total);
 
-  cart.length = 0;
   return {
     sucesso: true,
     mensagem: 'Compra finalizada!',

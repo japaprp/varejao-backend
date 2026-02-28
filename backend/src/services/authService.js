@@ -1,14 +1,15 @@
 import { OAuth2Client } from 'google-auth-library';
 import {
+  ADMIN_EMAIL,
+  ADMIN_PASSWORD,
   FACEBOOK_APP_ID,
   FACEBOOK_APP_SECRET,
   GOOGLE_CLIENT_ID
 } from '../config/env.js';
 import { readDb, writeDb } from '../data/repository.js';
-import { createToken, hashPassword, needsRehash, verifyPassword } from '../utils/security.js';
+import { createAuthToken, createToken, hashPassword, needsRehash, verifyAuthToken, verifyPassword } from '../utils/security.js';
 import { normalizeName } from '../utils/normalize.js';
 
-const sessions = new Map();
 const SESSION_TTL_MS = 1000 * 60 * 60 * 12;
 const googleClient = GOOGLE_CLIENT_ID ? new OAuth2Client(GOOGLE_CLIENT_ID) : null;
 
@@ -28,6 +29,7 @@ function sanitizeUser(user) {
 }
 
 function findUserByEmail(email) {
+  ensureAdminUser();
   const db = readDb();
   const target = normalizeName(email);
   return db.usuarios.find((u) => normalizeName(u.email) === target) || null;
@@ -40,12 +42,36 @@ function findUserByOauth(provider, sub) {
 }
 
 function createSession(user) {
-  const token = createToken();
-  sessions.set(token, {
-    user: sanitizeUser(user),
-    expiresAt: Date.now() + SESSION_TTL_MS
-  });
-  return token;
+  return createAuthToken({ user: sanitizeUser(user) }, SESSION_TTL_MS);
+}
+
+function ensureAdminUser() {
+  const db = readDb();
+  db.usuarios = db.usuarios || [];
+  const adminEmailNorm = normalizeName(ADMIN_EMAIL);
+  const existing = db.usuarios.find((u) => normalizeName(u.email) === adminEmailNorm);
+
+  if (!existing) {
+    if (!ADMIN_PASSWORD) return;
+    db.usuarios.push({
+      id: `u_admin_${Date.now()}`,
+      nome: 'Administrador',
+      email: ADMIN_EMAIL,
+      senhaHash: hashPassword(ADMIN_PASSWORD),
+      role: 'admin',
+      cpf: '00000000000'
+    });
+    writeDb(db);
+    return;
+  }
+
+  if (ADMIN_PASSWORD && existing.role === 'admin') {
+    const shouldUpdate = !verifyPassword(ADMIN_PASSWORD, existing.senhaHash);
+    if (shouldUpdate) {
+      existing.senhaHash = hashPassword(ADMIN_PASSWORD);
+      writeDb(db);
+    }
+  }
 }
 
 export function registerUser(payload) {
@@ -254,11 +280,7 @@ export async function loginWithFacebookToken(payload) {
 }
 
 export function getUserByToken(token) {
-  const session = sessions.get(token);
-  if (!session) return null;
-  if (Date.now() > session.expiresAt) {
-    sessions.delete(token);
-    return null;
-  }
-  return session.user;
+  const payload = verifyAuthToken(token);
+  if (!payload || !payload.user) return null;
+  return payload.user;
 }

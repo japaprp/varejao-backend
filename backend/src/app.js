@@ -24,10 +24,15 @@ app.use(cors({
   origin(origin, callback) {
     // Permite chamadas sem Origin (curl, webhook server-to-server).
     if (!origin) return callback(null, true);
-    if (allowedOrigins.length === 0) return callback(null, true);
+    if (allowedOrigins.length === 0) {
+      if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)) {
+        return callback(null, true);
+      }
+      const err = new Error('CORS_ALLOWED_ORIGINS nao configurado');
+      err.status = 403;
+      return callback(err);
+    }
     if (allowedOrigins.includes(origin)) return callback(null, true);
-    // Fallback seguro para integrações entre serviços do Render.
-    if (/^https:\/\/[a-z0-9-]+\.onrender\.com$/i.test(origin)) return callback(null, true);
     const err = new Error('Origem nao permitida pelo CORS');
     err.status = 403;
     return callback(err);

@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
@@ -47,7 +47,7 @@
             <select id="periodoDash">
               <option value="dia">Dia</option>
               <option value="semana">Semana</option>
-              <option value="mes" selected>Mês</option>
+              <option value="mes" selected>Mes</option>
               <option value="ano">Ano</option>
             </select>
             <button type="button" id="btnAtualizarDash">Atualizar</button>
@@ -59,15 +59,15 @@
 
         <section class="admin-panel mt-12">
           <h3>Assistente de Performance</h3>
-          <p>Leituras automáticas para orientar decisões de vendas.</p>
+          <p>Leituras automaticas para orientar decisoes de vendas.</p>
           <ul id="insightsList"></ul>
         </section>
 
         <div class="admin-layout mt-12">
           <div class="admin-table-wrap">
-            <h3>Série (Entradas/Saídas/Lucro)</h3>
+            <h3>Serie (Entradas/Saidas/Lucro)</h3>
             <table class="admin-table">
-              <thead><tr><th>Período</th><th>Entradas</th><th>Frete</th><th>Saídas</th><th>Lucro</th></tr></thead>
+              <thead><tr><th>Periodo</th><th>Entradas</th><th>Frete</th><th>Saidas</th><th>Lucro</th></tr></thead>
               <tbody id="seriesBody"></tbody>
             </table>
           </div>
@@ -82,30 +82,30 @@
         </div>
 
         <section class="admin-panel mt-12">
-          <h3>Gráfico de Performance</h3>
-          <p>Entradas, frete e saídas por período.</p>
+          <h3>Grafico de Performance</h3>
+          <p>Entradas, frete e saidas por período.</p>
           <canvas id="chartPerformance" width="900" height="260"></canvas>
         </section>
       </section>
 
       <section class="admin-layout mb-16">
         <aside class="admin-panel">
-          <h2>Lançar Saída</h2>
+          <h2>Lancar Saida</h2>
           <form id="saidaForm">
-            <input id="saidaDescricao" placeholder="Descrição" required>
+            <input id="saidaDescricao" placeholder="Descricao" required>
             <input id="saidaValor" type="number" step="0.01" min="0.01" placeholder="Valor" required>
             <input id="saidaCategoria" placeholder="Categoria (ex: aluguel)">
-            <button type="submit">Salvar saída</button>
+            <button type="submit">Salvar saida</button>
           </form>
         </aside>
 
         <section class="admin-table-wrap">
-          <h2>Saídas Financeiras</h2>
+          <h2>Saidas Financeiras</h2>
           <div class="acoes mb-8">
             <button type="button" id="btnExportSaidas">Exportar CSV</button>
           </div>
           <table class="admin-table">
-            <thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Valor</th><th>Ações</th></tr></thead>
+            <thead><tr><th>Data</th><th>Descricao</th><th>Categoria</th><th>Valor</th><th>Acoes</th></tr></thead>
             <tbody id="saidasBody"></tbody>
           </table>
         </section>
@@ -117,8 +117,8 @@
           <form id="entradaForm">
             <select id="entradaProduto" required></select>
             <input id="entradaCaixas" type="number" min="1" placeholder="Quantidade de caixas" required>
-            <input id="entradaPesoMin" type="number" step="0.01" min="0" placeholder="Peso caixa mín (kg)">
-            <input id="entradaPesoMax" type="number" step="0.01" min="0" placeholder="Peso caixa máx (kg)">
+            <input id="entradaPesoMin" type="number" step="0.01" min="0" placeholder="Peso caixa min (kg)">
+            <input id="entradaPesoMax" type="number" step="0.01" min="0" placeholder="Peso caixa max (kg)">
             <input id="entradaPesoMedio" type="number" step="1" min="0" placeholder="Peso médio por unidade (g)">
             <input id="entradaUnidadesCaixa" type="number" step="1" min="0" placeholder="Unidades por caixa">
             <button type="submit">Registrar entrada</button>
@@ -136,7 +136,7 @@
 
       <section class="admin-layout mb-16">
         <aside class="admin-panel">
-          <h2>Saída por Perdas</h2>
+          <h2>Saida por Perdas</h2>
           <form id="perdaForm">
             <select id="perdaProduto" required></select>
             <input id="perdaQuantidade" type="number" step="0.01" min="0.01" placeholder="Quantidade perdida" required>
@@ -150,7 +150,7 @@
         </aside>
 
         <section class="admin-table-wrap">
-          <h2>Histórico de Perdas</h2>
+          <h2>Historico de Perdas</h2>
           <div class="acoes mb-8">
             <button type="button" id="btnExportPerdas">Exportar CSV</button>
           </div>
@@ -167,7 +167,7 @@
           <button type="button" id="btnExportGiro">Exportar CSV</button>
         </div>
         <table class="admin-table">
-          <thead><tr><th>Produto</th><th>Entrada</th><th>Saída (Venda)</th><th>Perdas</th><th>Saída Total</th></tr></thead>
+          <thead><tr><th>Produto</th><th>Entrada</th><th>Saida (Venda)</th><th>Perdas</th><th>Saida Total</th></tr></thead>
           <tbody id="giroBody"></tbody>
         </table>
       </section>
@@ -208,7 +208,7 @@
         </div>
         <table class="admin-table">
           <thead>
-            <tr><th>Data</th><th>Itens</th><th>Frete</th><th>Total</th><th>Status</th><th>CPF</th><th>Nome</th><th>Ações</th></tr>
+            <tr><th>Data</th><th>Itens</th><th>Frete</th><th>Total</th><th>Status</th><th>CPF</th><th>Nome</th><th>Acoes</th></tr>
           </thead>
           <tbody id="pedidosBody"></tbody>
         </table>
@@ -226,7 +226,7 @@
               <option value="legumes">Legumes</option>
               <option value="folhas">Folhas</option>
             </select>
-            <input id="preco" type="number" step="0.01" min="0" placeholder="Preço" required>
+            <input id="preco" type="number" step="0.01" min="0" placeholder="Preco" required>
             <label for="unidade">Unidade de venda</label>
             <select id="unidade" required>
               <option value="kg">kg</option>
@@ -235,8 +235,8 @@
             <div class="admin-layout grid-cols-2">
               <input id="caixasQtd" type="number" min="0" placeholder="Quantidade de caixas">
               <input id="pesoPorCaixa" type="number" step="0.01" min="0" placeholder="Peso por caixa (kg)">
-              <input id="pesoCaixaMin" type="number" step="0.01" min="0" placeholder="Peso caixa mín (kg)">
-              <input id="pesoCaixaMax" type="number" step="0.01" min="0" placeholder="Peso caixa máx (kg)">
+              <input id="pesoCaixaMin" type="number" step="0.01" min="0" placeholder="Peso caixa min (kg)">
+              <input id="pesoCaixaMax" type="number" step="0.01" min="0" placeholder="Peso caixa max (kg)">
               <input id="pesoMedioUnidade" type="number" step="1" min="0" placeholder="Peso médio por unidade (g)">
               <input id="unidadesPorCaixa" type="number" step="1" min="0" placeholder="Unidades por caixa">
               <input id="estoque" type="number" min="0" placeholder="Estoque calculado" required readonly>
@@ -244,11 +244,11 @@
             <small id="estimativaUnidades" class="status-banner status-info"></small>
             <label for="imagemFile">Imagem do produto (arquivo da sua máquina)</label>
             <input id="imagemFile" type="file" accept="image/*">
-            <small class="status-banner status-muted">Você pode selecionar a foto do produto no seu computador.</small>
+            <small class="status-banner status-muted">Voce pode selecionar a foto do produto no seu computador.</small>
             <input id="imagem" placeholder="Ou caminho da imagem (opcional)">
             <img id="previewImagem" alt="Prévia" class="img-preview">
             <input id="selo" placeholder="Selo (ex: 500g aprox. 2-3 un)">
-            <textarea id="descricaoCurta" rows="3" placeholder="Descrição curta"></textarea>
+            <textarea id="descricaoCurta" rows="3" placeholder="Descricao curta"></textarea>
             <label><input type="checkbox" id="promocao"> Em promoção</label>
             <label><input type="checkbox" id="destaque"> Produto destaque</label>
             <div class="acoes">
@@ -263,7 +263,7 @@
           <table class="admin-table">
             <thead>
               <tr>
-                <th>Nome</th><th>Setor</th><th>Preço</th><th>Unidade</th><th>Estoque</th><th>Estimativa</th><th>Promo</th><th>Ações</th>
+                <th>Nome</th><th>Setor</th><th>Preco</th><th>Unidade</th><th>Estoque</th><th>Estimativa</th><th>Promo</th><th>Acoes</th>
               </tr>
             </thead>
             <tbody id="produtosTableBody"></tbody>
@@ -273,7 +273,7 @@
     </section>
   </main>
 
-  <script src="app-core.js?v=20260227-1"></script>
+  <script src="app-core.js?v=20260227-2"></script>
   <script>
     const API = AppCore.resolveApiBase();
     let authToken = localStorage.getItem('admin_token') || '';
@@ -286,7 +286,7 @@
 
     async function fileToDataUrl(file){ return new Promise((ok,err)=>{ const r=new FileReader(); r.onload=()=>ok(String(r.result||'')); r.onerror=err; r.readAsDataURL(file);}); }
     async function uploadImagem(file){
-      if(!authToken) throw new Error('Faça login no painel para enviar imagens.');
+      if(!authToken) throw new Error('Faca login no painel para enviar imagens.');
       const form = new FormData();
       form.append('imagem', file);
       const res = await fetch(`${API}/upload`, { method:'POST', headers:{ Authorization:`Bearer ${authToken}` }, body: form });
@@ -396,13 +396,13 @@
       produtos.forEach(p=>{
         const tr=document.createElement('tr');
         const estimativa = (p.pesoCaixaMin && p.pesoCaixaMax && p.pesoMedioUnidade)
-          ? `${Math.floor((p.pesoCaixaMin*1000)/p.pesoMedioUnidade)}–${Math.floor((p.pesoCaixaMax*1000)/p.pesoMedioUnidade)} un/caixa`
+          ? `${Math.floor((p.pesoCaixaMin*1000)/p.pesoMedioUnidade)} a ${Math.floor((p.pesoCaixaMax*1000)/p.pesoMedioUnidade)} un/caixa`
           : (p.unidadesPorCaixa ? `${p.unidadesPorCaixa} un/caixa` : '');
-        tr.innerHTML=`<td>${esc(p.nome)}</td><td>${esc(p.setor)}</td><td>R$ ${money(p.preco)}</td><td>${esc(p.unidade)}</td><td>${esc(p.estoque ?? 0)}</td><td>${esc(estimativa)}</td><td>${p.promocao?'Sim':'Não'}</td><td class="admin-actions"><button type="button" data-edit="${esc(p.id)}">Editar</button><button type="button" data-del="${esc(p.id)}">Excluir</button></td>`;
+        tr.innerHTML=`<td>${esc(p.nome)}</td><td>${esc(p.setor)}</td><td>R$ ${money(p.preco)}</td><td>${esc(p.unidade)}</td><td>${esc(p.estoque ?? 0)}</td><td>${esc(estimativa)}</td><td>${p.promocao ? 'Sim' : 'Nao'}</td><td class="admin-actions"><button type="button" data-edit="${esc(p.id)}">Editar</button><button type="button" data-del="${esc(p.id)}">Excluir</button></td>`;
         tbody.appendChild(tr);
       });
       tbody.querySelectorAll('[data-edit]').forEach(btn=>btn.addEventListener('click',()=>{ const id=btn.getAttribute('data-edit'); const p=produtos.find(x=>x.id===id); if(p) preencherForm(p); }));
-      tbody.querySelectorAll('[data-del]').forEach(btn=>btn.addEventListener('click',async()=>{ const id=btn.getAttribute('data-del'); const r=await fetch(`${API}/produtos/${id}`,{method:'DELETE',headers:authHeaders()}); if(!r.ok){showStatus('Erro ao excluir produto.','status-error');return;} showStatus('Produto excluído com sucesso.','status-success'); await carregarProdutos(); }));
+      tbody.querySelectorAll('[data-del]').forEach(btn=>btn.addEventListener('click',async()=>{ const id=btn.getAttribute('data-del'); const r=await fetch(`${API}/produtos/${id}`,{method:'DELETE',headers:authHeaders()}); if(!r.ok){showStatus('Erro ao excluir produto.','status-error');return;} showStatus('Produto excluido com sucesso.','status-success'); await carregarProdutos(); }));
     }
 
     async function salvarProduto(ev){
@@ -430,10 +430,10 @@
         ['Descontos',`R$ ${money(resumo.descontos)}`],
         ['Entrada Produtos',`R$ ${money(resumo.entradaProdutos)}`],
         ['Frete',`R$ ${money(resumo.freteTotal)}`],
-        ['Entrada Líquida',`R$ ${money(resumo.entradaLiquida)}`],
-        ['Saída Total',`R$ ${money(resumo.saidaTotal)}`],
+        ['Entrada Liquida',`R$ ${money(resumo.entradaLiquida)}`],
+        ['Saida Total',`R$ ${money(resumo.saidaTotal)}`],
         ['Lucro',`R$ ${money(resumo.lucro)}`],
-        ['Ticket Médio',`R$ ${money(resumo.ticketMedio)}`]
+        ['Ticket Medio',`R$ ${money(resumo.ticketMedio)}`]
       ];
       const grid=document.getElementById('metricasGrid'); grid.innerHTML='';
       cards.forEach(c=>{ const el=document.createElement('article'); el.className='promo-card metric-card'; el.innerHTML=`<small>${c[0]}</small><strong>${c[1]}</strong>`; grid.appendChild(el); });
@@ -500,7 +500,7 @@
       const legend = [
         ['Entradas','#1f8f5f'],
         ['Frete','#e99b05'],
-        ['Saídas','#d14b4b']
+        ['Saidas','#d14b4b']
       ];
       legend.forEach((l,idx)=>{
         const lx = padding + idx*110;
@@ -518,25 +518,25 @@
       const insights=[];
 
       if(Number(resumo.pedidos||0)===0){
-        insights.push('Sem pedidos no período: ative promoções relâmpago e divulgue no WhatsApp.');
+        insights.push('Sem pedidos no período: ative promoções relmpago e divulgue no WhatsApp.');
       }
       if(Number(resumo.lucro||0) < 0){
-        insights.push('Lucro negativo: revise saídas e ajuste preços dos itens com baixa margem.');
+        insights.push('Lucro negativo: revise saidas e ajuste preços dos itens com baixa margem.');
       }
       if(Number(resumo.ticketMedio||0) < 50 && Number(resumo.pedidos||0) > 0){
-        insights.push('Ticket médio baixo: ofereça combos e sugestões de compra para aumentar o valor por pedido.');
+        insights.push('Ticket médio baixo: ofeÁrea combos e sugestes de compra para aumentar o valor por pedido.');
       }
       if(Number(resumo.freteTotal||0) > 0 && Number(resumo.entradaProdutos||0) > 0){
         const ratio = Number(resumo.freteTotal) / Number(resumo.entradaProdutos);
         if(ratio > 0.25){
-          insights.push('Frete representa parte alta da receita: reavalie a política de frete ou aumente o ticket mínimo.');
+          insights.push('Frete representa parte alta da receita: Áreavalie a política de frete ou aumente o ticket mínimo.');
         }
       }
       if(top && top.length){
-        insights.push(`Produto líder: destaque ${top[0].produto} na home e em promoções.`);
+        insights.push(`Produto lder: destaque ${top[0].produto} na home e em promoções.`);
       }
       if(!insights.length){
-        insights.push('Indicadores estáveis. Teste novos banners e mantenha o mix atualizado.');
+        insights.push('Indicadores estaveis. Teste novos banners e mantenha o mix atualizado.');
       }
 
       insights.forEach((text)=>{
@@ -644,8 +644,8 @@
       body.querySelectorAll('[data-del-saida]').forEach(btn=>btn.addEventListener('click',async()=>{
         const id=btn.getAttribute('data-del-saida');
         const r=await fetch(`${API}/financeiro/saidas/${id}`,{method:'DELETE',headers:authHeaders()});
-        if(!r.ok){showStatus('Erro ao excluir saída.','status-error');return;}
-        showStatus('Saída removida com sucesso.','status-success');
+        if(!r.ok){showStatus('Erro ao excluir sada.','status-error');return;}
+        showStatus('Saida removida com sucesso.','status-success');
         await carregarSaidas();
         await carregarDashboard();
       }));
@@ -716,8 +716,8 @@
       };
       const res=await fetch(`${API}/financeiro/saidas`,{method:'POST',headers:authHeaders(),body:JSON.stringify(payload)});
       const body=await res.json().catch(()=>({}));
-      if(!res.ok){showStatus(body.erro||'Erro ao salvar saída.','status-error');return;}
-      showStatus('Saída registrada com sucesso.','status-success');
+      if(!res.ok){showStatus(body.erro||'Erro ao salvar sada.','status-error');return;}
+      showStatus('Saida registrada com sucesso.','status-success');
       document.getElementById('saidaForm').reset();
       await carregarSaidas();
       await carregarDashboard();
@@ -849,9 +849,9 @@
   <a class="whatsapp-float" href="https://wa.me/5516992596614?text=Ol%C3%A1%2C%20preciso%20de%20suporte%20no%20Varej%C3%A3o%20do%20Povo." target="_blank" rel="noopener noreferrer" aria-label="Suporte via WhatsApp">WhatsApp</a>
   <footer class="centralizar">
     <h4>Varejão do Povo</h4>
-    <p>Av. Cásper Líbero, 376, Ribeirão Preto - SP</p>
-    <p>WhatsApp: (16) 99259-6614 • Seg a Sáb 07:00 às 19:00</p>
-    <div class="author-credit">Desenvolvido por <strong>Yago Fellipe Amorim</strong> • Interesse em contratar: <a href="https://wa.me/5516991145034?text=Ol%C3%A1%2C%20Yago%2C%20vi%20seu%20site%20e%20quero%20falar%20sobre%20um%20projeto." target="_blank" rel="noopener noreferrer">falar no WhatsApp</a></div>
+    <p>Av. Casper Libero, 376, Ribeirao Preto - SP</p>
+    <p>WhatsApp: (16) 99259-6614  Seg a Sab 07:00 as 19:00</p>
+    <div class="author-credit">Desenvolvido por <strong>Yago Fellipe Amorim</strong>  Interesse em contratar: <a href="https://wa.me/5516991145034?text=Ol%C3%A1%2C%20Yago%2C%20vi%20seu%20site%20e%20quero%20falar%20sobre%20um%20projeto." target="_blank" rel="noopener noreferrer">falar no WhatsApp</a></div>
     <div class="social-links">
       <a href="https://wa.me/5516992596614?text=Ol%C3%A1%2C%20preciso%20de%20suporte%20no%20Varej%C3%A3o%20do%20Povo." target="_blank" rel="noopener noreferrer">WhatsApp</a>
       <a href="https://www.facebook.com/people/Varejao-do-Povo/100043319426102/" target="_blank" rel="noopener noreferrer">Facebook</a>

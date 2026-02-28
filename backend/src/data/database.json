@@ -247,16 +247,7 @@
       "Cupons especiais em datas comemorativas"
     ]
   },
-  "usuarios": [
-    {
-      "id": "u_admin",
-      "nome": "Administrador",
-      "email": "admin@varejao.com",
-      "senhaHash": "a36aef5a11c4073fbe60314fc9df530a9d5f986533594d1f5190742ff9e0e408",
-      "role": "admin",
-      "cpf": "00000000000"
-    }
-  ],
+  "usuarios": [],
   "clientesFidelidade": [],
   "cupons": [
     {

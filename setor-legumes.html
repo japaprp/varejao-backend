@@ -46,7 +46,7 @@
     <section id="gridProdutos" class="items-container" aria-label="Lista de legumes"></section>
   </main>
 
-  <script src="app-core.js?v=20260227-1"></script>
+  <script src="app-core.js?v=20260227-2"></script>
   <script>
     const API = AppCore.resolveApiBase();
     const CART_ID = AppCore.resolveCartId();
@@ -171,7 +171,7 @@
         addBtn.type = 'button';
         addBtn.className = 'add-circle';
         addBtn.setAttribute('aria-label', `Adicionar ${produto.nome} ao carrinho`);
-        addBtn.innerHTML = '<span class="cart-glyph" aria-hidden="true">🛒</span>';
+        addBtn.innerHTML = '<span class="cart-glyph" aria-hidden="true">&#128722;</span>';
         addBtn.addEventListener('click', () => addToCart(produto, Number(display.dataset.value)));
 
         card.append(selo, img, nome, price);
@@ -266,6 +266,7 @@
     </div>
   </footer></body>
 </html>
+
 
 
 

@@ -7,3 +7,6 @@ export const CORS_ALLOWED_ORIGINS = process.env.CORS_ALLOWED_ORIGINS || FRONTEND
 export const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 export const FACEBOOK_APP_ID = process.env.FACEBOOK_APP_ID || '';
 export const FACEBOOK_APP_SECRET = process.env.FACEBOOK_APP_SECRET || '';
+export const TOKEN_SECRET = process.env.TOKEN_SECRET || 'troque-este-token-secret-em-producao';
+export const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@varejao.com';
+export const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123456';

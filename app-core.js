@@ -1,5 +1,5 @@
 (() => {
-  const PROD_API = 'https://varejao-backend-83hm.onrender.com';
+  const PROD_API = 'https://varejao-backend-1.onrender.com';
   const DEV_API = 'http://localhost:3001';
 
   function resolveApiBase() {

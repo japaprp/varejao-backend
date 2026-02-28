@@ -23,6 +23,9 @@ Sistema de compras online com front-end em HTML/CSS/JS e back-end em Node.js/Exp
    - `GOOGLE_CLIENT_ID` (OAuth Client ID do Google para login social)
    - `FACEBOOK_APP_ID` (App ID do Facebook Login)
    - `FACEBOOK_APP_SECRET` (App Secret do Facebook Login)
+   - `TOKEN_SECRET` (segredo forte para assinatura dos tokens)
+   - `ADMIN_EMAIL` (email do administrador)
+   - `ADMIN_PASSWORD` (senha do administrador)
 7. Salve e aguarde o deploy.
 
 Ao finalizar, o Render fornece a URL do backend, por exemplo:
@@ -52,6 +55,9 @@ CORS_ALLOWED_ORIGINS=https://seusite.com
 GOOGLE_CLIENT_ID=SEU_GOOGLE_CLIENT_ID
 FACEBOOK_APP_ID=SEU_FACEBOOK_APP_ID
 FACEBOOK_APP_SECRET=SEU_FACEBOOK_APP_SECRET
+TOKEN_SECRET=UM_SEGREDO_FORTE_E_UNICO
+ADMIN_EMAIL=admin@varejao.com
+ADMIN_PASSWORD=TROQUE_ESTA_SENHA
 ```
 
 ## Rodar local

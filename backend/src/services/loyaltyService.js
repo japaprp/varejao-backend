@@ -2,25 +2,31 @@
 
 const LIMITE_FIDELIDADE = 200;
 
+function normalizeCpf(value) {
+  return String(value || '').replace(/\D/g, '');
+}
+
 function findCliente(db, cpf) {
-  return db.clientesFidelidade.find((c) => c.cpf === cpf) || null;
+  const target = normalizeCpf(cpf);
+  return db.clientesFidelidade.find((c) => normalizeCpf(c.cpf) === target) || null;
 }
 
 export function getLoyaltyByCpf(cpf) {
   const db = readDb();
-  if (!cpf) return null;
+  if (!normalizeCpf(cpf)) return null;
   return findCliente(db, cpf);
 }
 
 export function applyLoyalty(cpf, nome, valorCompra) {
-  if (!cpf) return null;
+  const cpfNorm = normalizeCpf(cpf);
+  if (!cpfNorm) return null;
 
   const db = readDb();
-  let cliente = findCliente(db, cpf);
+  let cliente = findCliente(db, cpfNorm);
 
   if (!cliente) {
     cliente = {
-      cpf,
+      cpf: cpfNorm,
       nome: nome || 'Cliente',
       totalGasto: 0,
       progressoGasto: 0,
