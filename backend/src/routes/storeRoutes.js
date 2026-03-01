@@ -24,6 +24,7 @@ import {
   exportPerdasCsv,
   exportGiroCsv,
   exportEstoqueBaixoCsv,
+  forgotPasswordController,
   login,
   me,
   postCarrinho,
@@ -49,6 +50,7 @@ import { requireAdmin, requireAuth, requireRole } from '../middlewares/authMiddl
 import { authLimiter, paymentLimiter } from '../middlewares/rateLimitMiddleware.js';
 import { upload } from '../middlewares/uploadMiddleware.js';
 import {
+  validateForgotPasswordPayload,
   validateFacebookPayload,
   validateGooglePayload,
   validateLoginPayload,
@@ -59,6 +61,7 @@ const router = Router();
 
 router.post('/auth/register', authLimiter, validateRegisterPayload, register);
 router.post('/auth/login', authLimiter, validateLoginPayload, login);
+router.post('/auth/forgot-password', authLimiter, validateForgotPasswordPayload, forgotPasswordController);
 router.get('/auth/google/config', getGoogleAuthConfigController);
 router.post('/auth/google', authLimiter, validateGooglePayload, loginGoogle);
 router.get('/auth/facebook/config', getFacebookAuthConfigController);

@@ -1415,6 +1415,28 @@ canvas#chartPerformance {
   box-shadow: 0 8px 14px rgba(10, 40, 28, 0.12);
 }
 
+.auth-inline-links {
+  margin-top: 8px;
+  margin-bottom: 2px;
+}
+
+.btn-link {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #1f6f4b;
+  font-weight: 700;
+  font-size: 0.95rem;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.btn-link:hover {
+  color: #174f36;
+}
+
 .profile-photo-box {
   margin-top: 12px;
   padding: 10px;

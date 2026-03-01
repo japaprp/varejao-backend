@@ -30,10 +30,13 @@
       <aside class="admin-panel auth-panel">
         <h2>Entrar</h2>
         <p class="panel-subtitle">Acesse sua conta para acompanhar fidelidade e pedidos.</p>
-        <label class="field-label" for="loginEmail">E-mail</label>
-        <input id="loginEmail" name="cliente_email" class="form-input" placeholder="Digite seu e-mail" autocomplete="username" aria-label="E-mail de login">
-        <label class="field-label" for="loginSenha">Senha</label>
-        <input id="loginSenha" name="cliente_senha" class="form-input" type="password" placeholder="Digite sua senha" autocomplete="current-password" aria-label="Senha de login">
+        <label class="field-label" for="clienteLoginEmail">E-mail</label>
+        <input id="clienteLoginEmail" name="cliente_login_email" class="form-input" placeholder="Digite seu e-mail" autocomplete="off" aria-label="E-mail de login">
+        <label class="field-label" for="clienteLoginSenha">Senha</label>
+        <input id="clienteLoginSenha" name="cliente_login_senha" class="form-input" type="password" placeholder="Digite sua senha" autocomplete="off" aria-label="Senha de login">
+        <div class="auth-inline-links">
+          <button id="btnEsqueciSenha" type="button" class="btn-link">Esqueci minha senha</button>
+        </div>
         <div class="acoes">
           <button id="btnLoginCliente" type="button">Entrar</button>
           <button id="btnLogoutCliente" type="button" class="is-hidden">Sair da conta</button>
@@ -153,8 +156,8 @@
     }
 
     async function loginCliente() {
-      const email = document.getElementById('loginEmail').value.trim();
-      const senha = document.getElementById('loginSenha').value;
+      const email = document.getElementById('clienteLoginEmail').value.trim();
+      const senha = document.getElementById('clienteLoginSenha').value;
 
       const res = await fetch(`${API}/auth/login`, {
         method: 'POST',
@@ -172,12 +175,15 @@
       localStorage.setItem('cliente_dados', JSON.stringify(body.usuario));
       if (String(body.usuario?.role || '').toLowerCase() === 'admin') {
         localStorage.setItem('admin_token', body.token);
+        document.getElementById('clienteLoginSenha').value = '';
         showStatus('Acesso administrativo detectado. Redirecionando...', 'status-success');
         setTimeout(() => {
           window.location.href = `admin.html?api=${encodeURIComponent(API)}`;
         }, 500);
         return;
       }
+      localStorage.removeItem('admin_token');
+      document.getElementById('clienteLoginSenha').value = '';
       showStatus(`Bem-vindo, ${body.usuario.nome}!`, 'status-success');
       renderClienteSession();
       redirectClienteParaHome();
@@ -196,6 +202,7 @@
       }
       localStorage.setItem('cliente_token', body.token);
       localStorage.setItem('cliente_dados', JSON.stringify(body.usuario));
+      localStorage.removeItem('admin_token');
       showStatus(`Bem-vindo, ${body.usuario.nome}!`, 'status-success');
       renderClienteSession();
       redirectClienteParaHome();
@@ -214,9 +221,40 @@
       }
       localStorage.setItem('cliente_token', body.token);
       localStorage.setItem('cliente_dados', JSON.stringify(body.usuario));
+      localStorage.removeItem('admin_token');
       showStatus(`Bem-vindo, ${body.usuario.nome}!`, 'status-success');
       renderClienteSession();
       redirectClienteParaHome();
+    }
+
+    async function forgotPassword() {
+      const email = document.getElementById('clienteLoginEmail').value.trim();
+      if (!email) {
+        showStatus('Digite seu e-mail para redefinir a senha.', 'status-error');
+        return;
+      }
+
+      const novaSenha = window.prompt('Digite sua nova senha (mínimo 6 caracteres):', '');
+      if (novaSenha === null) return;
+
+      const senhaLimpa = String(novaSenha || '').trim();
+      if (senhaLimpa.length < 6) {
+        showStatus('A nova senha precisa ter pelo menos 6 caracteres.', 'status-error');
+        return;
+      }
+
+      const res = await fetch(`${API}/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, novaSenha: senhaLimpa })
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        showStatus(body.erro || 'Não foi possível redefinir a senha.', 'status-error');
+        return;
+      }
+      document.getElementById('clienteLoginSenha').value = '';
+      showStatus('Senha redefinida com sucesso. Entre com a nova senha.', 'status-success');
     }
 
     async function initGoogleAuth() {
@@ -443,6 +481,7 @@
       const fidelidadeArea = document.getElementById('fidelidadeArea');
       const historicoArea = document.getElementById('historicoArea');
       const isLogged = Boolean(raw && token);
+      clearLoginInputs();
 
       if (isLogged) {
         fidelidadeArea.classList.remove('is-hidden');
@@ -529,7 +568,8 @@
       localStorage.removeItem('cliente_token');
       localStorage.removeItem('cliente_dados');
       localStorage.removeItem('admin_token');
-      document.getElementById('loginSenha').value = '';
+      document.getElementById('clienteLoginEmail').value = '';
+      document.getElementById('clienteLoginSenha').value = '';
       document.getElementById('btnLogoutCliente').classList.add('is-hidden');
       document.getElementById('profilePhotoArea').classList.add('is-hidden');
       document.getElementById('fidelidadeArea').classList.add('is-hidden');
@@ -562,6 +602,17 @@
       window.location.href = `cadastro.html?api=${encodeURIComponent(API)}`;
     }
 
+    function clearLoginInputs() {
+      const emailEl = document.getElementById('clienteLoginEmail');
+      const senhaEl = document.getElementById('clienteLoginSenha');
+      emailEl.value = '';
+      senhaEl.value = '';
+      setTimeout(() => {
+        emailEl.value = '';
+        senhaEl.value = '';
+      }, 20);
+    }
+
     document.querySelectorAll('input, select, textarea').forEach((el) => {
       if (el.getAttribute('aria-label')) return;
       const placeholder = el.getAttribute('placeholder');
@@ -570,6 +621,7 @@
     });
 
     document.getElementById('btnLoginCliente').addEventListener('click', loginCliente);
+    document.getElementById('btnEsqueciSenha').addEventListener('click', forgotPassword);
     document.getElementById('btnLogoutCliente').addEventListener('click', logoutCliente);
     document.getElementById('btnMostrarCadastro').addEventListener('click', abrirCadastro);
     document.getElementById('btnSelecionarFoto').addEventListener('click', onSelectProfilePhoto);
@@ -580,6 +632,7 @@
     document.getElementById('btnConsultarFidelidade').addEventListener('click', consultarFidelidade);
     document.getElementById('btnCarregarHistorico').addEventListener('click', carregarHistorico);
     document.addEventListener('DOMContentLoaded', () => {
+      clearLoginInputs();
       renderClienteSession();
       bindCpfMasks();
       Promise.allSettled([initGoogleAuth(), initFacebookAuth()]).finally(refreshSocialAuthUi);

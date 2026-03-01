@@ -133,6 +133,26 @@ export function loginUser(payload) {
   return { token, usuario: sanitizeUser(user) };
 }
 
+export function forgotPassword(payload) {
+  const email = String(payload?.email || '').trim();
+  const novaSenha = String(payload?.novaSenha || '');
+  const user = findUserByEmail(email);
+
+  if (!user) {
+    return { ok: true };
+  }
+
+  const db = readDb();
+  const idx = db.usuarios.findIndex((u) => u.id === user.id);
+  if (idx < 0) {
+    return { ok: true };
+  }
+
+  db.usuarios[idx].senhaHash = hashPassword(novaSenha);
+  writeDb(db);
+  return { ok: true };
+}
+
 export function getGoogleAuthConfig() {
   return {
     enabled: Boolean(GOOGLE_CLIENT_ID),

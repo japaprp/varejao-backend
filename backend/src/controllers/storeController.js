@@ -18,6 +18,7 @@ import {
 import { getFidelidade, getInformacoes, getPromocoes } from '../services/contentService.js';
 import { getLoyaltyByCpf } from '../services/loyaltyService.js';
 import {
+  forgotPassword,
   getFacebookAuthConfig,
   getGoogleAuthConfig,
   loginUser,
@@ -68,6 +69,15 @@ export function login(req, res, next) {
   try {
     const result = loginUser(req.body || {});
     res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export function forgotPasswordController(req, res, next) {
+  try {
+    forgotPassword(req.body || {});
+    res.json({ sucesso: true });
   } catch (error) {
     next(error);
   }

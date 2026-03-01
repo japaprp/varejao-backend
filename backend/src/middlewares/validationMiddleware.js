@@ -7,6 +7,10 @@ function isStrongEnoughPassword(value) {
   return String(value || '').length >= 6;
 }
 
+function hasPassword(value) {
+  return String(value || '').trim().length >= 1;
+}
+
 function normalizeCpf(value) {
   return String(value || '').replace(/\D/g, '');
 }
@@ -21,7 +25,7 @@ function normalizePhone(value) {
 
 export function validateLoginPayload(req, res, next) {
   const { email = '', senha = '' } = req.body || {};
-  if (!isEmail(email) || !isStrongEnoughPassword(senha)) {
+  if (!isEmail(email) || !hasPassword(senha)) {
     return res.status(400).json({ erro: 'Credenciais invalidas para login.' });
   }
   return next();
@@ -86,6 +90,18 @@ export function validateFacebookPayload(req, res, next) {
   const accessToken = String(req.body?.accessToken || '').trim();
   if (!accessToken) {
     return res.status(400).json({ erro: 'Token Facebook invalido.' });
+  }
+  return next();
+}
+
+export function validateForgotPasswordPayload(req, res, next) {
+  const email = String(req.body?.email || '').trim();
+  const novaSenha = String(req.body?.novaSenha || '');
+  if (!isEmail(email)) {
+    return res.status(400).json({ erro: 'E-mail invalido.' });
+  }
+  if (!isStrongEnoughPassword(novaSenha)) {
+    return res.status(400).json({ erro: 'Nova senha deve ter no minimo 6 caracteres.' });
   }
   return next();
 }
