@@ -21,7 +21,10 @@ export function createRateLimiter({ keyPrefix, windowMs, max, message }) {
     if (entry.count >= max) {
       const retryAfterSec = Math.ceil((entry.resetAt - now) / 1000);
       res.setHeader('Retry-After', String(Math.max(1, retryAfterSec)));
-      return res.status(429).json({ erro: message || 'Muitas tentativas. Tente novamente em instantes.' });
+      return res.status(429).json({
+        erro: message || 'Muitas tentativas. Tente novamente em instantes.',
+        retryAfterSec: Math.max(1, retryAfterSec)
+      });
     }
 
     entry.count += 1;
@@ -31,8 +34,8 @@ export function createRateLimiter({ keyPrefix, windowMs, max, message }) {
 
 export const authLimiter = createRateLimiter({
   keyPrefix: 'auth',
-  windowMs: 15 * 60 * 1000,
-  max: 15,
+  windowMs: 5 * 60 * 1000,
+  max: 20,
   message: 'Muitas tentativas de autenticacao. Aguarde e tente novamente.'
 });
 
