@@ -51,6 +51,7 @@
     const API = AppCore.resolveApiBase();
     const CART_ID = AppCore.resolveCartId();
     const money = AppCore.money;
+    const safeImageUrl = AppCore.safeImageUrl;
 
     function getStep(unidade) { return unidade === 'kg' ? 0.5 : 1; }
 
@@ -128,6 +129,18 @@
       });
     }
 
+    function dedupeById(items) {
+      const out = [];
+      const ids = new Set();
+      for (const item of items || []) {
+        const id = String(item?.id || '').trim();
+        if (!id || ids.has(id)) continue;
+        ids.add(id);
+        out.push(item);
+      }
+      return out;
+    }
+
     function renderProdutos(produtos) {
       const grid = document.getElementById('gridProdutos');
       grid.innerHTML = '';
@@ -149,7 +162,7 @@
         selo.textContent = produto.selo || (produto.unidade === 'kg' ? 'Venda por kg' : `Venda por ${produto.unidade || 'unidade'}`);
 
         const img = document.createElement('img');
-        img.src = produto.imagem;
+        img.src = safeImageUrl(produto.imagem) || 'imagens/pagina-inicial/fundo-inicial.webp';
         img.alt = produto.nome;
         img.width = 130;
         img.height = 100;
@@ -250,10 +263,22 @@
       const grid = document.getElementById('gridProdutos');
       grid.innerHTML = '<div class="loading-grid"><div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div></div>';
       try {
-        const res = await fetch(`${API}/produtos`);
-        if (!res.ok) throw new Error('Falha ao carregar produtos de frutas.');
-        const todos = await res.json();
-        allProdutos = filtrarPorSetor(todos);
+        let lista = [];
+
+        const resSetor = await fetch(`${API}/produtos?setor=frutas`);
+        if (resSetor.ok) {
+          const dataSetor = await resSetor.json().catch(() => []);
+          lista = dedupeById([...(Array.isArray(dataSetor) ? dataSetor : [])]);
+        }
+
+        if (!lista.length) {
+          const resAll = await fetch(`${API}/produtos`);
+          if (!resAll.ok) throw new Error('Falha ao carregar produtos de frutas.');
+          const todos = await resAll.json();
+          lista = dedupeById(filtrarPorSetor(todos));
+        }
+
+        allProdutos = lista;
         const query = new URLSearchParams(window.location.search).get('q');
         if (query) document.getElementById('searchInput').value = query;
         applyFilters();
