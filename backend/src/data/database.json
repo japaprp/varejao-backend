@@ -247,7 +247,21 @@
       "Cupons especiais em datas comemorativas"
     ]
   },
-  "usuarios": [],
+  "usuarios": [
+    {
+      "id": "u_seed_yago_001",
+      "nome": "Yago Amorim",
+      "email": "yagoamorim.oficial@outlook.com",
+      "senhaHash": "$2a$10$0VJZX/aTeXHlD8qcPh.wiee3Aqui9Bs7jIbYwyViWZuQtJjq3d.UK",
+      "role": "cliente",
+      "cpf": "",
+      "cep": "",
+      "rua": "",
+      "bairro": "",
+      "cidade": "",
+      "telefone": ""
+    }
+  ],
   "clientesFidelidade": [],
   "cupons": [
     {

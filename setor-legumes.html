@@ -107,6 +107,24 @@
 
     let allProdutos = [];
     let filtroAtual = 'all';
+    const SETOR_ALVO = 'legumes';
+    const SETOR_ALIASES = new Set(['legume', 'legumes', 'vegetal', 'vegetais']);
+
+    function normalizeSetor(value) {
+      return String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+    }
+
+    function filtrarPorSetor(items) {
+      return (items || []).filter((p) => {
+        const setor = normalizeSetor(p?.setor);
+        if (SETOR_ALIASES.has(setor)) return true;
+        return setor === SETOR_ALVO;
+      });
+    }
 
     function renderProdutos(produtos) {
       const grid = document.getElementById('gridProdutos');
@@ -230,9 +248,10 @@
       const grid = document.getElementById('gridProdutos');
       grid.innerHTML = '<div class="loading-grid"><div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div></div>';
       try {
-        const res = await fetch(`${API}/produtos?setor=legumes`);
+        const res = await fetch(`${API}/produtos`);
         if (!res.ok) throw new Error('Falha ao carregar produtos de legumes.');
-        allProdutos = await res.json();
+        const todos = await res.json();
+        allProdutos = filtrarPorSetor(todos);
         const query = new URLSearchParams(window.location.search).get('q');
         if (query) document.getElementById('searchInput').value = query;
         applyFilters();
