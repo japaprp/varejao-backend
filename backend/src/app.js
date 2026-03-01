@@ -11,6 +11,14 @@ const allowedOrigins = String(CORS_ALLOWED_ORIGINS || '')
   .map((o) => o.trim())
   .filter(Boolean);
 
+function isLocalOrigin(origin = '') {
+  return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
+}
+
+function isRenderOrigin(origin = '') {
+  return /^https?:\/\/[a-z0-9-]+\.onrender\.com$/i.test(origin);
+}
+
 app.disable('x-powered-by');
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -24,10 +32,13 @@ app.use(cors({
   origin(origin, callback) {
     // Permite chamadas sem Origin (curl, webhook server-to-server).
     if (!origin) return callback(null, true);
+
+    // Base segura para ambientes de desenvolvimento e serviços Render.
+    if (isLocalOrigin(origin) || isRenderOrigin(origin)) {
+      return callback(null, true);
+    }
+
     if (allowedOrigins.length === 0) {
-      if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)) {
-        return callback(null, true);
-      }
       const err = new Error('CORS_ALLOWED_ORIGINS nao configurado');
       err.status = 403;
       return callback(err);
