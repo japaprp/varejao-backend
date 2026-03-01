@@ -40,6 +40,7 @@ body {
   background:
     linear-gradient(160deg, rgba(10, 40, 28, 0.88), rgba(24, 77, 56, 0.8)),
     url('imagens/pagina-inicial/fundo-inicial.webp') center/cover fixed no-repeat;
+  overflow-x: hidden;
 }
 
 p,
@@ -790,6 +791,10 @@ select:focus-visible {
   .product-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .search-box {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 560px) {
@@ -903,9 +908,15 @@ select:focus-visible {
   font-size: 1.25rem;
 }
 
-@media (max-width: 1024px) {
+@media (min-width: 1025px) and (max-width: 1240px) {
   .product-row {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .product-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 

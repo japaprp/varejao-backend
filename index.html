@@ -356,45 +356,29 @@
 
     function applyBalancedProductGrid(gridEl, itemCount) {
       if (!gridEl) return;
-      gridEl.style.setProperty('--row-cols', '5');
+      const total = Number(itemCount || 0);
+      const cols = Math.min(5, Math.max(1, total || 1));
+      gridEl.style.setProperty('--row-cols', String(cols));
     }
 
-    function completeList(baseList = [], allList = [], maxItems = 15) {
-      const ids = new Set();
-      const out = [];
-      for (const item of baseList) {
-        const id = String(item?.id || '');
-        if (!id || ids.has(id)) continue;
-        ids.add(id);
-        out.push(item);
-        if (out.length >= maxItems) return out;
-      }
-      for (const item of allList) {
-        const id = String(item?.id || '');
-        if (!id || ids.has(id)) continue;
-        ids.add(id);
-        out.push(item);
-        if (out.length >= maxItems) return out;
-      }
-      return out;
-    }
-
-    function renderPromocoes(produtos, todosProdutos = []) {
+    function renderPromocoes(produtos) {
       const grid = document.getElementById('promocoesGrid');
       const section = document.getElementById('promoSection');
       grid.innerHTML = '';
+      const lista = (produtos || [])
+        .filter((p) => p && p.promocao === true)
+        .slice(0, 15);
 
-      if (!produtos || !produtos.length) {
+      if (!lista.length) {
         section.classList.add('is-hidden');
         return false;
       }
       section.classList.remove('is-hidden');
-      const lista = completeList(produtos, todosProdutos, 15);
       applyBalancedProductGrid(grid, lista.length);
 
       lista.forEach((p) => {
         const card = document.createElement('article');
-        card.className = 'promo-card';
+        card.className = 'promo-card setor-card';
 
         const badge = document.createElement('span');
         badge.className = 'badge';
@@ -461,17 +445,17 @@
       const section = document.getElementById('destaquesSection');
       grid.innerHTML = '';
       const destaques = (produtos || []).filter((p) => p.destaque);
-      if (!produtos || !produtos.length) {
+      if (!destaques.length) {
         section.classList.add('is-hidden');
         return false;
       }
       section.classList.remove('is-hidden');
-      const lista = completeList(destaques, produtos, 15);
+      const lista = destaques.slice(0, 15);
       applyBalancedProductGrid(grid, lista.length);
 
       lista.forEach((p) => {
         const card = document.createElement('article');
-        card.className = 'promo-card';
+        card.className = 'promo-card setor-card';
 
         const badge = document.createElement('span');
         badge.className = 'badge';
@@ -491,6 +475,9 @@
         const unit = document.createElement('span');
         unit.textContent = `/${safeText(p.unidade)}`;
         price.appendChild(unit);
+
+        const desc = document.createElement('p');
+        desc.textContent = safeText(p.descricaoCurta);
 
         const control = document.createElement('div');
         control.className = 'qty-control';
@@ -524,7 +511,7 @@
         actionRow.className = 'card-actions';
         actionRow.append(control, btn);
 
-        card.append(badge, img, name, price, actionRow);
+        card.append(badge, img, name, price, desc, actionRow);
         grid.appendChild(card);
       });
       return true;
@@ -613,7 +600,7 @@
         const informacoes = informacoesRes.ok ? await informacoesRes.json() : { titulo: 'Informações', itens: ['Conteúdo indisponível no momento.'] };
         const fidelidade = fidelidadeRes.ok ? await fidelidadeRes.json() : { nomePrograma: 'Fidelidade', descricao: 'Informações temporariamente indisponíveis.', beneficios: [] };
 
-        renderPromocoes(promocoes, produtos);
+        renderPromocoes(promocoes);
         renderDestaques(produtos);
         renderSmartBanner(promocoes, produtos);
         renderInformacoes(informacoes);
