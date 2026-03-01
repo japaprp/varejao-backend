@@ -122,8 +122,9 @@
     function filtrarPorSetor(items) {
       return (items || []).filter((p) => {
         const setor = normalizeSetor(p?.setor);
+        if (!setor) return false;
         if (SETOR_ALIASES.has(setor)) return true;
-        return setor === SETOR_ALVO;
+        return setor.includes('frut');
       });
     }
 
