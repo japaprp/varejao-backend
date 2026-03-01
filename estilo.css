@@ -893,10 +893,14 @@ select:focus-visible {
   display: flex;
   flex-direction: column;
   min-height: 100%;
+  overflow: hidden;
 }
 
 .product-row .add-circle {
   margin-top: auto;
+  width: 40px;
+  height: 40px;
+  font-size: 1.25rem;
 }
 
 @media (max-width: 1024px) {
@@ -1075,15 +1079,28 @@ select:focus-visible {
 
 .card-actions {
   display: grid;
-  grid-template-columns: auto auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
   align-items: center;
-  justify-content: space-between;
+  justify-content: stretch;
   margin-top: 4px;
+  width: 100%;
+  min-width: 0;
 }
 
 .card-actions .qty-control {
   margin-top: 0;
+  width: 100%;
+  min-width: 0;
+}
+
+.product-row .card-actions .qty-control {
+  grid-template-columns: 30px minmax(56px, 1fr) 30px;
+}
+
+.product-row .card-actions .qty-control button {
+  width: 30px;
+  height: 30px;
 }
 
 .promo-image {
