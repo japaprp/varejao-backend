@@ -2,18 +2,37 @@
   const PROD_API = 'https://varejao-backend-1.onrender.com';
   const DEV_API = 'http://localhost:3001';
 
+  function normalizeApiUrl(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    try {
+      const url = new URL(raw);
+      if (url.protocol !== 'http:' && url.protocol !== 'https:') return '';
+      return url.origin;
+    } catch {
+      return '';
+    }
+  }
+
   function resolveApiBase() {
     const params = new URLSearchParams(window.location.search);
-    const apiParam = params.get('api');
+    const apiParam = normalizeApiUrl(params.get('api'));
     const host = String(window.location.hostname || '').toLowerCase();
     const isLocalHost = host === 'localhost' || host === '127.0.0.1' || host === '[::1]';
+    const isRenderHost = host.endsWith('.onrender.com');
 
     if (apiParam) {
       localStorage.setItem('api_url', apiParam);
       return apiParam;
     }
 
-    const persistedApi = localStorage.getItem('api_url');
+    const persistedApi = normalizeApiUrl(localStorage.getItem('api_url'));
+
+    if (!isLocalHost && isRenderHost) {
+      localStorage.setItem('api_url', PROD_API);
+      return PROD_API;
+    }
+
     if (persistedApi) {
       const persistedIsLocal = persistedApi.includes('localhost') || persistedApi.includes('127.0.0.1');
       if (!isLocalHost && persistedIsLocal) {
