@@ -318,7 +318,7 @@
       "pesoMedioUnidade": 0,
       "unidadesPorCaixa": 0,
       "imagem": "imagens/Frutas/goiaba.jpg",
-      "descricaoCurta": "Doce e macia, ?tima para sobremesas.",
+      "descricaoCurta": "Doce e macia, ótima para sobremesas.",
       "selo": "500g aprox. 2 un",
       "promocao": false,
       "destaque": true
@@ -337,7 +337,7 @@
       "pesoMedioUnidade": 0,
       "unidadesPorCaixa": 0,
       "imagem": "imagens/Frutas/kaki.jpg",
-      "descricaoCurta": "Fruta da esta??o com sabor suave.",
+      "descricaoCurta": "Fruta da estação com sabor suave.",
       "selo": "500g aprox. 2 un",
       "promocao": false,
       "destaque": false
@@ -394,14 +394,14 @@
       "pesoMedioUnidade": 0,
       "unidadesPorCaixa": 0,
       "imagem": "imagens/Frutas/melancia.jpg",
-      "descricaoCurta": "Refrescante e perfeita para o ver?o.",
+      "descricaoCurta": "Refrescante e perfeita para o verão.",
       "selo": "Fatia ou inteira",
       "promocao": true,
       "destaque": false
     },
     {
       "id": "p022",
-      "nome": "Melao Amarelo",
+      "nome": "Melão Amarelo",
       "setor": "frutas",
       "preco": 6.99,
       "unidade": "kg",
@@ -432,14 +432,14 @@
       "pesoMedioUnidade": 0,
       "unidadesPorCaixa": 0,
       "imagem": "imagens/Frutas/mixirica.jpg",
-      "descricaoCurta": "C?trica e f?cil de descascar.",
+      "descricaoCurta": "Cítrica e fácil de descascar.",
       "selo": "500g aprox. 3-5 un",
       "promocao": false,
       "destaque": true
     },
     {
       "id": "p024",
-      "nome": "Limao Tahiti",
+      "nome": "Limão Tahiti",
       "setor": "frutas",
       "preco": 7.79,
       "unidade": "kg",
@@ -471,7 +471,7 @@
       "unidadesPorCaixa": 0,
       "imagem": "imagens/Legumes/alho.jpg",
       "descricaoCurta": "Essencial para receitas e temperos.",
-      "selo": "Cabe?as selecionadas",
+      "selo": "Cabeças selecionadas",
       "promocao": false,
       "destaque": true
     },
@@ -508,7 +508,7 @@
       "pesoMedioUnidade": 0,
       "unidadesPorCaixa": 0,
       "imagem": "imagens/Legumes/kiabo.webp",
-      "descricaoCurta": "Fresco e de ?tima qualidade.",
+      "descricaoCurta": "Fresco e de ótima qualidade.",
       "selo": "500g aprox. 20-25 un",
       "promocao": false,
       "destaque": false
@@ -528,13 +528,13 @@
       "unidadesPorCaixa": 0,
       "imagem": "imagens/Legumes/mandioca.jpg",
       "descricaoCurta": "Raiz macia para cozidos e frituras.",
-      "selo": "500g aprox. 1-2 peda?os",
+      "selo": "500g aprox. 1-2 pedaços",
       "promocao": false,
       "destaque": true
     },
     {
       "id": "p029",
-      "nome": "Abobora Cabotia",
+      "nome": "Abóbora Cabotiá",
       "setor": "legumes",
       "preco": 5.49,
       "unidade": "kg",
@@ -546,7 +546,7 @@
       "pesoMedioUnidade": 0,
       "unidadesPorCaixa": 0,
       "imagem": "imagens/setor-legumes/abobora.jpg",
-      "descricaoCurta": "?tima para sopas, pur?s e assados.",
+      "descricaoCurta": "Ótima para sopas, purês e assados.",
       "selo": "Fatia selecionada",
       "promocao": true,
       "destaque": true
@@ -610,7 +610,7 @@
     },
     {
       "id": "p033",
-      "nome": "Almeirao",
+      "nome": "Almeirão",
       "setor": "folhas",
       "preco": 6.99,
       "unidade": "un",
@@ -623,7 +623,7 @@
       "unidadesPorCaixa": 0,
       "imagem": "imagens/Verdura Folhas/almeirao 2-637x637.png",
       "descricaoCurta": "Sabor marcante para refogados.",
-      "selo": "Ma?o fresco",
+      "selo": "Maço fresco",
       "promocao": false,
       "destaque": false
     },
@@ -641,14 +641,14 @@
       "pesoMedioUnidade": 0,
       "unidadesPorCaixa": 0,
       "imagem": "imagens/Verdura Folhas/cebolinha_2020-04-14_14-58-55_0.jpg",
-      "descricaoCurta": "Tempero verde indispens?vel.",
-      "selo": "Ma?o",
+      "descricaoCurta": "Tempero verde indispensável.",
+      "selo": "Maço",
       "promocao": false,
       "destaque": false
     },
     {
       "id": "p035",
-      "nome": "Chicoria",
+      "nome": "Chicória",
       "setor": "folhas",
       "preco": 6.49,
       "unidade": "un",
@@ -659,9 +659,9 @@
       "pesoCaixaMax": 0,
       "pesoMedioUnidade": 0,
       "unidadesPorCaixa": 0,
-      "imagem": "imagens/Verdura Folhas/chic?ria-800x800.jpg",
+      "imagem": "imagens/Verdura Folhas/chicoria-800x800.jpg",
       "descricaoCurta": "Folha tradicional para saladas.",
-      "selo": "Ma?o selecionado",
+      "selo": "Maço selecionado",
       "promocao": false,
       "destaque": false
     },
@@ -680,7 +680,7 @@
       "unidadesPorCaixa": 0,
       "imagem": "imagens/Verdura Folhas/coentro.webp",
       "descricaoCurta": "Aroma intenso para pratos especiais.",
-      "selo": "Ma?o",
+      "selo": "Maço",
       "promocao": true,
       "destaque": false
     },
@@ -699,13 +699,13 @@
       "unidadesPorCaixa": 0,
       "imagem": "imagens/Verdura Folhas/espinafre.webp",
       "descricaoCurta": "Folhas ricas em ferro e sabor.",
-      "selo": "Ma?o",
+      "selo": "Maço",
       "promocao": false,
       "destaque": true
     },
     {
       "id": "p038",
-      "nome": "Hortela",
+      "nome": "Hortelã",
       "setor": "folhas",
       "preco": 5.49,
       "unidade": "un",
@@ -717,8 +717,8 @@
       "pesoMedioUnidade": 0,
       "unidadesPorCaixa": 0,
       "imagem": "imagens/Verdura Folhas/hortela_maco_239_1_20200320145921.webp",
-      "descricaoCurta": "Fresca para ch?s e receitas.",
-      "selo": "Ma?o arom?tico",
+      "descricaoCurta": "Fresca para chás e receitas.",
+      "selo": "Maço aromático",
       "promocao": false,
       "destaque": false
     }
