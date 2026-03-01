@@ -45,7 +45,7 @@
     <h2>Dados do cliente</h2>
     <div class="admin-panel">
      <input id="nomeCliente" placeholder="Seu nome (opcional)" aria-label="Nome do cliente">
-     <input id="cpfCliente" placeholder="CPF para fidelidade (somente numeros)" aria-label="CPF do cliente">
+     <input id="cpfCliente" placeholder="CPF para fidelidade (somente números)" aria-label="CPF do cliente">
      <div class="acoes">
       <input id="cupomInput" placeholder="Cupom (ex: BEMVINDO10)" aria-label="Cupom de desconto">
       <button type="button" id="btnCupom">Aplicar cupom</button>
@@ -54,8 +54,8 @@
 
     <h2>Pagamento via Mercado Pago</h2>
     <div class="acoes">
-      <button id="btn-credito" type="button">Pagar com cartao</button>
-      <button id="btn-debito" type="button">Pagar com debito</button>
+      <button id="btn-credito" type="button">Pagar com cartão</button>
+      <button id="btn-debito" type="button">Pagar com débito</button>
       <button id="btn-pix" type="button">Pagar com Pix</button>
     </div>
   </main>
@@ -128,7 +128,7 @@
       if (status === 'pending' || status === 'in_process') {
         showStatus('Pagamento pendente. Assim que confirmado, liberaremos seu pedido.', 'status-info');
       } else {
-        showStatus('Pagamento nao aprovado. Tente novamente ou escolha outra forma.', 'status-error');
+        showStatus('Pagamento não aprovado. Tente novamente ou escolha outra forma.', 'status-error');
       }
     }
 
@@ -174,19 +174,19 @@
         document.getElementById('totalCarrinho').textContent = `Total: R$ ${money(totalFinal)}`;
 
         const freteStatus = document.getElementById('freteStatus');
-        freteStatus.textContent = totalBase >= 100 ? 'Frete grátis aplicado.' : (totalBase > 0 ? 'Frete sera cobrado no total.' : '');
+        freteStatus.textContent = totalBase >= 100 ? 'Frete grátis aplicado.' : (totalBase > 0 ? 'Frete será cobrado no total.' : '');
         freteStatus.className = totalBase >= 100 ? 'status-banner status-success' : 'status-banner status-info';
 
         if (!data.itens.length) {
           if (paymentCompleted) {
-            showStatus('Pagamento efetuado. Nao ha itens pendentes no carrinho.', 'status-success');
+            showStatus('Pagamento efetuado. Não há itens pendentes no carrinho.', 'status-success');
           } else {
-            showStatus('Seu pedido esta vazio. Adicione itens antes de pagar.', 'status-info');
+            showStatus('Seu pedido está vazio. Adicione itens antes de pagar.', 'status-info');
           }
         } else if (cupom) {
           showStatus(`Cupom ${cupom} aplicado com sucesso.`, 'status-success');
         } else {
-          showStatus('Resumo carregado. Voce sera redirecionado ao Mercado Pago para concluir o pagamento.', 'status-success');
+          showStatus('Resumo carregado. Você será redirecionado ao Mercado Pago para concluir o pagamento.', 'status-success');
         }
       } catch (err) {
         showStatus(err.message, 'status-error');
@@ -227,7 +227,7 @@
         const body = await finalizarRes.json().catch(() => ({}));
         if (!finalizarRes.ok) throw new Error(body.erro || 'Falha ao iniciar o pagamento.');
         const link = body.initPoint || body.sandboxInitPoint;
-        if (!link) throw new Error('Link de pagamento nao disponivel.');
+        if (!link) throw new Error('Link de pagamento não disponível.');
         showStatus('Redirecionando para o Mercado Pago...', 'status-success');
         setTimeout(() => { window.location.href = link; }, 600);
       } catch (err) {
@@ -263,9 +263,9 @@
  <a class="whatsapp-float" href="https://wa.me/5516992596614?text=Ol%C3%A1%2C%20preciso%20de%20suporte%20no%20Varej%C3%A3o%20do%20Povo." target="_blank" rel="noopener noreferrer" aria-label="Suporte via WhatsApp">WhatsApp</a>
  <footer class="centralizar">
   <h4>Varejão do Povo</h4>
-  <p>Av. Casper Libero, 376, Ribeirao Preto - SP</p>
-  <p>WhatsApp: (16) 99259-6614 Seg a Sab 07:00 as 19:00</p>
-  <div class="author-credit">Desenvolvido por <strong>Yago Fellipe Amorim</strong> - Interesse em contratar: <a href="https://wa.me/5516991145034?text=Ol%C3%A1%2C%20Yago%2C%20vi%20seu%20site%20e%20quero%20falar%20sobre%20um%20projeto." target="_blank" rel="noopener noreferrer">falar no WhatsApp</a></div>
+  <p>Av. Cásper Líbero, 376, Ribeirão Preto - SP</p>
+  <p>WhatsApp: (16) 99259-6614 • Seg a Sáb 07:00 às 19:00</p>
+  <div class="author-credit">Desenvolvido por <strong>Yago Fellipe Amorim</strong> • Interesse em contratar: <a href="https://wa.me/5516991145034?text=Ol%C3%A1%2C%20Yago%2C%20vi%20seu%20site%20e%20quero%20falar%20sobre%20um%20projeto." target="_blank" rel="noopener noreferrer">falar no WhatsApp</a></div>
   <div class="social-links">
    <a href="https://wa.me/5516992596614?text=Ol%C3%A1%2C%20preciso%20de%20suporte%20no%20Varej%C3%A3o%20do%20Povo." target="_blank" rel="noopener noreferrer">WhatsApp</a>
    <a href="https://www.facebook.com/people/Varejao-do-Povo/100043319426102/" target="_blank" rel="noopener noreferrer">Facebook</a>
