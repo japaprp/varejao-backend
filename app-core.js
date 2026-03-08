@@ -1,6 +1,6 @@
 (() => {
   const PROD_API = 'https://varejao-backend-1.onrender.com';
-  const DEV_API = 'http://localhost:3001';
+  const DEV_API = 'http://127.0.0.1:3001';
 
   function normalizeApiUrl(value) {
     const raw = String(value || '').trim();
@@ -38,6 +38,10 @@
       if (!isLocalHost && persistedIsLocal) {
         localStorage.setItem('api_url', PROD_API);
         return PROD_API;
+      }
+      if (isLocalHost && !persistedIsLocal) {
+        localStorage.setItem('api_url', DEV_API);
+        return DEV_API;
       }
       return persistedApi;
     }
@@ -133,3 +137,4 @@
     applyActiveNavLinks
   };
 })();
+
