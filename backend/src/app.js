@@ -1,4 +1,4 @@
-﻿import express from 'express';
+import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import storeRoutes from './routes/storeRoutes.js';
@@ -6,10 +6,12 @@ import { CORS_ALLOWED_ORIGINS } from './config/env.js';
 
 const app = express();
 
-const allowedOrigins = String(CORS_ALLOWED_ORIGINS || '')
+const defaultAllowedOrigins = ['https://japaprp.github.io'];
+const configuredOrigins = String(CORS_ALLOWED_ORIGINS || '')
   .split(',')
   .map((o) => o.trim())
   .filter(Boolean);
+const allowedOrigins = [...new Set([...defaultAllowedOrigins, ...configuredOrigins])];
 
 function isLocalOrigin(origin = '') {
   return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
@@ -17,6 +19,10 @@ function isLocalOrigin(origin = '') {
 
 function isRenderOrigin(origin = '') {
   return /^https?:\/\/[a-z0-9-]+\.onrender\.com$/i.test(origin);
+}
+
+function isGithubPagesOrigin(origin = '') {
+  return /^https:\/\/[a-z0-9-]+\.github\.io$/i.test(origin);
 }
 
 app.disable('x-powered-by');
@@ -34,7 +40,7 @@ app.use(cors({
     if (!origin) return callback(null, true);
 
     // Base segura para ambientes de desenvolvimento e serviços Render.
-    if (isLocalOrigin(origin) || isRenderOrigin(origin)) {
+    if (isLocalOrigin(origin) || isRenderOrigin(origin) || isGithubPagesOrigin(origin)) {
       return callback(null, true);
     }
 

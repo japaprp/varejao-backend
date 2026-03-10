@@ -1,4 +1,4 @@
-﻿import { getProductById, getProductByName } from './catalogService.js';
+import { getProductById, getProductByName } from './catalogService.js';
 import {
   calculateCouponDiscount,
   registerCouponUse,
@@ -14,6 +14,22 @@ function resolveCartId(cartId) {
 
 function normalizeCpf(value) {
   return String(value || '').replace(/\D/g, '');
+}
+
+function resolveChannelFromCartId(cartId) {
+  const id = String(resolveCartId(cartId)).toLowerCase();
+  if (/(caixa|pdv|balcao|fisic|sessao|session|mesa|comanda)/i.test(id)) {
+    return 'fisico';
+  }
+  return 'online';
+}
+
+function resolveOrderChannel(order = {}) {
+  if (order && typeof order.canal === 'string' && order.canal.trim()) {
+    const canal = order.canal.trim().toLowerCase();
+    return canal === 'fisico' ? 'fisico' : 'online';
+  }
+  return resolveChannelFromCartId(order?.cartId || '');
 }
 
 function ensureCollections(db) {
@@ -39,6 +55,131 @@ function calculateFrete(totalBase) {
   return totalBase >= 100 ? 0 : 30;
 }
 
+function getReservedQtyForProduct(db, produtoId, exceptCartId = '') {
+  ensureCollections(db);
+  const except = resolveCartId(exceptCartId);
+  let reserved = 0;
+
+  for (const [cartId, items] of Object.entries(db.carrinhos || {})) {
+    if (!Array.isArray(items)) continue;
+    if (exceptCartId && resolveCartId(cartId) === except) continue;
+
+    for (const item of items) {
+      if (String(item?.produtoId || '') === String(produtoId || '')) {
+        reserved += Number(item?.quantidade || 0);
+      }
+    }
+  }
+
+  return Number(reserved.toFixed(2));
+}
+
+function getCartItemQty(cart, produtoId) {
+  return Number(
+    (cart || [])
+      .filter((item) => String(item?.produtoId || '') === String(produtoId || ''))
+      .reduce((sum, item) => sum + Number(item?.quantidade || 0), 0)
+      .toFixed(2)
+  );
+}
+
+function normalizeOrder(pedido) {
+  const channel = resolveOrderChannel(pedido);
+  return {
+    ...pedido,
+    cartId: pedido?.cartId || null,
+    canal: channel,
+    status: pedido.status || 'Finalizado'
+  };
+}
+
+function aggregateItemsByProduct(items = []) {
+  const map = new Map();
+
+  for (const rawItem of items || []) {
+    const produtoId = String(rawItem?.produtoId || '').trim();
+    const quantidade = Number(rawItem?.quantidade || 0);
+    if (!produtoId || !Number.isFinite(quantidade) || quantidade <= 0) continue;
+
+    const current = map.get(produtoId) || {
+      produtoId,
+      produto: rawItem.produto,
+      unidade: rawItem.unidade,
+      preco: Number(rawItem.preco || 0),
+      quantidade: 0
+    };
+
+    current.quantidade = Number((current.quantidade + quantidade).toFixed(2));
+    map.set(produtoId, current);
+  }
+
+  return Array.from(map.values());
+}
+
+function ensureStockAvailability(db, items, options = {}) {
+  const { exceptCartId = '' } = options;
+  const aggregated = aggregateItemsByProduct(items);
+
+  for (const item of aggregated) {
+    const prod = (db.produtos || []).find((p) => String(p.id) === String(item.produtoId));
+    if (!prod) continue;
+
+    const reservedOutside = getReservedQtyForProduct(db, item.produtoId, exceptCartId);
+    const available = Number(prod.estoque || 0) - reservedOutside;
+    if (available + 1e-9 < Number(item.quantidade || 0)) {
+      const err = new Error(`Estoque insuficiente para ${prod.nome}. Disponivel: ${Math.max(0, available).toFixed(2)}`);
+      err.status = 400;
+      throw err;
+    }
+  }
+}
+
+function applyStockDeduction(db, items) {
+  const aggregated = aggregateItemsByProduct(items);
+
+  for (const item of aggregated) {
+    const prod = (db.produtos || []).find((p) => String(p.id) === String(item.produtoId));
+    if (!prod) continue;
+
+    const novoEstoque = Number(prod.estoque || 0) - Number(item.quantidade || 0);
+    if (novoEstoque < -1e-9) {
+      const err = new Error(`Estoque insuficiente para ${prod.nome}`);
+      err.status = 400;
+      throw err;
+    }
+
+    prod.estoque = Number(Math.max(0, novoEstoque).toFixed(2));
+  }
+}
+
+function buildOrderTotals({ subtotal, desconto }) {
+  const totalBase = Math.max(0, subtotal - desconto);
+  const frete = calculateFrete(totalBase);
+  const total = totalBase + frete;
+  return { totalBase, frete, total };
+}
+
+function getOrderById(db, orderId) {
+  return (db.pedidos || []).find((p) => p.id === orderId);
+}
+
+function isPendingStatus(status = '') {
+  const s = String(status || '').toLowerCase();
+  return s.includes('aguardando') || s.includes('pendente') || s.includes('preparo') || s.includes('entrega');
+}
+
+function isCancelledStatus(status = '') {
+  return String(status || '').toLowerCase().includes('cancel');
+}
+
+function isToday(isoDate) {
+  if (!isoDate) return false;
+  const d = new Date(isoDate);
+  if (Number.isNaN(d.getTime())) return false;
+  const now = new Date();
+  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+}
+
 export function listCart(cartId) {
   const db = readDb();
   return getCartFromDb(db, cartId);
@@ -53,13 +194,6 @@ export function listOrdersByCpf(cpf) {
     .map(normalizeOrder);
 }
 
-function normalizeOrder(pedido) {
-  return {
-    ...pedido,
-    status: pedido.status || 'Finalizado'
-  };
-}
-
 export function listOrdersAll(filters = {}) {
   const db = readDb();
   const {
@@ -67,12 +201,17 @@ export function listOrdersAll(filters = {}) {
     cpf = '',
     dataInicio = '',
     dataFim = '',
-    minTotal = ''
+    minTotal = '',
+    canal = ''
   } = filters;
 
   let list = (db.pedidos || []).map(normalizeOrder);
   if (status) {
     list = list.filter((p) => String(p.status || '') === status);
+  }
+  if (canal) {
+    const canalNorm = String(canal).toLowerCase();
+    list = list.filter((p) => resolveOrderChannel(p) === canalNorm);
   }
   if (cpf) {
     list = list.filter((p) => String(p.cpf || '') === String(cpf));
@@ -105,7 +244,8 @@ export function updateOrderStatus(id, status) {
 
 export function addCartItem({ produtoId, produto, quantidade }, cartId) {
   const db = readDb();
-  const cart = getCartFromDb(db, cartId);
+  const cartKey = resolveCartId(cartId);
+  const cart = getCartFromDb(db, cartKey);
   const qtd = Number(quantidade);
   if ((!produtoId && !produto) || Number.isNaN(qtd) || qtd <= 0) {
     const err = new Error('Dados invalidos para o carrinho');
@@ -115,23 +255,32 @@ export function addCartItem({ produtoId, produto, quantidade }, cartId) {
 
   const produtoRef = produtoId ? getProductById(produtoId) : getProductByName(produto);
   if (!produtoRef) {
-    const err = new Error('Produto não encontrado');
+    const err = new Error('Produto nao encontrado');
     err.status = 404;
     throw err;
   }
-  if (Number(produtoRef.estoque || 0) < qtd) {
-    const err = new Error('Estoque insuficiente para este item');
+
+  const reservedOutside = getReservedQtyForProduct(db, produtoRef.id, cartKey);
+  const currentQty = getCartItemQty(cart, produtoRef.id);
+  const availableToAdd = Number(produtoRef.estoque || 0) - reservedOutside - currentQty;
+  if (availableToAdd + 1e-9 < qtd) {
+    const err = new Error(`Estoque insuficiente para este item. Disponivel: ${Math.max(0, availableToAdd).toFixed(2)}`);
     err.status = 400;
     throw err;
   }
 
-  cart.push({
-    produtoId: produtoRef.id,
-    produto: produtoRef.nome,
-    unidade: produtoRef.unidade,
-    preco: produtoRef.preco,
-    quantidade: qtd
-  });
+  const existing = cart.find((item) => String(item.produtoId) === String(produtoRef.id));
+  if (existing) {
+    existing.quantidade = Number((Number(existing.quantidade || 0) + qtd).toFixed(2));
+  } else {
+    cart.push({
+      produtoId: produtoRef.id,
+      produto: produtoRef.nome,
+      unidade: produtoRef.unidade,
+      preco: produtoRef.preco,
+      quantidade: qtd
+    });
+  }
 
   writeDb(db);
   return { sucesso: true };
@@ -150,31 +299,24 @@ export function getCheckoutPreview(codigoCupom = '', cartId = '') {
     cupomAplicado = cupom.codigo;
   }
 
+  const totalBase = Math.max(0, subtotal - desconto);
   return {
     itens: cart,
     subtotal,
     desconto,
-    totalBase: Math.max(0, subtotal - desconto),
-    frete: calculateFrete(Math.max(0, subtotal - desconto)),
-    total: Math.max(0, subtotal - desconto) + calculateFrete(Math.max(0, subtotal - desconto)),
-    cupomAplicado
+    totalBase,
+    frete: calculateFrete(totalBase),
+    total: totalBase + calculateFrete(totalBase),
+    cupomAplicado,
+    cartId: resolveCartId(cartId),
+    canal: resolveChannelFromCartId(cartId)
   };
-}
-
-function buildOrderTotals({ subtotal, desconto }) {
-  const totalBase = Math.max(0, subtotal - desconto);
-  const frete = calculateFrete(totalBase);
-  const total = totalBase + frete;
-  return { totalBase, frete, total };
-}
-
-function getOrderById(db, orderId) {
-  return (db.pedidos || []).find((p) => p.id === orderId);
 }
 
 export function createPendingOrder({ cpf = '', nomeCliente = '', cupom = '', cartId = '' } = {}) {
   const db = readDb();
-  const cart = getCartFromDb(db, cartId);
+  const cartKey = resolveCartId(cartId);
+  const cart = getCartFromDb(db, cartKey);
   const subtotal = cartSubtotal(cart);
   if (subtotal <= 0) {
     const err = new Error('Carrinho vazio');
@@ -191,11 +333,14 @@ export function createPendingOrder({ cpf = '', nomeCliente = '', cupom = '', car
   }
 
   const { totalBase, frete, total } = buildOrderTotals({ subtotal, desconto });
+  const channel = resolveChannelFromCartId(cartKey);
 
   const order = {
     id: `ped_${Date.now()}`,
     createdAt: new Date().toISOString(),
-    itens: [...cart],
+    cartId: cartKey,
+    canal: channel,
+    itens: aggregateItemsByProduct(cart),
     subtotal,
     desconto,
     total,
@@ -209,18 +354,19 @@ export function createPendingOrder({ cpf = '', nomeCliente = '', cupom = '', car
       status: 'pending'
     }
   };
+
   db.pedidos.push(order);
-  db.carrinhos[resolveCartId(cartId)] = [];
+  db.carrinhos[cartKey] = [];
   writeDb(db);
 
-  return order;
+  return normalizeOrder(order);
 }
 
 export function finalizePaidOrder(orderId, paymentInfo = {}) {
   const db = readDb();
   const order = getOrderById(db, orderId);
   if (!order) {
-    const err = new Error('Pedido não encontrado');
+    const err = new Error('Pedido nao encontrado');
     err.status = 404;
     throw err;
   }
@@ -229,17 +375,9 @@ export function finalizePaidOrder(orderId, paymentInfo = {}) {
     return normalizeOrder(order);
   }
 
-  for (const item of order.itens || []) {
-    const prod = (db.produtos || []).find((p) => p.id === item.produtoId);
-    if (!prod) continue;
-    const novoEstoque = Number(prod.estoque || 0) - Number(item.quantidade || 0);
-    if (novoEstoque < 0) {
-      const err = new Error('Estoque insuficiente para confirmar o pagamento');
-      err.status = 400;
-      throw err;
-    }
-    prod.estoque = Number(novoEstoque.toFixed(2));
-  }
+  const items = aggregateItemsByProduct(order.itens || []);
+  ensureStockAvailability(db, items, { exceptCartId: '' });
+  applyStockDeduction(db, items);
 
   if (order.cupomAplicado) {
     registerCouponUse(order.cupomAplicado);
@@ -247,6 +385,9 @@ export function finalizePaidOrder(orderId, paymentInfo = {}) {
 
   const fidelidade = applyLoyalty(order.cpf, order.nomeCliente, order.total);
 
+  order.itens = items;
+  order.canal = resolveOrderChannel(order);
+  order.cartId = order.cartId || null;
   order.status = 'Pago';
   order.payment = {
     ...order.payment,
@@ -255,13 +396,15 @@ export function finalizePaidOrder(orderId, paymentInfo = {}) {
     method: paymentInfo.method || order.payment?.method || null,
     updatedAt: new Date().toISOString()
   };
+
   writeDb(db);
   return { ...normalizeOrder(order), fidelidade };
 }
 
 export function checkoutCart({ cpf = '', nomeCliente = '', cupom = '', cartId = '' } = {}) {
   const db = readDb();
-  const cart = getCartFromDb(db, cartId);
+  const cartKey = resolveCartId(cartId);
+  const cart = getCartFromDb(db, cartKey);
   const subtotal = cartSubtotal(cart);
   if (subtotal <= 0) {
     const err = new Error('Carrinho vazio');
@@ -283,22 +426,18 @@ export function checkoutCart({ cpf = '', nomeCliente = '', cupom = '', cartId = 
   const frete = calculateFrete(totalBase);
   const total = totalBase + frete;
 
-  // Atualiza estoque com base nos itens vendidos
-  for (const item of cart) {
-    const prod = (db.produtos || []).find((p) => p.id === item.produtoId);
-    if (!prod) continue;
-    const novoEstoque = Number(prod.estoque || 0) - Number(item.quantidade || 0);
-    if (novoEstoque < 0) {
-      const err = new Error('Estoque insuficiente para finalizar a compra');
-      err.status = 400;
-      throw err;
-    }
-    prod.estoque = Number(novoEstoque.toFixed(2));
-  }
+  const items = aggregateItemsByProduct(cart);
+  ensureStockAvailability(db, items, { exceptCartId: cartKey });
+  applyStockDeduction(db, items);
+
+  const channel = resolveChannelFromCartId(cartKey);
+
   db.pedidos.push({
     id: `ped_${Date.now()}`,
     createdAt: new Date().toISOString(),
-    itens: [...cart],
+    cartId: cartKey,
+    canal: channel,
+    itens: items,
     subtotal,
     desconto,
     total,
@@ -309,7 +448,8 @@ export function checkoutCart({ cpf = '', nomeCliente = '', cupom = '', cartId = 
     nomeCliente: nomeCliente || null,
     status: 'Finalizado'
   });
-  db.carrinhos[resolveCartId(cartId)] = [];
+
+  db.carrinhos[cartKey] = [];
   writeDb(db);
 
   const fidelidade = applyLoyalty(cpf, nomeCliente, total);
@@ -323,7 +463,83 @@ export function checkoutCart({ cpf = '', nomeCliente = '', cupom = '', cartId = 
     frete,
     total,
     cupomAplicado,
-    fidelidade
+    fidelidade,
+    canal: channel,
+    cartId: cartKey
   };
 }
 
+export function getUnifiedOperationSummary() {
+  const db = readDb();
+  ensureCollections(db);
+
+  const orders = (db.pedidos || []).map(normalizeOrder);
+  const activeCarts = Object.entries(db.carrinhos || {})
+    .filter(([, items]) => Array.isArray(items) && items.length > 0)
+    .map(([cartId, items]) => ({
+      cartId,
+      canal: resolveChannelFromCartId(cartId),
+      linhas: items.length,
+      itens: Number(items.reduce((sum, item) => sum + Number(item.quantidade || 0), 0).toFixed(2)),
+      subtotal: Number(cartSubtotal(items).toFixed(2))
+    }))
+    .sort((a, b) => b.subtotal - a.subtotal);
+
+  const channelStats = (channel) => {
+    const list = orders.filter((o) => resolveOrderChannel(o) === channel);
+    const paidOrFinished = list.filter((o) => !isPendingStatus(o.status) && !isCancelledStatus(o.status));
+    const pending = list.filter((o) => isPendingStatus(o.status));
+    const faturamento = Number(paidOrFinished.reduce((sum, o) => sum + Number(o.total || 0), 0).toFixed(2));
+    return {
+      pedidosTotal: list.length,
+      pedidosPendentes: pending.length,
+      pedidosHoje: list.filter((o) => isToday(o.createdAt)).length,
+      faturamento,
+      ticketMedio: paidOrFinished.length ? Number((faturamento / paidOrFinished.length).toFixed(2)) : 0
+    };
+  };
+
+  const pendingOrders = orders
+    .filter((o) => isPendingStatus(o.status))
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, 30)
+    .map((o) => ({
+      id: o.id,
+      createdAt: o.createdAt,
+      canal: resolveOrderChannel(o),
+      cartId: o.cartId || null,
+      status: o.status,
+      total: Number(o.total || 0),
+      itens: Array.isArray(o.itens) ? o.itens.length : 0,
+      cpf: o.cpf || null,
+      nomeCliente: o.nomeCliente || null
+    }));
+
+  const stockAlerts = (db.produtos || [])
+    .map((produto) => {
+      const reservado = getReservedQtyForProduct(db, produto.id, '');
+      const estoque = Number(produto.estoque || 0);
+      const disponivel = Number((estoque - reservado).toFixed(2));
+      return {
+        produtoId: produto.id,
+        nome: produto.nome,
+        estoque,
+        reservado,
+        disponivel
+      };
+    })
+    .filter((item) => item.reservado > 0 || item.disponivel <= 10)
+    .sort((a, b) => a.disponivel - b.disponivel)
+    .slice(0, 30);
+
+  return {
+    generatedAt: new Date().toISOString(),
+    canais: {
+      online: channelStats('online'),
+      fisico: channelStats('fisico')
+    },
+    carrinhosAtivos: activeCarts,
+    pedidosPendentes: pendingOrders,
+    alertasEstoque: stockAlerts
+  };
+}

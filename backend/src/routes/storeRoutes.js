@@ -1,4 +1,4 @@
-﻿import { Router } from 'express';
+import { Router } from 'express';
 import {
   deleteSaidaController,
   getAnalyticsOverviewController,
@@ -37,6 +37,7 @@ import {
   validarCupomController,
   getPedidosPorCpf,
   getPedidosAdmin,
+  getOperacaoUnificadaController,
   exportPedidosCsv,
   exportSaidasCsv,
   uploadImagemController,
@@ -88,6 +89,7 @@ router.post('/pagamento/preferencia', paymentLimiter, postPagamentoPreferencia);
 router.post('/pagamento/webhook', paymentLimiter, postPagamentoWebhook);
 router.get('/pedidos', requireAuth, getPedidosPorCpf);
 router.get('/admin/pedidos', requireAuth, requireRole(['admin', 'operador']), getPedidosAdmin);
+router.get('/admin/operacao-unificada', requireAuth, requireAdmin, getOperacaoUnificadaController);
 router.put('/admin/pedidos/:id/status', requireAuth, requireAdmin, putPedidoStatus);
 router.get('/admin/pedidos.csv', requireAuth, requireRole(['admin', 'operador']), exportPedidosCsv);
 router.get('/admin/saidas.csv', requireAuth, requireRole(['admin', 'operador']), exportSaidasCsv);

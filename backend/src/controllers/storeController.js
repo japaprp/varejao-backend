@@ -1,4 +1,4 @@
-﻿import {
+import {
   createProduct,
   deleteProduct,
   listProducts,
@@ -10,6 +10,7 @@ import {
   createPendingOrder,
   finalizePaidOrder,
   getCheckoutPreview,
+  getUnifiedOperationSummary,
   listCart,
   listOrdersByCpf,
   listOrdersAll,
@@ -261,8 +262,12 @@ function csvEscape(value) {
 }
 
 export function getPedidosAdmin(req, res) {
-  const { status = '', cpf = '', dataInicio = '', dataFim = '', minTotal = '' } = req.query || {};
-  res.json(listOrdersAll({ status, cpf, dataInicio, dataFim, minTotal }));
+  const { status = '', cpf = '', dataInicio = '', dataFim = '', minTotal = '', canal = '' } = req.query || {};
+  res.json(listOrdersAll({ status, cpf, dataInicio, dataFim, minTotal, canal }));
+}
+
+export function getOperacaoUnificadaController(req, res) {
+  res.json(getUnifiedOperationSummary());
 }
 
 export function putPedidoStatus(req, res) {
@@ -278,11 +283,12 @@ export function putPedidoStatus(req, res) {
 }
 
 export function exportPedidosCsv(req, res) {
-  const { status = '', cpf = '', dataInicio = '', dataFim = '', minTotal = '' } = req.query || {};
-  const rows = listOrdersAll({ status, cpf, dataInicio, dataFim, minTotal });
+  const { status = '', cpf = '', dataInicio = '', dataFim = '', minTotal = '', canal = '' } = req.query || {};
+  const rows = listOrdersAll({ status, cpf, dataInicio, dataFim, minTotal, canal });
   const header = [
     'id',
     'data',
+    'canal',
     'itens',
     'subtotal',
     'desconto',
@@ -299,6 +305,7 @@ export function exportPedidosCsv(req, res) {
     lines.push([
       csvEscape(p.id),
       csvEscape(p.createdAt),
+      csvEscape(p.canal || ''),
       csvEscape(itensResumo),
       csvEscape(p.subtotal),
       csvEscape(p.desconto),

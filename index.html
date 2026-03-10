@@ -307,6 +307,10 @@
       const checkoutLink = document.getElementById('homeCheckoutLink');
       const floatingCheckout = document.getElementById('homeFloatingCheckout');
       const navCart = document.getElementById('homeCartNavLink');
+      const checkoutHref = `Pagamento.html?api=${encodeURIComponent(API)}&cart=${encodeURIComponent(CART_ID)}`;
+      if (checkoutLink) checkoutLink.href = checkoutHref;
+      if (floatingCheckout) floatingCheckout.href = checkoutHref;
+      if (navCart) navCart.href = checkoutHref;
       const currentItems = Array.isArray(items) ? items : getLocalCart();
       const totalItens = currentItems.length;
       if (totalItens > 0) {

@@ -88,6 +88,41 @@
         </section>
       </section>
 
+      <section class="admin-panel mb-16">
+        <div class="acoes justify-between items-center">
+          <h2 class="m-0">Operação Unificada (Online + Loja Física)</h2>
+          <button type="button" id="btnAtualizarOperacao">Atualizar operação</button>
+        </div>
+        <p class="status-banner status-info mt-10">Visão única de canais para evitar conflito de estoque e acompanhar pedidos em tempo real.</p>
+        <div id="operacaoKpis" class="carousel-row mt-12"></div>
+
+        <div class="admin-layout mt-12">
+          <div class="admin-table-wrap">
+            <h3>Carrinhos ativos por canal</h3>
+            <table class="admin-table">
+              <thead><tr><th>Canal</th><th>Carrinho/Sessão</th><th>Itens</th><th>Subtotal</th></tr></thead>
+              <tbody id="operacaoCarrinhosBody"></tbody>
+            </table>
+          </div>
+
+          <div class="admin-table-wrap">
+            <h3>Pedidos pendentes (prioridade)</h3>
+            <table class="admin-table">
+              <thead><tr><th>Data</th><th>Canal</th><th>Pedido</th><th>Status</th><th>Total</th></tr></thead>
+              <tbody id="operacaoPendentesBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="admin-table-wrap mt-12">
+          <h3>Conflito de estoque (reservado x disponível)</h3>
+          <table class="admin-table">
+            <thead><tr><th>Produto</th><th>Estoque</th><th>Reservado</th><th>Disponível</th></tr></thead>
+            <tbody id="operacaoEstoqueBody"></tbody>
+          </table>
+        </div>
+      </section>
+
       <section class="admin-layout mb-16">
         <aside class="admin-panel">
           <h2>Lançar Saída</h2>
@@ -202,13 +237,18 @@
             <option value="Saiu para entrega">Saiu para entrega</option>
             <option value="Cancelado">Cancelado</option>
           </select>
+          <select id="filtroCanal">
+            <option value="">Canal: todos</option>
+            <option value="online">Online</option>
+            <option value="fisico">Loja física</option>
+          </select>
           <input id="filtroMinTotal" type="number" step="0.01" min="0" placeholder="Total mínimo">
           <button type="button" id="btnFiltrarPedidos">Filtrar</button>
           <button type="button" id="btnExportPedidos">Exportar CSV</button>
         </div>
         <table class="admin-table">
           <thead>
-            <tr><th>Data</th><th>Itens</th><th>Frete</th><th>Total</th><th>Status</th><th>CPF</th><th>Nome</th><th>Ações</th></tr>
+            <tr><th>Data</th><th>Canal</th><th>Itens</th><th>Frete</th><th>Total</th><th>Status</th><th>CPF</th><th>Nome</th><th>Ações</th></tr>
           </thead>
           <tbody id="pedidosBody"></tbody>
         </table>
@@ -546,6 +586,90 @@
       });
     }
 
+    function canalLabel(canal){
+      return String(canal || '').toLowerCase() === 'fisico' ? 'Loja física' : 'Online';
+    }
+
+    function formatDateTime(value){
+      const dt = new Date(value);
+      if(Number.isNaN(dt.getTime())) return '-';
+      return `${dt.toLocaleDateString('pt-BR')} ${dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+    }
+
+    function renderOperacaoUnificada(data){
+      const online = data?.canais?.online || {};
+      const fisico = data?.canais?.fisico || {};
+
+      const cards = [
+        ['Online - pedidos', online.pedidosTotal || 0],
+        ['Online - pendentes', online.pedidosPendentes || 0],
+        ['Online - faturamento', `R$ ${money(online.faturamento || 0)}`],
+        ['Físico - pedidos', fisico.pedidosTotal || 0],
+        ['Físico - pendentes', fisico.pedidosPendentes || 0],
+        ['Físico - faturamento', `R$ ${money(fisico.faturamento || 0)}`],
+        ['Físico - ticket médio', `R$ ${money(fisico.ticketMedio || 0)}`],
+        ['Online - ticket médio', `R$ ${money(online.ticketMedio || 0)}`]
+      ];
+
+      const kpis = document.getElementById('operacaoKpis');
+      kpis.innerHTML = '';
+      cards.forEach((c) => {
+        const el = document.createElement('article');
+        el.className = 'promo-card metric-card';
+        el.innerHTML = `<small>${c[0]}</small><strong>${c[1]}</strong>`;
+        kpis.appendChild(el);
+      });
+
+      const cartsBody = document.getElementById('operacaoCarrinhosBody');
+      cartsBody.innerHTML = '';
+      const carts = Array.isArray(data?.carrinhosAtivos) ? data.carrinhosAtivos : [];
+      if(!carts.length){
+        cartsBody.innerHTML = '<tr><td colspan="4">Sem carrinhos ativos no momento.</td></tr>';
+      } else {
+        carts.forEach((cart) => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${canalLabel(cart.canal)}</td><td>${esc(cart.cartId)}</td><td>${Number(cart.itens || 0).toFixed(2)}</td><td>R$ ${money(cart.subtotal || 0)}</td>`;
+          cartsBody.appendChild(tr);
+        });
+      }
+
+      const pendingBody = document.getElementById('operacaoPendentesBody');
+      pendingBody.innerHTML = '';
+      const pending = Array.isArray(data?.pedidosPendentes) ? data.pedidosPendentes : [];
+      if(!pending.length){
+        pendingBody.innerHTML = '<tr><td colspan="5">Sem pedidos pendentes.</td></tr>';
+      } else {
+        pending.forEach((order) => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${formatDateTime(order.createdAt)}</td><td>${canalLabel(order.canal)}</td><td>${esc(order.id)}</td><td>${esc(order.status || '-')}</td><td>R$ ${money(order.total || 0)}</td>`;
+          pendingBody.appendChild(tr);
+        });
+      }
+
+      const stockBody = document.getElementById('operacaoEstoqueBody');
+      stockBody.innerHTML = '';
+      const alerts = Array.isArray(data?.alertasEstoque) ? data.alertasEstoque : [];
+      if(!alerts.length){
+        stockBody.innerHTML = '<tr><td colspan="4">Sem alerta de reserva/estoque.</td></tr>';
+      } else {
+        alerts.forEach((item) => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${esc(item.nome)}</td><td>${Number(item.estoque || 0).toFixed(2)}</td><td>${Number(item.reservado || 0).toFixed(2)}</td><td>${Number(item.disponivel || 0).toFixed(2)}</td>`;
+          stockBody.appendChild(tr);
+        });
+      }
+    }
+
+    async function carregarOperacaoUnificada(){
+      const res = await fetch(`${API}/admin/operacao-unificada`, { headers: authHeaders() });
+      const body = await res.json().catch(() => ({}));
+      if(!res.ok){
+        showStatus(body.erro || 'Falha ao carregar operação unificada.', 'status-error');
+        return;
+      }
+      renderOperacaoUnificada(body);
+    }
+
     async function carregarEntradasEstoque(){
       const res=await fetch(`${API}/estoque/entradas`,{headers:authHeaders()});
       const list=await res.json();
@@ -585,6 +709,7 @@
       await carregarProdutos();
       await carregarPerdasEstoque();
       await carregarEstoqueBaixo();
+      await carregarOperacaoUnificada();
     }
 
     async function carregarGiroEstoque(){
@@ -629,6 +754,7 @@
       await carregarEntradasEstoque();
       await carregarGiroEstoque();
       await carregarEstoqueBaixo();
+      await carregarOperacaoUnificada();
     }
 
     async function carregarSaidas(){
@@ -657,11 +783,13 @@
       const dataInicio = document.getElementById('filtroDataInicio').value;
       const dataFim = document.getElementById('filtroDataFim').value;
       const status = document.getElementById('filtroStatus').value;
+      const canal = document.getElementById('filtroCanal').value;
       const minTotal = document.getElementById('filtroMinTotal').value;
       if (cpf) params.set('cpf', cpf);
       if (dataInicio) params.set('dataInicio', dataInicio);
       if (dataFim) params.set('dataFim', dataFim);
       if (status) params.set('status', status);
+      if (canal) params.set('canal', canal);
       if (minTotal) params.set('minTotal', minTotal);
       const query = params.toString();
       return query ? `?${query}` : '';
@@ -686,7 +814,7 @@
             <option value="Cancelado"${p.status==='Cancelado'?' selected':''}>Cancelado</option>
           </select>
         `;
-        tr.innerHTML=`<td>${dt.toLocaleDateString('pt-BR')}</td><td>${(p.itens||[]).length}</td><td>R$ ${money(p.frete||0)}</td><td>R$ ${money(p.total||0)}</td><td>${statusSelect}</td><td>${esc(p.cpf||'')}</td><td>${esc(p.nomeCliente||'')}</td><td><button type="button" data-save-status="${esc(p.id)}">Salvar</button></td>`;
+        tr.innerHTML=`<td>${dt.toLocaleDateString('pt-BR')}</td><td>${canalLabel(p.canal)}</td><td>${(p.itens||[]).length}</td><td>R$ ${money(p.frete||0)}</td><td>R$ ${money(p.total||0)}</td><td>${statusSelect}</td><td>${esc(p.cpf||'')}</td><td>${esc(p.nomeCliente||'')}</td><td><button type="button" data-save-status="${esc(p.id)}">Salvar</button></td>`;
         body.appendChild(tr);
       });
 
@@ -703,6 +831,7 @@
           if(!res.ok){ showStatus('Falha ao atualizar status.','status-error'); return; }
           showStatus('Status atualizado.','status-success');
           await carregarPedidos();
+          await carregarOperacaoUnificada();
         });
       });
     }
@@ -741,6 +870,7 @@
       await carregarEstoqueBaixo();
       await carregarPedidos();
       await carregarDashboard();
+      await carregarOperacaoUnificada();
     }
 
     function setAdminSessionUI(logged) {
@@ -784,6 +914,7 @@
     document.getElementById('btnLogoutAdmin').addEventListener('click',logoutAdmin);
     document.getElementById('periodoDash').addEventListener('change',carregarDashboard);
     document.getElementById('btnAtualizarDash').addEventListener('click',carregarDashboard);
+    document.getElementById('btnAtualizarOperacao').addEventListener('click',carregarOperacaoUnificada);
     async function downloadCsv(path, filename){
       const res = await fetch(`${API}${path}`, { headers: { Authorization:`Bearer ${authToken}` } });
       if(!res.ok){ showStatus('Falha ao exportar CSV.','status-error'); return; }
@@ -841,6 +972,7 @@
         await carregarEstoqueBaixo();
         await carregarPedidos();
         await carregarDashboard();
+        await carregarOperacaoUnificada();
       } else {
         logoutAdmin();
       }
