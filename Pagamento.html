@@ -87,6 +87,8 @@
     let paymentCompleted = false;
     let pendingMachineOrderId = '';
     let liveSyncTimer = null;
+    let checkoutStream = null;
+    let streamOnline = false;
     const IS_FISICO = /(caixa|pdv|balcao|fisic|sessao|session|mesa|comanda)/i.test(String(CART_ID || ''));
 
     function money(v) { return Number(v).toFixed(2).replace('.', ','); }
@@ -390,6 +392,49 @@
       liveSyncTimer = null;
     }
 
+    function stopCheckoutStream() {
+      if (!checkoutStream) return;
+      checkoutStream.close();
+      checkoutStream = null;
+      streamOnline = false;
+    }
+
+    function startCheckoutStream() {
+      stopCheckoutStream();
+
+      if (typeof window.EventSource !== 'function') {
+        startLiveSync();
+        return;
+      }
+
+      const streamUrl = `${API}/stream/checkout?cartId=${encodeURIComponent(CART_ID)}`;
+
+      try {
+        checkoutStream = new EventSource(streamUrl);
+      } catch {
+        startLiveSync();
+        return;
+      }
+
+      checkoutStream.addEventListener('checkout_update', () => {
+        carregarResumo(cupomAplicado, { silent: true });
+      });
+
+      checkoutStream.addEventListener('ping', () => {
+        // heartbeat
+      });
+
+      checkoutStream.onopen = () => {
+        streamOnline = true;
+        stopLiveSync();
+      };
+
+      checkoutStream.onerror = () => {
+        streamOnline = false;
+        startLiveSync();
+      };
+    }
+
     async function esvaziarCarrinho() {
       clearLocalCheckoutState();
       document.getElementById('cupomInput').value = '';
@@ -403,16 +448,21 @@
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
         carregarResumo(cupomAplicado, { silent: true });
+        if (!streamOnline) startCheckoutStream();
       }
     });
 
-    window.addEventListener('beforeunload', stopLiveSync);
+    window.addEventListener('beforeunload', () => {
+      stopCheckoutStream();
+      stopLiveSync();
+    });
 
     document.addEventListener('DOMContentLoaded', () => {
       renderReturnStatus();
       renderCheckoutContext();
       carregarResumo('', { silent: false });
       startLiveSync();
+      startCheckoutStream();
 
       document.querySelectorAll('input, select, textarea').forEach((el) => {
         if (el.getAttribute('aria-label')) return;

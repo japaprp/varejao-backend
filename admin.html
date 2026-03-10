@@ -94,6 +94,7 @@
           <button type="button" id="btnAtualizarOperacao">Atualizar operação</button>
         </div>
         <p class="status-banner status-info mt-10">Visão única de canais para evitar conflito de estoque e acompanhar pedidos em tempo real.</p>
+        <p id="operacaoLiveStatus" class="status-banner status-muted mt-10">Conexão ao vivo: iniciando...</p>
         <div id="operacaoKpis" class="carousel-row mt-12"></div>
 
         <div class="admin-layout mt-12">
@@ -323,11 +324,87 @@
     const API = AppCore.resolveApiBase();
     let authToken = localStorage.getItem('admin_token') || '';
     let imagemDataUrl = '';
+    let operacaoStream = null;
+    let operacaoStreamOnline = false;
+    let operacaoFallbackTimer = null;
+    let operacaoLoading = false;
 
     function authHeaders() { return { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` }; }
     function money(v) { return Number(v || 0).toFixed(2).replace('.', ','); }
     function showStatus(msg, type='status-info'){ const el=document.getElementById('statusMsg'); el.textContent=msg; el.className=`status-banner ${type}`; }
     function esc(v){ return String(v ?? '').replace(/[&<>"']/g, (m)=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+
+    function setOperacaoLiveStatus(message, type='status-muted'){
+      const el = document.getElementById('operacaoLiveStatus');
+      if(!el) return;
+      el.textContent = message;
+      el.className = `status-banner ${type} mt-10`;
+    }
+
+    function stopOperacaoFallback(){
+      if(!operacaoFallbackTimer) return;
+      clearInterval(operacaoFallbackTimer);
+      operacaoFallbackTimer = null;
+    }
+
+    function startOperacaoFallback(){
+      stopOperacaoFallback();
+      operacaoFallbackTimer = setInterval(() => {
+        carregarOperacaoUnificada({ silent: true });
+      }, 6000);
+    }
+
+    function stopOperacaoStream(){
+      if(!operacaoStream) return;
+      operacaoStream.close();
+      operacaoStream = null;
+      operacaoStreamOnline = false;
+    }
+
+    function startOperacaoStream(){
+      stopOperacaoStream();
+      if(!authToken){
+        startOperacaoFallback();
+        setOperacaoLiveStatus('Conexão ao vivo: sem sessão admin.', 'status-warn');
+        return;
+      }
+
+      if(typeof window.EventSource !== 'function'){
+        startOperacaoFallback();
+        setOperacaoLiveStatus('Conexão ao vivo: navegador sem suporte a stream (fallback ativo).', 'status-warn');
+        return;
+      }
+
+      const streamUrl = `${API}/stream/admin/operacao?token=${encodeURIComponent(authToken)}`;
+
+      try {
+        operacaoStream = new EventSource(streamUrl);
+      } catch {
+        startOperacaoFallback();
+        setOperacaoLiveStatus('Conexão ao vivo: falha ao iniciar stream (fallback ativo).', 'status-warn');
+        return;
+      }
+
+      operacaoStream.addEventListener('operacao_update', () => {
+        carregarOperacaoUnificada({ silent: true });
+      });
+
+      operacaoStream.addEventListener('ping', () => {
+        // heartbeat
+      });
+
+      operacaoStream.onopen = () => {
+        operacaoStreamOnline = true;
+        stopOperacaoFallback();
+        setOperacaoLiveStatus('Conexão ao vivo: ativa.', 'status-success');
+      };
+
+      operacaoStream.onerror = () => {
+        operacaoStreamOnline = false;
+        startOperacaoFallback();
+        setOperacaoLiveStatus('Conexão ao vivo: instável (fallback ativo).', 'status-warn');
+      };
+    }
 
     async function fileToDataUrl(file){ return new Promise((ok,err)=>{ const r=new FileReader(); r.onload=()=>ok(String(r.result||'')); r.onerror=err; r.readAsDataURL(file);}); }
     async function uploadImagem(file){
@@ -640,7 +717,7 @@
       } else {
         carts.forEach((cart) => {
           const tr = document.createElement('tr');
-          tr.innerHTML = `<td>${canalLabel(cart.canal)}</td><td>${esc(cart.cartId)}</td><td>${Number(cart.itens || 0).toFixed(2)}</td><td>R$ ${money(cart.subtotal || 0)}</td>`;
+          tr.innerHTML = `<td>${canalLabel(cart.canal)}</td><td>${esc(cart.cartId)}</td><td>${Number(cart.itens || 0).toFixed(0)}</td><td>R$ ${money(cart.subtotal || 0)}</td>`;
           cartsBody.appendChild(tr);
         });
       }
@@ -672,24 +749,50 @@
       }
     }
 
-    async function carregarOperacaoUnificada(){
+    async function carregarOperacaoUnificada(options = {}){
+      const silent = !!options.silent;
+      if (operacaoLoading) return;
+      operacaoLoading = true;
+      const btnAtualizar = document.getElementById('btnAtualizarOperacao');
+      const btnLabel = btnAtualizar ? btnAtualizar.textContent : '';
+      if (btnAtualizar && !silent) {
+        btnAtualizar.disabled = true;
+        btnAtualizar.textContent = 'Atualizando...';
+      }
+
       try {
-        showStatus('Atualizando operação unificada...', 'status-info');
+        if (!silent) {
+          showStatus('Atualizando operação unificada...', 'status-info');
+        }
+
         const res = await fetch(`${API}/admin/operacao-unificada`, { headers: authHeaders() });
         const body = await res.json().catch(() => ({}));
         if(!res.ok){
-          if (res.status === 403) {
-            showStatus('Seu usuário não tem acesso de administrador para Operação Unificada.', 'status-error');
-          } else {
-            showStatus(body.erro || 'Falha ao carregar operação unificada.', 'status-error');
+          if (!silent) {
+            if (res.status === 403) {
+              showStatus('Seu usuário não tem acesso de administrador para Operação Unificada.', 'status-error');
+            } else {
+              showStatus(body.erro || 'Falha ao carregar operação unificada.', 'status-error');
+            }
           }
           return;
         }
+
         renderOperacaoUnificada(body);
-        showStatus('Operação unificada atualizada.', 'status-success');
+        if (!silent) {
+          showStatus('Operação unificada atualizada.', 'status-success');
+        }
       } catch (err) {
         console.error(err);
-        showStatus('Não foi possível atualizar a operação unificada. Verifique conexão e API.', 'status-error');
+        if (!silent) {
+          showStatus('Não foi possível atualizar a operação unificada. Verifique conexão e API.', 'status-error');
+        }
+      } finally {
+        operacaoLoading = false;
+        if (btnAtualizar && !silent) {
+          btnAtualizar.disabled = false;
+          btnAtualizar.textContent = btnLabel || 'Atualizar operação';
+        }
       }
     }
 
@@ -895,6 +998,7 @@
       await carregarPedidos();
       await carregarDashboard();
       await carregarOperacaoUnificada();
+      startOperacaoStream();
     }
 
     function setAdminSessionUI(logged) {
@@ -917,6 +1021,9 @@
       localStorage.removeItem('admin_token');
       localStorage.removeItem('cliente_token');
       localStorage.removeItem('cliente_dados');
+      stopOperacaoStream();
+      stopOperacaoFallback();
+      setOperacaoLiveStatus('Conexão ao vivo: desligada.', 'status-muted');
       setAdminSessionUI(false);
       showStatus('Sessão encerrada.', 'status-info');
       document.getElementById('loginSenha').value = '';
@@ -983,8 +1090,16 @@
       el.setAttribute('aria-label', fallback);
     });
 
+    window.addEventListener('beforeunload', () => {
+      stopOperacaoStream();
+      stopOperacaoFallback();
+    });
+
     (async function bootstrap(){
-      if(!authToken) return;
+      if(!authToken){
+        setOperacaoLiveStatus('Conexão ao vivo: aguardando login admin.', 'status-muted');
+        return;
+      }
       const res=await fetch(`${API}/auth/me`,{headers:{Authorization:`Bearer ${authToken}`}});
       if(res.ok){
         setAdminSessionUI(true);
@@ -997,6 +1112,7 @@
         await carregarPedidos();
         await carregarDashboard();
         await carregarOperacaoUnificada();
+        startOperacaoStream();
       } else {
         logoutAdmin();
       }
@@ -1015,30 +1131,5 @@
     </div>
   </footer></body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 

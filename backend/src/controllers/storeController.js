@@ -26,7 +26,8 @@ import {
   loginUser,
   loginWithFacebookToken,
   loginWithGoogleToken,
-  registerUser
+  registerUser,
+  getUserByToken
 } from '../services/authService.js';
 import { validateCoupon } from '../services/couponService.js';
 import { createSaida, deleteSaida, listSaidas } from '../services/financeService.js';
@@ -45,9 +46,43 @@ import {
   getTopProdutos
 } from '../services/analyticsService.js';
 import { createPreference, getPayment } from '../services/paymentService.js';
+import { publishAdminUpdate, publishCheckoutUpdate, registerAdminStream, registerCheckoutStream } from '../realtime/checkoutStream.js';
 
 function getCartId(req) {
   return req.headers['x-cart-id'] || req.query.cartId || req.body?.cartId || '';
+}
+
+function getStreamToken(req) {
+  const queryToken = String(req.query?.token || '').trim();
+  if (queryToken) return queryToken;
+
+  const authHeader = String(req.headers?.authorization || '').trim();
+  if (authHeader.toLowerCase().startsWith('bearer ')) {
+    return authHeader.slice(7).trim();
+  }
+
+  return '';
+}
+
+function notifyAdmin(reason = 'operacao_update', payload = {}) {
+  try {
+    publishAdminUpdate({ reason, ...payload });
+  } catch {
+    // Nao interrompe fluxo principal se notificacao falhar.
+  }
+}
+
+function notifyCheckout(cartId, reason = 'update') {
+  const key = String(cartId || '').trim();
+  if (!key) return;
+
+  try {
+    const checkout = getCheckoutPreview('', key);
+    publishCheckoutUpdate(key, { reason, checkout });
+    notifyAdmin(reason, { cartId: key, canal: checkout?.canal || null });
+  } catch {
+    // Evita quebrar fluxo principal por falha de notificacao em tempo real.
+  }
 }
 
 export function uploadImagemController(req, res) {
@@ -131,6 +166,7 @@ export function postProduto(req, res, next) {
     }
 
     const created = createProduct(req.body);
+    notifyAdmin('produto_cadastrado', { produtoId: created.id });
     res.status(201).json(created);
   } catch (error) {
     next(error);
@@ -143,6 +179,7 @@ export function putProduto(req, res, next) {
     if (!updated) {
       return res.status(404).json({ erro: 'Produto não encontrado' });
     }
+    notifyAdmin('produto_atualizado', { produtoId: updated.id });
     return res.json(updated);
   } catch (error) {
     return next(error);
@@ -154,12 +191,15 @@ export function removeProduto(req, res) {
   if (!ok) {
     return res.status(404).json({ erro: 'Produto não encontrado' });
   }
+  notifyAdmin('produto_excluido', { produtoId: req.params.id });
   return res.json({ sucesso: true });
 }
 
 export function postCarrinho(req, res, next) {
   try {
-    const result = addCartItem(req.body, getCartId(req));
+    const cartId = getCartId(req);
+    const result = addCartItem(req.body, cartId);
+    notifyCheckout(cartId, 'item_added');
     res.json(result);
   } catch (error) {
     next(error);
@@ -179,9 +219,57 @@ export function getCheckout(req, res, next) {
   }
 }
 
+export function streamCheckout(req, res) {
+  const cartId = getCartId(req);
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+
+  if (typeof res.flushHeaders === 'function') {
+    res.flushHeaders();
+  }
+
+  res.write('retry: 3000\n\n');
+
+  const { cartId: key, cleanup } = registerCheckoutStream(cartId, res);
+  notifyCheckout(key, 'snapshot');
+
+  req.on('close', cleanup);
+}
+
+export function streamAdminOperacao(req, res) {
+  const token = getStreamToken(req);
+  const user = getUserByToken(token);
+
+  if (!user || String(user.role || '').toLowerCase() !== 'admin') {
+    return res.status(401).json({ erro: 'Nao autenticado para stream admin' });
+  }
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+
+  if (typeof res.flushHeaders === 'function') {
+    res.flushHeaders();
+  }
+
+  res.write('retry: 3000\n\n');
+
+  const { cleanup } = registerAdminStream(res);
+  notifyAdmin('operacao_snapshot', { scope: 'admin' });
+
+  req.on('close', cleanup);
+}
+
 export function postFinalizar(req, res, next) {
   try {
-    res.json(checkoutCart({ ...(req.body || {}), cartId: getCartId(req) }));
+    const cartId = getCartId(req);
+    const result = checkoutCart({ ...(req.body || {}), cartId });
+    notifyCheckout(result.cartId || cartId, 'checkout_finalizado');
+    res.json(result);
   } catch (error) {
     next(error);
   }
@@ -189,11 +277,14 @@ export function postFinalizar(req, res, next) {
 
 export async function postPagamentoPreferencia(req, res, next) {
   try {
+    const cartId = getCartId(req);
     const order = createPendingOrder({
       ...(req.body || {}),
-      cartId: getCartId(req),
+      cartId,
       metodoPagamento: req.body?.metodoPreferido || 'mercadopago'
     });
+    notifyCheckout(order.cartId || cartId, 'pagamento_pendente');
+
     const preference = await createPreference({
       order,
       metodoPreferido: req.body?.metodoPreferido || ''
@@ -212,11 +303,14 @@ export async function postPagamentoPreferencia(req, res, next) {
 
 export function postPagamentoMaquininhaIniciar(req, res, next) {
   try {
+    const cartId = getCartId(req);
     const order = createPendingOrder({
       ...(req.body || {}),
-      cartId: getCartId(req),
+      cartId,
       metodoPagamento: 'maquininha'
     });
+
+    notifyCheckout(order.cartId || cartId, 'maquininha_pendente');
 
     res.status(201).json({
       orderId: order.id,
@@ -242,6 +336,7 @@ export function postPagamentoMaquininhaConfirmar(req, res, next) {
     }
 
     const pedido = confirmMachinePayment(orderId, { nsu, autorizacao });
+    notifyCheckout(pedido?.cartId, 'maquininha_confirmada');
     return res.json({ sucesso: true, pedido });
   } catch (error) {
     return next(error);
@@ -262,13 +357,15 @@ export async function postPagamentoWebhook(req, res, next) {
     }
 
     if (payment.status === 'approved') {
-      finalizePaidOrder(orderId, {
+      const pedido = finalizePaidOrder(orderId, {
         status: payment.status,
         id: payment.id,
         method: payment.payment_method_id || payment.payment_type_id
       });
+      notifyCheckout(pedido?.cartId, 'webhook_pagamento_aprovado');
     } else {
-      updateOrderStatus(orderId, payment.status === 'rejected' ? 'Pagamento recusado' : 'Pagamento pendente');
+      const pedido = updateOrderStatus(orderId, payment.status === 'rejected' ? 'Pagamento recusado' : 'Pagamento pendente');
+      notifyCheckout(pedido?.cartId, 'webhook_pagamento_atualizado');
     }
 
     return res.status(200).json({ recebido: true });
@@ -323,6 +420,7 @@ export function putPedidoStatus(req, res) {
   if (!updated) {
     return res.status(404).json({ erro: 'Pedido não encontrado' });
   }
+  notifyCheckout(updated?.cartId, 'status_pedido_atualizado');
   return res.json(updated);
 }
 
@@ -449,6 +547,7 @@ export function getEntradasEstoque(req, res) {
 export function postEntradaEstoque(req, res, next) {
   try {
     const entry = addStockEntry(req.body || {});
+    notifyAdmin('estoque_entrada', { produtoId: entry?.produtoId || null });
     res.status(201).json(entry);
   } catch (error) {
     next(error);
@@ -462,6 +561,7 @@ export function getPerdasEstoque(req, res) {
 export function postPerdaEstoque(req, res, next) {
   try {
     const loss = addStockLoss(req.body || {});
+    notifyAdmin('estoque_perda', { produtoId: loss?.produtoId || null });
     res.status(201).json(loss);
   } catch (error) {
     next(error);
@@ -538,6 +638,7 @@ export function exportGiroCsv(req, res) {
 export function postSaidaController(req, res, next) {
   try {
     const item = createSaida(req.body || {});
+    notifyAdmin('financeiro_saida_criada', { saidaId: item?.id || null });
     res.status(201).json(item);
   } catch (error) {
     next(error);
@@ -549,6 +650,7 @@ export function deleteSaidaController(req, res) {
   if (!ok) {
     return res.status(404).json({ erro: 'Saída não encontrada' });
   }
+  notifyAdmin('financeiro_saida_excluida', { saidaId: req.params.id });
   return res.json({ sucesso: true });
 }
 
@@ -567,6 +669,7 @@ export function getAnalyticsSeriesController(req, res) {
 export function getAnalyticsTopProdutosController(req, res) {
   res.json(getTopProdutos(req.query.periodo || 'mes'));
 }
+
 
 
 

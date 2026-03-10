@@ -7,6 +7,8 @@ import {
   getAnalyticsTopProdutosController,
   getCarrinho,
   getCheckout,
+  streamCheckout,
+  streamAdminOperacao,
   postPagamentoPreferencia,
   postPagamentoMaquininhaIniciar,
   postPagamentoMaquininhaConfirmar,
@@ -86,6 +88,8 @@ router.get('/cupons/validar', validarCupomController);
 router.post('/carrinho', postCarrinho);
 router.get('/carrinho', getCarrinho);
 router.get('/checkout', getCheckout);
+router.get('/stream/checkout', streamCheckout);
+router.get('/stream/admin/operacao', streamAdminOperacao);
 router.post('/finalizar', postFinalizar);
 router.post('/pagamento/preferencia', paymentLimiter, postPagamentoPreferencia);
 router.post('/pagamento/maquininha/iniciar', paymentLimiter, postPagamentoMaquininhaIniciar);

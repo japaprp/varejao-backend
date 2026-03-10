@@ -70,3 +70,38 @@ ADMIN_PASSWORD=TROQUE_ESTA_SENHA
    ```
 2. Abra o front-end (HTML) no navegador.
 3. O back-end roda em `http://localhost:3001`.
+
+## Checkout em tempo real (caixa fisico + app)
+
+A tela `Pagamento.html` agora suporta atualizacao em tempo real via SSE:
+
+- Endpoint: `GET /stream/checkout?cartId=SESSAO`
+- Evento: `checkout_update`
+- Fallback automatico: polling a cada 3s quando o stream cair
+
+Para o fluxo funcionar sem conflito entre app e web:
+
+1. Use o mesmo backend (`api`) no app e no site.
+2. Use o mesmo `cartId`/sessao (ex: `caixa-01`) nos dois lados.
+3. O app envia itens para `/carrinho` e a tela de pagamento atualiza sozinha.
+
+Exemplo de link da tela de pagamento:
+
+```
+https://japaprp.github.io/varejao-backend/Pagamento.html?api=https://SEU_BACKEND.onrender.com&cart=caixa-01
+```
+
+## Operacao unificada em tempo real (painel admin)
+
+O `admin.html` tambem recebe eventos em tempo real para atualizar a secao **Operacao Unificada** sem precisar recarregar a pagina.
+
+- Endpoint: `GET /stream/admin/operacao?token=SEU_TOKEN_ADMIN`
+- Evento: `operacao_update`
+- Fallback automatico: polling a cada 6s quando o stream cair
+
+Fluxo recomendado:
+
+1. Fazer login no admin para obter token.
+2. Abrir `admin.html` apontando para o mesmo backend em uso no caixa/app.
+3. Toda movimentacao de carrinho/pedido/estoque/financeiro reflete automaticamente no painel.
+
