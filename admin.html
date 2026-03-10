@@ -291,6 +291,8 @@
             <img id="previewImagem" alt="Prévia" class="img-preview">
             <input id="selo" placeholder="Selo (ex: 500g aprox. 2-3 un)">
             <textarea id="descricaoCurta" rows="3" placeholder="Descrição curta"></textarea>
+            <input id="codigoBarras" placeholder="Código de barras (opcional)">
+            <input id="qrCode" placeholder="QR Code (opcional)">
             <label><input type="checkbox" id="promocao"> Em promoção</label>
             <label><input type="checkbox" id="destaque"> Produto destaque</label>
             <div class="acoes">
@@ -305,7 +307,7 @@
           <table class="admin-table">
             <thead>
               <tr>
-                <th>Nome</th><th>Setor</th><th>Preço</th><th>Unidade</th><th>Estoque</th><th>Estimativa</th><th>Promo</th><th>Ações</th>
+                <th>Nome</th><th>Código</th><th>Setor</th><th>Preço</th><th>Unidade</th><th>Estoque</th><th>Estimativa</th><th>Promo</th><th>Ações</th>
               </tr>
             </thead>
             <tbody id="produtosTableBody"></tbody>
@@ -392,6 +394,8 @@
         imagem: imagemDataUrl || document.getElementById('imagem').value.trim(),
         selo: document.getElementById('selo').value.trim(),
         descricaoCurta: document.getElementById('descricaoCurta').value.trim(),
+        codigoBarras: document.getElementById('codigoBarras').value.trim(),
+        qrCode: document.getElementById('qrCode').value.trim(),
         promocao: document.getElementById('promocao').checked,
         destaque: document.getElementById('destaque').checked
       };
@@ -413,6 +417,8 @@
       document.getElementById('imagem').value=produto.imagem||'';
       document.getElementById('selo').value=produto.selo||'';
       document.getElementById('descricaoCurta').value=produto.descricaoCurta||'';
+      document.getElementById('codigoBarras').value=produto.codigoBarras||'';
+      document.getElementById('qrCode').value=produto.qrCode||'';
       document.getElementById('promocao').checked=Boolean(produto.promocao);
       document.getElementById('destaque').checked=Boolean(produto.destaque);
       document.getElementById('formTitle').textContent=`Editando: ${produto.nome}`;
@@ -440,7 +446,8 @@
         const estimativa = (p.pesoCaixaMin && p.pesoCaixaMax && p.pesoMedioUnidade)
           ? `${Math.floor((p.pesoCaixaMin*1000)/p.pesoMedioUnidade)} a ${Math.floor((p.pesoCaixaMax*1000)/p.pesoMedioUnidade)} un/caixa`
           : (p.unidadesPorCaixa ? `${p.unidadesPorCaixa} un/caixa` : '');
-        tr.innerHTML=`<td>${esc(p.nome)}</td><td>${esc(p.setor)}</td><td>R$ ${money(p.preco)}</td><td>${esc(p.unidade)}</td><td>${esc(p.estoque ?? 0)}</td><td>${esc(estimativa)}</td><td>${p.promocao ? 'Sim' : 'Não'}</td><td class="admin-actions"><button type="button" data-edit="${esc(p.id)}">Editar</button><button type="button" data-del="${esc(p.id)}">Excluir</button></td>`;
+        const codigoRef = p.codigoBarras || p.qrCode || '-';
+        tr.innerHTML=`<td>${esc(p.nome)}</td><td>${esc(codigoRef)}</td><td>${esc(p.setor)}</td><td>R$ ${money(p.preco)}</td><td>${esc(p.unidade)}</td><td>${esc(p.estoque ?? 0)}</td><td>${esc(estimativa)}</td><td>${p.promocao ? 'Sim' : 'Não'}</td><td class="admin-actions"><button type="button" data-edit="${esc(p.id)}">Editar</button><button type="button" data-del="${esc(p.id)}">Excluir</button></td>`;
         tbody.appendChild(tr);
       });
       tbody.querySelectorAll('[data-edit]').forEach(btn=>btn.addEventListener('click',()=>{ const id=btn.getAttribute('data-edit'); const p=produtos.find(x=>x.id===id); if(p) preencherForm(p); }));
@@ -818,6 +825,7 @@
         const statusSelect = `
           <select data-status-id="${p.id}">
             <option value="Aguardando pagamento"${p.status==='Aguardando pagamento'?' selected':''}>Aguardando pagamento</option>
+            <option value="Aguardando pagamento na maquininha"${p.status==='Aguardando pagamento na maquininha'?' selected':''}>Aguardando pagamento na maquininha</option>
             <option value="Pagamento pendente"${p.status==='Pagamento pendente'?' selected':''}>Pagamento pendente</option>
             <option value="Pagamento recusado"${p.status==='Pagamento recusado'?' selected':''}>Pagamento recusado</option>
             <option value="Pago"${p.status==='Pago'?' selected':''}>Pago</option>
