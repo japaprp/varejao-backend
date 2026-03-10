@@ -661,13 +661,24 @@
     }
 
     async function carregarOperacaoUnificada(){
-      const res = await fetch(`${API}/admin/operacao-unificada`, { headers: authHeaders() });
-      const body = await res.json().catch(() => ({}));
-      if(!res.ok){
-        showStatus(body.erro || 'Falha ao carregar operação unificada.', 'status-error');
-        return;
+      try {
+        showStatus('Atualizando operação unificada...', 'status-info');
+        const res = await fetch(`${API}/admin/operacao-unificada`, { headers: authHeaders() });
+        const body = await res.json().catch(() => ({}));
+        if(!res.ok){
+          if (res.status === 403) {
+            showStatus('Seu usuário não tem acesso de administrador para Operação Unificada.', 'status-error');
+          } else {
+            showStatus(body.erro || 'Falha ao carregar operação unificada.', 'status-error');
+          }
+          return;
+        }
+        renderOperacaoUnificada(body);
+        showStatus('Operação unificada atualizada.', 'status-success');
+      } catch (err) {
+        console.error(err);
+        showStatus('Não foi possível atualizar a operação unificada. Verifique conexão e API.', 'status-error');
       }
-      renderOperacaoUnificada(body);
     }
 
     async function carregarEntradasEstoque(){

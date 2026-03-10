@@ -78,6 +78,7 @@
       <h2 class="section-title m-0">Status da Loja</h2>
       <p id="smartBannerText" class="mt-10">Carregando informações em tempo real...</p>
       <p id="homeCartStatus" class="status-banner status-info mt-10"></p>
+      <p id="homeChannelContext" class="status-banner status-muted mt-10"></p>
       <div class="acoes mt-10">
         <a id="homeCheckoutLink" href="Pagamento.html" class="is-hidden">Ir para pagamento</a>
       </div>
@@ -337,6 +338,24 @@
       if (unit === 'kg') return `${Number(valor).toFixed(1)} kg`;
       if (unit === 'bandeja') return `${Math.round(Number(valor))} bandeja`;
       return `${Math.round(Number(valor))} un`;
+    }
+
+    function resolveChannelLabel(cartId = '') {
+      const id = String(cartId || '').toLowerCase();
+      if (/(caixa|pdv|balcao|fisic|sessao|session|mesa|comanda)/i.test(id)) {
+        return 'Loja física';
+      }
+      return 'Online';
+    }
+
+    function renderChannelContext() {
+      const el = document.getElementById('homeChannelContext');
+      if (!el) return;
+      const canal = resolveChannelLabel(CART_ID);
+      el.textContent = `Canal ativo: ${canal} • Sessão: ${CART_ID}`;
+      el.className = canal === 'Loja física'
+        ? 'status-banner status-info mt-10'
+        : 'status-banner status-muted mt-10';
     }
 
     function changeQty(displayEl, unidade, delta) {
@@ -599,6 +618,7 @@
       await validateAdminSession();
       renderUserHub();
       renderHomeCartCta();
+      renderChannelContext();
       const grid = document.getElementById('promocoesGrid');
       grid.innerHTML = '<div class="loading-grid"><div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div></div>';
       try {
