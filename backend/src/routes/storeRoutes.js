@@ -8,6 +8,8 @@ import {
   getCarrinho,
   getCheckout,
   postPagamentoPreferencia,
+  postPagamentoMaquininhaIniciar,
+  postPagamentoMaquininhaConfirmar,
   postPagamentoWebhook,
   getFidelidadeController,
   getFidelidadeCpfController,
@@ -86,6 +88,8 @@ router.get('/carrinho', getCarrinho);
 router.get('/checkout', getCheckout);
 router.post('/finalizar', postFinalizar);
 router.post('/pagamento/preferencia', paymentLimiter, postPagamentoPreferencia);
+router.post('/pagamento/maquininha/iniciar', paymentLimiter, postPagamentoMaquininhaIniciar);
+router.post('/pagamento/maquininha/confirmar', paymentLimiter, postPagamentoMaquininhaConfirmar);
 router.post('/pagamento/webhook', paymentLimiter, postPagamentoWebhook);
 router.get('/pedidos', requireAuth, getPedidosPorCpf);
 router.get('/admin/pedidos', requireAuth, requireRole(['admin', 'operador']), getPedidosAdmin);

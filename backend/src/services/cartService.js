@@ -55,16 +55,29 @@ function calculateFrete(totalBase) {
   return totalBase >= 100 ? 0 : 30;
 }
 
-function getReservedQtyForProduct(db, produtoId, exceptCartId = '') {
+function getReservedQtyForProduct(db, produtoId, options = {}) {
   ensureCollections(db);
-  const except = resolveCartId(exceptCartId);
+  const { exceptCartId = '', exceptOrderId = '' } = options;
+  const exceptCart = resolveCartId(exceptCartId);
+  const exceptOrder = String(exceptOrderId || '').trim();
   let reserved = 0;
 
   for (const [cartId, items] of Object.entries(db.carrinhos || {})) {
     if (!Array.isArray(items)) continue;
-    if (exceptCartId && resolveCartId(cartId) === except) continue;
+    if (exceptCartId && resolveCartId(cartId) === exceptCart) continue;
 
     for (const item of items) {
+      if (String(item?.produtoId || '') === String(produtoId || '')) {
+        reserved += Number(item?.quantidade || 0);
+      }
+    }
+  }
+
+  for (const order of db.pedidos || []) {
+    if (!order || isCancelledStatus(order.status) || !isPendingStatus(order.status)) continue;
+    if (exceptOrder && String(order.id || '') === exceptOrder) continue;
+
+    for (const item of aggregateItemsByProduct(order.itens || [])) {
       if (String(item?.produtoId || '') === String(produtoId || '')) {
         reserved += Number(item?.quantidade || 0);
       }
@@ -117,14 +130,14 @@ function aggregateItemsByProduct(items = []) {
 }
 
 function ensureStockAvailability(db, items, options = {}) {
-  const { exceptCartId = '' } = options;
+  const { exceptCartId = '', exceptOrderId = '' } = options;
   const aggregated = aggregateItemsByProduct(items);
 
   for (const item of aggregated) {
     const prod = (db.produtos || []).find((p) => String(p.id) === String(item.produtoId));
     if (!prod) continue;
 
-    const reservedOutside = getReservedQtyForProduct(db, item.produtoId, exceptCartId);
+    const reservedOutside = getReservedQtyForProduct(db, item.produtoId, { exceptCartId, exceptOrderId });
     const available = Number(prod.estoque || 0) - reservedOutside;
     if (available + 1e-9 < Number(item.quantidade || 0)) {
       const err = new Error(`Estoque insuficiente para ${prod.nome}. Disponivel: ${Math.max(0, available).toFixed(2)}`);
@@ -179,6 +192,20 @@ function isToday(isoDate) {
   const now = new Date();
   return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
 }
+
+function resolvePaymentMethod(method = '') {
+  const raw = String(method || '').trim().toLowerCase();
+  if (!raw) return 'mercadopago';
+  if (raw.includes('maquin')) return 'maquininha';
+  return 'mercadopago';
+}
+
+function resolvePendingStatusByMethod(paymentMethod = 'mercadopago') {
+  return paymentMethod === 'maquininha'
+    ? 'Aguardando pagamento na maquininha'
+    : 'Aguardando pagamento';
+}
+
 
 export function listCart(cartId) {
   const db = readDb();
@@ -260,7 +287,7 @@ export function addCartItem({ produtoId, produto, quantidade }, cartId) {
     throw err;
   }
 
-  const reservedOutside = getReservedQtyForProduct(db, produtoRef.id, cartKey);
+  const reservedOutside = getReservedQtyForProduct(db, produtoRef.id, { exceptCartId: cartKey });
   const currentQty = getCartItemQty(cart, produtoRef.id);
   const availableToAdd = Number(produtoRef.estoque || 0) - reservedOutside - currentQty;
   if (availableToAdd + 1e-9 < qtd) {
@@ -313,7 +340,13 @@ export function getCheckoutPreview(codigoCupom = '', cartId = '') {
   };
 }
 
-export function createPendingOrder({ cpf = '', nomeCliente = '', cupom = '', cartId = '' } = {}) {
+export function createPendingOrder({
+  cpf = '',
+  nomeCliente = '',
+  cupom = '',
+  cartId = '',
+  metodoPagamento = 'mercadopago'
+} = {}) {
   const db = readDb();
   const cartKey = resolveCartId(cartId);
   const cart = getCartFromDb(db, cartKey);
@@ -334,6 +367,7 @@ export function createPendingOrder({ cpf = '', nomeCliente = '', cupom = '', car
 
   const { totalBase, frete, total } = buildOrderTotals({ subtotal, desconto });
   const channel = resolveChannelFromCartId(cartKey);
+  const paymentMethod = resolvePaymentMethod(metodoPagamento);
 
   const order = {
     id: `ped_${Date.now()}`,
@@ -349,9 +383,10 @@ export function createPendingOrder({ cpf = '', nomeCliente = '', cupom = '', car
     cupomAplicado,
     cpf: normalizeCpf(cpf) || null,
     nomeCliente: nomeCliente || null,
-    status: 'Aguardando pagamento',
+    status: resolvePendingStatusByMethod(paymentMethod),
     payment: {
-      status: 'pending'
+      status: 'pending',
+      method: paymentMethod
     }
   };
 
@@ -360,6 +395,42 @@ export function createPendingOrder({ cpf = '', nomeCliente = '', cupom = '', car
   writeDb(db);
 
   return normalizeOrder(order);
+}
+
+export function confirmMachinePayment(orderId, paymentInfo = {}) {
+  const db = readDb();
+  const order = getOrderById(db, orderId);
+  if (!order) {
+    const err = new Error('Pedido nao encontrado');
+    err.status = 404;
+    throw err;
+  }
+
+  if (isCancelledStatus(order.status)) {
+    const err = new Error('Pedido cancelado nao pode ser confirmado');
+    err.status = 400;
+    throw err;
+  }
+
+  if (resolveOrderChannel(order) !== 'fisico') {
+    const err = new Error('Pagamento na maquininha permitido apenas para canal fisico');
+    err.status = 400;
+    throw err;
+  }
+
+  const paymentMethod = resolvePaymentMethod(order?.payment?.method || 'maquininha');
+  if (paymentMethod !== 'maquininha') {
+    const err = new Error('Pedido nao esta marcado para maquininha');
+    err.status = 400;
+    throw err;
+  }
+
+  const transactionId = String(paymentInfo?.nsu || paymentInfo?.autorizacao || '').trim() || ('maq_' + Date.now());
+  return finalizePaidOrder(orderId, {
+    status: 'approved',
+    id: transactionId,
+    method: 'maquininha'
+  });
 }
 
 export function finalizePaidOrder(orderId, paymentInfo = {}) {
@@ -376,7 +447,7 @@ export function finalizePaidOrder(orderId, paymentInfo = {}) {
   }
 
   const items = aggregateItemsByProduct(order.itens || []);
-  ensureStockAvailability(db, items, { exceptCartId: '' });
+  ensureStockAvailability(db, items, { exceptOrderId: order.id });
   applyStockDeduction(db, items);
 
   if (order.cupomAplicado) {
@@ -517,7 +588,7 @@ export function getUnifiedOperationSummary() {
 
   const stockAlerts = (db.produtos || [])
     .map((produto) => {
-      const reservado = getReservedQtyForProduct(db, produto.id, '');
+      const reservado = getReservedQtyForProduct(db, produto.id, {});
       const estoque = Number(produto.estoque || 0);
       const disponivel = Number((estoque - reservado).toFixed(2));
       return {

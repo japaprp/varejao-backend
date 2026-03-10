@@ -31,6 +31,12 @@
 
     <p id="statusMsg" class="status-banner" aria-live="polite"></p>
 
+    <section class="info-card mt-12">
+      <strong id="checkoutCanalLabel">Canal ativo: carregando...</strong>
+      <p id="checkoutSessaoLabel" class="mt-10"></p>
+      <p class="status-banner status-muted mt-10">Use a mesma sessão no app e no checkout para sincronizar leitura, valores e pagamento sem conflito.</p>
+    </section>
+
     <h2>Resumo do Pedido</h2>
     <div class="acoes">
      <button id="btnEsvaziarCarrinho" type="button">Esvaziar carrinho</button>
@@ -51,14 +57,26 @@
       <button type="button" id="btnCupom">Aplicar cupom</button>
      </div>
     </div>
+    <section id="maquininhaSection" class="admin-panel is-hidden">
+      <h2>Pagamento na Maquininha (Loja Física)</h2>
+      <p>Lance itens no app, acompanhe o total aqui e confirme quando a maquininha aprovar.</p>
+      <div class="acoes mt-10">
+        <button id="btn-maq-iniciar" type="button">Enviar para maquininha</button>
+        <button id="btn-maq-confirmar" type="button" disabled>Confirmar pagamento recebido</button>
+      </div>
+      <input id="maqNsu" placeholder="NSU/Autorização (opcional)">
+      <p id="maqStatus" class="status-banner status-info mt-10"></p>
+    </section>
 
-    <h2>Pagamento via Mercado Pago</h2>
-    <div class="acoes">
-      <button id="btn-credito" type="button">Pagar com cartão</button>
-      <button id="btn-debito" type="button">Pagar com débito</button>
-      <button id="btn-pix" type="button">Pagar com Pix</button>
-    </div>
-  </main>
+    <section id="mercadoPagoSection">
+      <h2>Pagamento via Mercado Pago</h2>
+      <div class="acoes">
+        <button id="btn-credito" type="button">Pagar com cartão</button>
+        <button id="btn-debito" type="button">Pagar com débito</button>
+        <button id="btn-pix" type="button">Pagar com Pix</button>
+      </div>
+    </section>
+</main>
 
   <script src="app-core.js?v=20260227-2"></script>
   <script>
@@ -67,6 +85,9 @@
     let cupomAplicado = '';
     let rehydrated = false;
     let paymentCompleted = false;
+    let pendingMachineOrderId = '';
+    let liveSyncTimer = null;
+    const IS_FISICO = /(caixa|pdv|balcao|fisic|sessao|session|mesa|comanda)/i.test(String(CART_ID || ''));
 
     function money(v) { return Number(v).toFixed(2).replace('.', ','); }
 
@@ -76,11 +97,46 @@
       status.className = `status-banner ${type}`;
     }
 
+    function setMaqStatus(message, type = 'status-info') {
+      const status = document.getElementById('maqStatus');
+      if (!status) return;
+      status.textContent = message;
+      status.className = `status-banner ${type} mt-10`;
+    }
+
     function getLocalCart() {
       try {
         return JSON.parse(localStorage.getItem('cart_items') || '[]');
       } catch {
         return [];
+      }
+    }
+
+    function resolveChannelLabel(cartId = '') {
+      const id = String(cartId || '').toLowerCase();
+      if (/(caixa|pdv|balcao|fisic|sessao|session|mesa|comanda)/i.test(id)) {
+        return 'Loja física';
+      }
+      return 'Online';
+    }
+
+    function renderCheckoutContext() {
+      const canalEl = document.getElementById('checkoutCanalLabel');
+      const sessaoEl = document.getElementById('checkoutSessaoLabel');
+      const canal = resolveChannelLabel(CART_ID);
+
+      if (canalEl) canalEl.textContent = `Canal ativo: ${canal}`;
+      if (sessaoEl) sessaoEl.textContent = `Sessão ativa: ${CART_ID}`;
+
+      const maqSection = document.getElementById('maquininhaSection');
+      const mpSection = document.getElementById('mercadoPagoSection');
+      if (IS_FISICO) {
+        maqSection?.classList.remove('is-hidden');
+        mpSection?.classList.add('is-hidden');
+        showStatus('Fluxo físico ativo: leitura no app + pagamento na maquininha.', 'status-info');
+      } else {
+        maqSection?.classList.add('is-hidden');
+        mpSection?.classList.remove('is-hidden');
       }
     }
 
@@ -123,16 +179,16 @@
         return;
       }
 
-      const status = statusRaw;
-      if (!status) return;
-      if (status === 'pending' || status === 'in_process') {
+      if (!statusRaw) return;
+      if (statusRaw === 'pending' || statusRaw === 'in_process') {
         showStatus('Pagamento pendente. Assim que confirmado, liberaremos seu pedido.', 'status-info');
       } else {
         showStatus('Pagamento não aprovado. Tente novamente ou escolha outra forma.', 'status-error');
       }
     }
 
-    async function carregarResumo(cupom = '') {
+    async function carregarResumo(cupom = '', options = {}) {
+      const { silent = false } = options;
       const resumoCompra = document.getElementById('resumoCompra');
       resumoCompra.innerHTML = '';
 
@@ -151,11 +207,11 @@
           if (localItems.length) {
             rehydrated = true;
             await rehydrateBackendCart(localItems);
-            return carregarResumo(cupom);
+            return carregarResumo(cupom, options);
           }
         }
 
-        data.itens.forEach(item => {
+        data.itens.forEach((item) => {
           const subtotal = Number(item.preco) * Number(item.quantidade);
           const li = document.createElement('li');
           li.textContent = `${item.produto} - ${item.quantidade} ${item.unidade} - R$ ${money(subtotal)}`;
@@ -174,22 +230,28 @@
         document.getElementById('totalCarrinho').textContent = `Total: R$ ${money(totalFinal)}`;
 
         const freteStatus = document.getElementById('freteStatus');
-        freteStatus.textContent = totalBase >= 100 ? 'Frete grátis aplicado.' : (totalBase > 0 ? 'Frete será cobrado no total.' : '');
+        freteStatus.textContent = totalBase >= 100
+          ? 'Frete grátis aplicado.'
+          : (totalBase > 0 ? 'Frete será cobrado no total.' : '');
         freteStatus.className = totalBase >= 100 ? 'status-banner status-success' : 'status-banner status-info';
 
-        if (!data.itens.length) {
-          if (paymentCompleted) {
-            showStatus('Pagamento efetuado. Não há itens pendentes no carrinho.', 'status-success');
-          } else {
-            showStatus('Seu pedido está vazio. Adicione itens antes de pagar.', 'status-info');
+        if (!silent) {
+          if (!data.itens.length) {
+            if (paymentCompleted) {
+              showStatus('Pagamento efetuado. Não há itens pendentes no carrinho.', 'status-success');
+            } else {
+              showStatus('Seu pedido está vazio. Adicione itens antes de pagar.', 'status-info');
+            }
+          } else if (cupom) {
+            showStatus(`Cupom ${cupom} aplicado com sucesso.`, 'status-success');
+          } else if (!IS_FISICO) {
+            showStatus('Resumo carregado. Você será redirecionado ao Mercado Pago para concluir o pagamento.', 'status-success');
           }
-        } else if (cupom) {
-          showStatus(`Cupom ${cupom} aplicado com sucesso.`, 'status-success');
-        } else {
-          showStatus('Resumo carregado. Você será redirecionado ao Mercado Pago para concluir o pagamento.', 'status-success');
         }
       } catch (err) {
-        showStatus(err.message, 'status-error');
+        if (!silent) {
+          showStatus(err.message, 'status-error');
+        }
       }
     }
 
@@ -197,31 +259,36 @@
       const cupom = document.getElementById('cupomInput').value.trim();
       if (!cupom) {
         cupomAplicado = '';
-        await carregarResumo('');
+        await carregarResumo('', { silent: false });
         return;
       }
       cupomAplicado = cupom;
-      await carregarResumo(cupom);
+      await carregarResumo(cupom, { silent: false });
     }
 
     async function processarPagamento(metodo, buttonEl) {
+      if (IS_FISICO) {
+        showStatus('Canal físico usa maquininha. Use os botões de maquininha abaixo.', 'status-info');
+        return;
+      }
+
       const botoes = document.querySelectorAll('button[id^="btn-"]');
       const textoOriginal = buttonEl.textContent;
-      botoes.forEach(btn => { btn.disabled = true; });
+      botoes.forEach((btn) => { btn.disabled = true; });
       buttonEl.textContent = 'Processando...';
 
       try {
         const payload = {
-         cpf: document.getElementById('cpfCliente').value.trim(),
-         nomeCliente: document.getElementById('nomeCliente').value.trim(),
-         cupom: cupomAplicado,
-         metodoPreferido: metodo
+          cpf: document.getElementById('cpfCliente').value.trim(),
+          nomeCliente: document.getElementById('nomeCliente').value.trim(),
+          cupom: cupomAplicado,
+          metodoPreferido: metodo
         };
 
         const finalizarRes = await fetch(`${API}/pagamento/preferencia`, {
-         method: 'POST',
-         headers: { 'Content-Type': 'application/json', 'X-Cart-Id': CART_ID },
-         body: JSON.stringify(payload)
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Cart-Id': CART_ID },
+          body: JSON.stringify(payload)
         });
 
         const body = await finalizarRes.json().catch(() => ({}));
@@ -233,31 +300,141 @@
       } catch (err) {
         showStatus(err.message, 'status-error');
         buttonEl.textContent = textoOriginal;
-        botoes.forEach(btn => { btn.disabled = false; });
+        botoes.forEach((btn) => { btn.disabled = false; });
       }
+    }
+
+    async function iniciarPagamentoMaquininha(buttonEl) {
+      const textoOriginal = buttonEl.textContent;
+      buttonEl.disabled = true;
+      buttonEl.textContent = 'Enviando...';
+
+      try {
+        const payload = {
+          cpf: document.getElementById('cpfCliente').value.trim(),
+          nomeCliente: document.getElementById('nomeCliente').value.trim(),
+          cupom: cupomAplicado
+        };
+
+        const res = await fetch(`${API}/pagamento/maquininha/iniciar`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Cart-Id': CART_ID },
+          body: JSON.stringify(payload)
+        });
+
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(body.erro || 'Falha ao enviar pedido para maquininha.');
+
+        pendingMachineOrderId = String(body.orderId || '').trim();
+        document.getElementById('btn-maq-confirmar').disabled = !pendingMachineOrderId;
+        setMaqStatus(`Pedido ${pendingMachineOrderId} enviado para maquininha. Total: R$ ${money(body.total || 0)}`, 'status-success');
+        showStatus('Pedido enviado para maquininha. Confirme após aprovação.', 'status-success');
+        await carregarResumo('', { silent: true });
+      } catch (err) {
+        setMaqStatus(err.message, 'status-error');
+        showStatus(err.message, 'status-error');
+      } finally {
+        buttonEl.disabled = false;
+        buttonEl.textContent = textoOriginal;
+      }
+    }
+
+    async function confirmarPagamentoMaquininha(buttonEl) {
+      if (!pendingMachineOrderId) {
+        setMaqStatus('Nenhum pedido pendente para confirmar.', 'status-error');
+        return;
+      }
+
+      const textoOriginal = buttonEl.textContent;
+      buttonEl.disabled = true;
+      buttonEl.textContent = 'Confirmando...';
+
+      try {
+        const nsu = document.getElementById('maqNsu').value.trim();
+        const res = await fetch(`${API}/pagamento/maquininha/confirmar`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId: pendingMachineOrderId, nsu })
+        });
+
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(body.erro || 'Falha ao confirmar pagamento na maquininha.');
+
+        paymentCompleted = true;
+        clearLocalCheckoutState();
+        pendingMachineOrderId = '';
+        document.getElementById('btn-maq-confirmar').disabled = true;
+        document.getElementById('maqNsu').value = '';
+        setMaqStatus('Pagamento confirmado com sucesso. Pedido baixado no sistema.', 'status-success');
+        showStatus('Pagamento da maquininha confirmado e estoque atualizado.', 'status-success');
+        await carregarResumo('', { silent: true });
+      } catch (err) {
+        setMaqStatus(err.message, 'status-error');
+        showStatus(err.message, 'status-error');
+      } finally {
+        buttonEl.disabled = false;
+        buttonEl.textContent = textoOriginal;
+      }
+    }
+
+    function startLiveSync() {
+      if (liveSyncTimer) clearInterval(liveSyncTimer);
+      liveSyncTimer = setInterval(() => {
+        carregarResumo(cupomAplicado, { silent: true });
+      }, 3000);
+    }
+
+    function stopLiveSync() {
+      if (!liveSyncTimer) return;
+      clearInterval(liveSyncTimer);
+      liveSyncTimer = null;
     }
 
     async function esvaziarCarrinho() {
       clearLocalCheckoutState();
       document.getElementById('cupomInput').value = '';
-      await carregarResumo('');
+      pendingMachineOrderId = '';
+      document.getElementById('btn-maq-confirmar').disabled = true;
+      setMaqStatus('', 'status-info');
+      await carregarResumo('', { silent: false });
       showStatus('Carrinho esvaziado. Adicione novos itens para continuar.', 'status-info');
     }
 
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        carregarResumo(cupomAplicado, { silent: true });
+      }
+    });
+
+    window.addEventListener('beforeunload', stopLiveSync);
+
     document.addEventListener('DOMContentLoaded', () => {
       renderReturnStatus();
-      carregarResumo('');
+      renderCheckoutContext();
+      carregarResumo('', { silent: false });
+      startLiveSync();
+
       document.querySelectorAll('input, select, textarea').forEach((el) => {
         if (el.getAttribute('aria-label')) return;
         const placeholder = el.getAttribute('placeholder');
         const fallback = placeholder || el.id || 'campo';
         el.setAttribute('aria-label', fallback);
       });
+
       document.getElementById('btnCupom').addEventListener('click', aplicarCupom);
       document.getElementById('btn-credito').addEventListener('click', function () { processarPagamento('credito', this); });
       document.getElementById('btn-debito').addEventListener('click', function () { processarPagamento('debito', this); });
       document.getElementById('btn-pix').addEventListener('click', function () { processarPagamento('pix', this); });
       document.getElementById('btnEsvaziarCarrinho').addEventListener('click', esvaziarCarrinho);
+
+      const btnMaqIniciar = document.getElementById('btn-maq-iniciar');
+      const btnMaqConfirmar = document.getElementById('btn-maq-confirmar');
+      if (btnMaqIniciar) {
+        btnMaqIniciar.addEventListener('click', function () { iniciarPagamentoMaquininha(this); });
+      }
+      if (btnMaqConfirmar) {
+        btnMaqConfirmar.addEventListener('click', function () { confirmarPagamentoMaquininha(this); });
+      }
     });
   </script>
  <a class="whatsapp-float" href="https://wa.me/5516992596614?text=Ol%C3%A1%2C%20preciso%20de%20suporte%20no%20Varej%C3%A3o%20do%20Povo." target="_blank" rel="noopener noreferrer" aria-label="Suporte via WhatsApp">WhatsApp</a>

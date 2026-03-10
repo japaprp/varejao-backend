@@ -8,6 +8,7 @@ import {
   addCartItem,
   checkoutCart,
   createPendingOrder,
+  confirmMachinePayment,
   finalizePaidOrder,
   getCheckoutPreview,
   getUnifiedOperationSummary,
@@ -188,7 +189,11 @@ export function postFinalizar(req, res, next) {
 
 export async function postPagamentoPreferencia(req, res, next) {
   try {
-    const order = createPendingOrder({ ...(req.body || {}), cartId: getCartId(req) });
+    const order = createPendingOrder({
+      ...(req.body || {}),
+      cartId: getCartId(req),
+      metodoPagamento: req.body?.metodoPreferido || 'mercadopago'
+    });
     const preference = await createPreference({
       order,
       metodoPreferido: req.body?.metodoPreferido || ''
@@ -201,6 +206,45 @@ export async function postPagamentoPreferencia(req, res, next) {
     });
   } catch (error) {
     next(error);
+  }
+}
+
+
+export function postPagamentoMaquininhaIniciar(req, res, next) {
+  try {
+    const order = createPendingOrder({
+      ...(req.body || {}),
+      cartId: getCartId(req),
+      metodoPagamento: 'maquininha'
+    });
+
+    res.status(201).json({
+      orderId: order.id,
+      status: order.status,
+      total: order.total,
+      subtotal: order.subtotal,
+      frete: order.frete,
+      desconto: order.desconto,
+      cartId: order.cartId,
+      canal: order.canal,
+      paymentMethod: 'maquininha'
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export function postPagamentoMaquininhaConfirmar(req, res, next) {
+  try {
+    const { orderId = '', nsu = '', autorizacao = '' } = req.body || {};
+    if (!orderId) {
+      return res.status(400).json({ erro: 'orderId obrigatorio' });
+    }
+
+    const pedido = confirmMachinePayment(orderId, { nsu, autorizacao });
+    return res.json({ sucesso: true, pedido });
+  } catch (error) {
+    return next(error);
   }
 }
 
