@@ -291,6 +291,7 @@
             <img id="previewImagem" alt="Prévia" class="img-preview">
             <input id="selo" placeholder="Selo (ex: 500g aprox. 2-3 un)">
             <textarea id="descricaoCurta" rows="3" placeholder="Descrição curta"></textarea>
+            <input id="codigoInterno" placeholder="Código interno / ID de venda (opcional)">
             <input id="codigoBarras" placeholder="Código de barras (opcional)">
             <input id="qrCode" placeholder="QR Code (opcional)">
             <label><input type="checkbox" id="promocao"> Em promoção</label>
@@ -394,6 +395,7 @@
         imagem: imagemDataUrl || document.getElementById('imagem').value.trim(),
         selo: document.getElementById('selo').value.trim(),
         descricaoCurta: document.getElementById('descricaoCurta').value.trim(),
+        codigoInterno: document.getElementById('codigoInterno').value.trim(),
         codigoBarras: document.getElementById('codigoBarras').value.trim(),
         qrCode: document.getElementById('qrCode').value.trim(),
         promocao: document.getElementById('promocao').checked,
@@ -417,6 +419,7 @@
       document.getElementById('imagem').value=produto.imagem||'';
       document.getElementById('selo').value=produto.selo||'';
       document.getElementById('descricaoCurta').value=produto.descricaoCurta||'';
+      document.getElementById('codigoInterno').value=produto.codigoInterno||'';
       document.getElementById('codigoBarras').value=produto.codigoBarras||'';
       document.getElementById('qrCode').value=produto.qrCode||'';
       document.getElementById('promocao').checked=Boolean(produto.promocao);
@@ -446,7 +449,7 @@
         const estimativa = (p.pesoCaixaMin && p.pesoCaixaMax && p.pesoMedioUnidade)
           ? `${Math.floor((p.pesoCaixaMin*1000)/p.pesoMedioUnidade)} a ${Math.floor((p.pesoCaixaMax*1000)/p.pesoMedioUnidade)} un/caixa`
           : (p.unidadesPorCaixa ? `${p.unidadesPorCaixa} un/caixa` : '');
-        const codigoRef = p.codigoBarras || p.qrCode || '-';
+        const codigoRef = p.codigoInterno || p.codigoBarras || p.qrCode || p.id || '-';
         tr.innerHTML=`<td>${esc(p.nome)}</td><td>${esc(codigoRef)}</td><td>${esc(p.setor)}</td><td>R$ ${money(p.preco)}</td><td>${esc(p.unidade)}</td><td>${esc(p.estoque ?? 0)}</td><td>${esc(estimativa)}</td><td>${p.promocao ? 'Sim' : 'Não'}</td><td class="admin-actions"><button type="button" data-edit="${esc(p.id)}">Editar</button><button type="button" data-del="${esc(p.id)}">Excluir</button></td>`;
         tbody.appendChild(tr);
       });
@@ -1012,6 +1015,11 @@
     </div>
   </footer></body>
 </html>
+
+
+
+
+
 
 
 

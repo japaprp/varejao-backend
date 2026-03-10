@@ -13,21 +13,23 @@ function normalizeCodeSearch(value) {
   return normalizeCode(value).toLowerCase();
 }
 
-function findProductWithDuplicateCode(db, { codigoBarras = '', qrCode = '' }, ignoreId = '') {
-  const barcode = normalizeCode(codigoBarras);
-  const qr = normalizeCode(qrCode);
-  if (!barcode && !qr) return null;
+function findProductWithDuplicateCode(db, { codigoInterno = '', codigoBarras = '', qrCode = '' }, ignoreId = '') {
+  const nextCodes = [codigoInterno, codigoBarras, qrCode]
+    .map(normalizeCode)
+    .filter(Boolean);
+
+  if (!nextCodes.length) return null;
 
   return (db.produtos || []).find((item) => {
     if (ignoreId && String(item.id) === String(ignoreId)) return false;
 
-    const existingBarcode = normalizeCode(item.codigoBarras);
-    const existingQr = normalizeCode(item.qrCode);
+    const existingCodes = [
+      normalizeCode(item.codigoInterno),
+      normalizeCode(item.codigoBarras),
+      normalizeCode(item.qrCode)
+    ].filter(Boolean);
 
-    const barcodeCollision = barcode && (existingBarcode === barcode || existingQr === barcode);
-    const qrCollision = qr && (existingQr === qr || existingBarcode === qr);
-
-    return barcodeCollision || qrCollision;
+    return nextCodes.some((code) => existingCodes.includes(code));
   }) || null;
 }
 
@@ -48,6 +50,16 @@ export function listProducts(filters = {}) {
     items = items.filter((item) => item.destaque);
   }
 
+  const idFilter = normalizeCodeSearch(filters.id || '');
+  if (idFilter) {
+    items = items.filter((item) => normalizeCodeSearch(item.id) === idFilter);
+  }
+
+  const internalCodeFilter = normalizeCodeSearch(filters.codigoInterno || filters.codigo || filters.sku || '');
+  if (internalCodeFilter) {
+    items = items.filter((item) => normalizeCodeSearch(item.codigoInterno) === internalCodeFilter);
+  }
+
   const barcodeFilter = normalizeCodeSearch(filters.barcode || filters.codigoBarras || '');
   if (barcodeFilter) {
     items = items.filter((item) => normalizeCodeSearch(item.codigoBarras) === barcodeFilter);
@@ -63,9 +75,11 @@ export function listProducts(filters = {}) {
     const searchCode = normalizeCodeSearch(filters.q);
     items = items.filter((item) => {
       const nomeMatch = normalizeName(item.nome).includes(searchName);
+      const idMatch = normalizeCodeSearch(item.id).includes(searchCode);
+      const internalMatch = normalizeCodeSearch(item.codigoInterno).includes(searchCode);
       const barcodeMatch = normalizeCodeSearch(item.codigoBarras).includes(searchCode);
       const qrMatch = normalizeCodeSearch(item.qrCode).includes(searchCode);
-      return nomeMatch || barcodeMatch || qrMatch;
+      return nomeMatch || idMatch || internalMatch || barcodeMatch || qrMatch;
     });
   }
 
@@ -86,12 +100,13 @@ export function getProductByName(nome) {
 export function createProduct(payload) {
   const db = readDb();
   const id = `p${String(Date.now()).slice(-8)}`;
+  const codigoInterno = normalizeCode(payload.codigoInterno);
   const codigoBarras = normalizeCode(payload.codigoBarras);
   const qrCode = normalizeCode(payload.qrCode);
 
-  const duplicate = findProductWithDuplicateCode(db, { codigoBarras, qrCode });
+  const duplicate = findProductWithDuplicateCode(db, { codigoInterno, codigoBarras, qrCode });
   if (duplicate) {
-    const err = new Error('Código de barras ou QR Code já cadastrado em outro produto.');
+    const err = new Error('Codigo interno, codigo de barras ou QR Code ja cadastrado em outro produto.');
     err.status = 409;
     throw err;
   }
@@ -112,6 +127,7 @@ export function createProduct(payload) {
     imagem: payload.imagem || '',
     descricaoCurta: payload.descricaoCurta || '',
     selo: payload.selo || '',
+    codigoInterno,
     codigoBarras,
     qrCode,
     promocao: Boolean(payload.promocao),
@@ -132,12 +148,18 @@ export function updateProduct(id, payload) {
   }
 
   const current = db.produtos[index];
+  const nextCodigoInterno = payload.codigoInterno !== undefined ? normalizeCode(payload.codigoInterno) : normalizeCode(current.codigoInterno);
   const nextCodigoBarras = payload.codigoBarras !== undefined ? normalizeCode(payload.codigoBarras) : normalizeCode(current.codigoBarras);
   const nextQrCode = payload.qrCode !== undefined ? normalizeCode(payload.qrCode) : normalizeCode(current.qrCode);
 
-  const duplicate = findProductWithDuplicateCode(db, { codigoBarras: nextCodigoBarras, qrCode: nextQrCode }, id);
+  const duplicate = findProductWithDuplicateCode(
+    db,
+    { codigoInterno: nextCodigoInterno, codigoBarras: nextCodigoBarras, qrCode: nextQrCode },
+    id
+  );
+
   if (duplicate) {
-    const err = new Error('Código de barras ou QR Code já cadastrado em outro produto.');
+    const err = new Error('Codigo interno, codigo de barras ou QR Code ja cadastrado em outro produto.');
     err.status = 409;
     throw err;
   }
@@ -153,6 +175,7 @@ export function updateProduct(id, payload) {
     pesoCaixaMax: payload.pesoCaixaMax !== undefined ? Number(payload.pesoCaixaMax) : current.pesoCaixaMax,
     pesoMedioUnidade: payload.pesoMedioUnidade !== undefined ? Number(payload.pesoMedioUnidade) : current.pesoMedioUnidade,
     unidadesPorCaixa: payload.unidadesPorCaixa !== undefined ? Number(payload.unidadesPorCaixa) : current.unidadesPorCaixa,
+    codigoInterno: nextCodigoInterno,
     codigoBarras: nextCodigoBarras,
     qrCode: nextQrCode,
     promocao: payload.promocao !== undefined ? Boolean(payload.promocao) : current.promocao,
