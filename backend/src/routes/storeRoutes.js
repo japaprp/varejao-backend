@@ -31,6 +31,7 @@ import {
   forgotPasswordController,
   login,
   me,
+  getOperationalUsers,
   postCarrinho,
   postFinalizar,
   postProduto,
@@ -44,7 +45,12 @@ import {
   getOperacaoUnificadaController,
   exportPedidosCsv,
   exportSaidasCsv,
+  getOperationalConfigController,
+  getProductionQueueController,
   uploadImagemController,
+  postOperationalOrderController,
+  postOperationalSettlementController,
+  putProductionStatusController,
   putPedidoStatus,
   getGoogleAuthConfigController,
   loginGoogle,
@@ -63,6 +69,8 @@ import {
 } from '../middlewares/validationMiddleware.js';
 
 const router = Router();
+const operationalRoles = ['admin', 'operador', 'gerente', 'manager', 'caixa', 'cashier', 'balcao', 'waiter', 'cozinha', 'kitchen', 'chef', 'producao'];
+const managementRoles = ['admin', 'operador', 'gerente', 'manager'];
 
 router.post('/auth/register', authLimiter, validateRegisterPayload, register);
 router.post('/auth/login', authLimiter, validateLoginPayload, login);
@@ -72,6 +80,7 @@ router.post('/auth/google', authLimiter, validateGooglePayload, loginGoogle);
 router.get('/auth/facebook/config', getFacebookAuthConfigController);
 router.post('/auth/facebook', authLimiter, validateFacebookPayload, loginFacebook);
 router.get('/auth/me', requireAuth, me);
+router.get('/auth/operators', requireAuth, requireRole(managementRoles), getOperationalUsers);
 
 router.get('/produtos', getProdutos);
 router.post('/produtos', requireAuth, requireAdmin, postProduto);
@@ -91,6 +100,11 @@ router.get('/checkout', getCheckout);
 router.get('/stream/checkout', streamCheckout);
 router.get('/stream/admin/operacao', streamAdminOperacao);
 router.post('/finalizar', postFinalizar);
+router.get('/operacao/config', getOperationalConfigController);
+router.post('/operacao/pedidos', requireAuth, requireRole(operationalRoles), postOperationalOrderController);
+router.get('/operacao/producao', requireAuth, requireRole(operationalRoles), getProductionQueueController);
+router.patch('/operacao/pedidos/:id/producao-status', requireAuth, requireRole(operationalRoles), putProductionStatusController);
+router.post('/operacao/pedidos/:id/fechar', requireAuth, requireRole(operationalRoles), postOperationalSettlementController);
 router.post('/pagamento/preferencia', paymentLimiter, postPagamentoPreferencia);
 router.post('/pagamento/maquininha/iniciar', paymentLimiter, postPagamentoMaquininhaIniciar);
 router.post('/pagamento/maquininha/confirmar', paymentLimiter, postPagamentoMaquininhaConfirmar);

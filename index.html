@@ -329,15 +329,70 @@
       }
     }
 
+    const KG_QTY_STEP = 0.05;
+
+    function normalizeQtyValue(valor, unidade = '') {
+      const unit = String(unidade).toLowerCase();
+      const numeric = Number(valor || 0);
+      if (unit === 'kg') {
+        const safe = Math.max(KG_QTY_STEP, numeric || KG_QTY_STEP);
+        return Number((Math.round((safe + Number.EPSILON) * 100) / 100).toFixed(2));
+      }
+      return Math.max(1, Math.round(numeric || 1));
+    }
+
     function getQtyStep(unidade = '') {
-      return String(unidade).toLowerCase() === 'kg' ? 0.5 : 1;
+      return String(unidade).toLowerCase() === 'kg' ? KG_QTY_STEP : 1;
     }
 
     function formatQtyLabel(valor, unidade = '') {
       const unit = String(unidade).toLowerCase();
-      if (unit === 'kg') return `${Number(valor).toFixed(1)} kg`;
+      if (unit === 'kg') {
+        const formatted = normalizeQtyValue(valor, unit).toFixed(2).replace(/\.?0+$/, '');
+        return `${formatted} kg`;
+      }
       if (unit === 'bandeja') return `${Math.round(Number(valor))} bandeja`;
       return `${Math.round(Number(valor))} un`;
+    }
+
+    function setQtyDisplay(displayEl, unidade, valor) {
+      const normalized = normalizeQtyValue(valor, unidade);
+      displayEl.dataset.value = String(normalized);
+      displayEl.textContent = formatQtyLabel(normalized, unidade);
+    }
+
+    function promptQtyValue(displayEl, unidade = '') {
+      const unit = String(unidade).toLowerCase();
+      const step = getQtyStep(unit);
+      const current = normalizeQtyValue(Number(displayEl.dataset.value || step), unit);
+      const message = unit === 'kg'
+        ? 'Informe o peso exato em kg. Exemplo: 0.73'
+        : unit === 'bandeja'
+          ? 'Informe a quantidade de bandejas.'
+          : 'Informe a quantidade de unidades.';
+      const fallback = unit === 'kg' ? current.toFixed(2) : String(Math.round(current));
+      const raw = window.prompt(message, fallback);
+      if (raw === null) return;
+      const parsed = Number(String(raw).replace(',', '.'));
+      if (!Number.isFinite(parsed) || parsed <= 0) {
+        window.alert('Quantidade invalida.');
+        return;
+      }
+      setQtyDisplay(displayEl, unit, parsed);
+    }
+
+    function bindQtyDisplay(displayEl, unidade, initialValue) {
+      setQtyDisplay(displayEl, unidade, initialValue);
+      displayEl.tabIndex = 0;
+      displayEl.setAttribute('role', 'button');
+      displayEl.setAttribute('title', 'Clique para informar a quantidade exata');
+      displayEl.addEventListener('click', () => promptQtyValue(displayEl, unidade));
+      displayEl.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          promptQtyValue(displayEl, unidade);
+        }
+      });
     }
 
     function resolveChannelLabel(cartId = '') {
@@ -360,10 +415,9 @@
 
     function changeQty(displayEl, unidade, delta) {
       const step = getQtyStep(unidade);
-      const current = Number(displayEl.dataset.value || step);
+      const current = normalizeQtyValue(Number(displayEl.dataset.value || step), unidade);
       const next = Math.max(step, current + delta);
-      displayEl.dataset.value = String(next);
-      displayEl.textContent = formatQtyLabel(next, unidade);
+      setQtyDisplay(displayEl, unidade, next);
     }
 
     async function addToCart(produtoId, produtoNome = 'Produto', quantidade = 1) {
@@ -446,8 +500,7 @@
         const display = document.createElement('div');
         display.className = 'qty-display';
         const initial = getQtyStep(p.unidade);
-        display.dataset.value = String(initial);
-        display.textContent = formatQtyLabel(initial, p.unidade);
+        bindQtyDisplay(display, p.unidade, initial);
 
         const plus = document.createElement('button');
         plus.type = 'button';
@@ -523,8 +576,7 @@
         const display = document.createElement('div');
         display.className = 'qty-display';
         const initial = getQtyStep(p.unidade);
-        display.dataset.value = String(initial);
-        display.textContent = formatQtyLabel(initial, p.unidade);
+        bindQtyDisplay(display, p.unidade, initial);
 
         const plus = document.createElement('button');
         plus.type = 'button';

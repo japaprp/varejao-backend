@@ -8,13 +8,18 @@ import {
   addCartItem,
   checkoutCart,
   createPendingOrder,
+  createOperationalOrder,
   confirmMachinePayment,
   finalizePaidOrder,
+  getOperationalConfig,
   getCheckoutPreview,
   getUnifiedOperationSummary,
   listCart,
   listOrdersByCpf,
   listOrdersAll,
+  listProductionQueue,
+  settleOperationalOrder,
+  updateProductionStatus,
   updateOrderStatus
 } from '../services/cartService.js';
 import { getFidelidade, getInformacoes, getPromocoes } from '../services/contentService.js';
@@ -23,6 +28,7 @@ import {
   forgotPassword,
   getFacebookAuthConfig,
   getGoogleAuthConfig,
+  listOperationalUsers,
   loginUser,
   loginWithFacebookToken,
   loginWithGoogleToken,
@@ -148,6 +154,10 @@ export async function loginFacebook(req, res, next) {
 
 export function me(req, res) {
   res.json(req.user);
+}
+
+export function getOperationalUsers(req, res) {
+  res.json(listOperationalUsers());
 }
 
 export function getProdutos(req, res) {
@@ -409,6 +419,53 @@ export function getPedidosAdmin(req, res) {
 
 export function getOperacaoUnificadaController(req, res) {
   res.json(getUnifiedOperationSummary());
+}
+
+export function getOperationalConfigController(req, res) {
+  res.json(getOperationalConfig(req.query?.profile || req.query?.businessProfile || ''));
+}
+
+export function postOperationalOrderController(req, res, next) {
+  try {
+    const created = createOperationalOrder(req.body || {});
+    notifyAdmin('operacao_pedido_criado', {
+      pedidoId: created.id,
+      canal: created.canal
+    });
+    res.status(201).json(created);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export function getProductionQueueController(req, res) {
+  res.json(listProductionQueue(req.query || {}));
+}
+
+export function putProductionStatusController(req, res, next) {
+  try {
+    const updated = updateProductionStatus(req.params.id, req.body?.status || '');
+    notifyAdmin('operacao_producao_status', {
+      pedidoId: updated.id,
+      status: updated.status
+    });
+    res.json(updated);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export function postOperationalSettlementController(req, res, next) {
+  try {
+    const settled = settleOperationalOrder(req.params.id, req.body || {});
+    notifyAdmin('operacao_pedido_fechado', {
+      pedidoId: settled.id,
+      status: settled.status
+    });
+    res.json(settled);
+  } catch (error) {
+    next(error);
+  }
 }
 
 export function putPedidoStatus(req, res) {

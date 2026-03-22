@@ -2,6 +2,8 @@ import { OAuth2Client } from 'google-auth-library';
 import {
   ADMIN_EMAIL,
   ADMIN_PASSWORD,
+  DEMO_OPERATIONAL_PASSWORD,
+  DISABLE_DEMO_OPERATIONAL_USERS,
   FACEBOOK_APP_ID,
   FACEBOOK_APP_SECRET,
   GOOGLE_CLIENT_ID
@@ -12,6 +14,59 @@ import { normalizeName } from '../utils/normalize.js';
 
 const SESSION_TTL_MS = 1000 * 60 * 60 * 12;
 const googleClient = GOOGLE_CLIENT_ID ? new OAuth2Client(GOOGLE_CLIENT_ID) : null;
+
+function ensureOperationalSeedUsers(db) {
+  if (DISABLE_DEMO_OPERATIONAL_USERS) {
+    return false;
+  }
+  db.usuarios = db.usuarios || [];
+  const defaults = [
+    {
+      email: 'gerente@varejao.com',
+      nome: 'Gerente Operacional',
+      role: 'gerente'
+    },
+    {
+      email: 'caixa@varejao.com',
+      nome: 'Caixa Principal',
+      role: 'caixa'
+    },
+    {
+      email: 'balcao@varejao.com',
+      nome: 'Balcao e Atendimento',
+      role: 'balcao'
+    },
+    {
+      email: 'cozinha@varejao.com',
+      nome: 'Cozinha e Producao',
+      role: 'cozinha'
+    },
+    {
+      email: 'operador@varejao.com',
+      nome: 'Operador de Apoio',
+      role: 'operador'
+    }
+  ];
+
+  let changed = false;
+  for (const item of defaults) {
+    const existing = db.usuarios.find((user) => normalizeName(user.email) === normalizeName(item.email));
+    if (existing) {
+      continue;
+    }
+    db.usuarios.push({
+      id: `u_${item.role}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      nome: item.nome,
+      email: item.email,
+      senhaHash: hashPassword(DEMO_OPERATIONAL_PASSWORD),
+      role: item.role,
+      cpf: ''
+    });
+    changed = true;
+  }
+
+  return changed;
+}
 
 function sanitizeUser(user) {
   return {
@@ -26,6 +81,14 @@ function sanitizeUser(user) {
     bairro: user.bairro || '',
     cidade: user.cidade || ''
   };
+}
+
+export function listOperationalUsers() {
+  ensureAdminUser();
+  const db = readDb();
+  return (db.usuarios || [])
+    .filter((user) => String(user.role || '').toLowerCase() !== 'cliente')
+    .map(sanitizeUser);
 }
 
 function findUserByEmail(email) {
@@ -61,6 +124,7 @@ function ensureAdminUser() {
       role: 'admin',
       cpf: '00000000000'
     });
+    ensureOperationalSeedUsers(db);
     writeDb(db);
     return;
   }
@@ -69,6 +133,17 @@ function ensureAdminUser() {
     const shouldUpdate = !verifyPassword(ADMIN_PASSWORD, existing.senhaHash);
     if (shouldUpdate) {
       existing.senhaHash = hashPassword(ADMIN_PASSWORD);
+    }
+  }
+
+  if (ensureOperationalSeedUsers(db)) {
+    writeDb(db);
+    return;
+  }
+
+  if (ADMIN_PASSWORD && existing?.role === 'admin') {
+    const shouldPersistAdmin = !verifyPassword(ADMIN_PASSWORD, existing.senhaHash);
+    if (shouldPersistAdmin) {
       writeDb(db);
     }
   }

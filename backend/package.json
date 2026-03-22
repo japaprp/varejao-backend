@@ -5,7 +5,10 @@
   "type": "module",
   "scripts": {
     "start": "node index.js",
-    "dev": "node --watch index.js"
+    "dev": "node --watch index.js",
+    "check": "node --check index.js && node --check src/app.js && node --check src/server.js && node --check src/controllers/storeController.js && node --check src/routes/storeRoutes.js && node --check src/services/authService.js && node --check src/services/catalogService.js && node --check src/services/cartService.js",
+    "smoke": "node scripts/smoke_test.js",
+    "qa": "npm run check && npm run smoke"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

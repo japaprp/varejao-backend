@@ -1008,6 +1008,13 @@ select:focus-visible {
   padding: 6px 4px;
   font-weight: 700;
   color: #173a2b;
+  cursor: pointer;
+  user-select: none;
+}
+
+.qty-display:focus-visible {
+  outline: 2px solid rgba(31, 143, 95, 0.45);
+  outline-offset: 1px;
 }
 
 .add-circle {

@@ -10,3 +10,5 @@ export const FACEBOOK_APP_SECRET = process.env.FACEBOOK_APP_SECRET || '';
 export const TOKEN_SECRET = process.env.TOKEN_SECRET || 'troque-este-token-secret-em-producao';
 export const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@varejao.com';
 export const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123456';
+export const DEMO_OPERATIONAL_PASSWORD = process.env.DEMO_OPERATIONAL_PASSWORD || '12345678';
+export const DISABLE_DEMO_OPERATIONAL_USERS = process.env.DISABLE_DEMO_OPERATIONAL_USERS === 'true';

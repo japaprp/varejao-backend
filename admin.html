@@ -153,6 +153,7 @@
           <form id="entradaForm">
             <select id="entradaProduto" required></select>
             <input id="entradaCaixas" type="number" min="1" placeholder="Quantidade de caixas" required>
+            <input id="entradaPesoCaixa" type="number" step="0.01" min="0" placeholder="Peso por caixa (kg)">
             <input id="entradaPesoMin" type="number" step="0.01" min="0" placeholder="Peso caixa min (kg)">
             <input id="entradaPesoMax" type="number" step="0.01" min="0" placeholder="Peso caixa max (kg)">
             <input id="entradaPesoMedio" type="number" step="1" min="0" placeholder="Peso médio por unidade (g)">
@@ -274,6 +275,7 @@
             <select id="unidade" required>
               <option value="kg">kg</option>
               <option value="bandeja">bandeja</option>
+              <option value="un">un</option>
             </select>
             <div class="admin-layout grid-cols-2">
               <input id="caixasQtd" type="number" min="0" placeholder="Quantidade de caixas">
@@ -292,7 +294,7 @@
             <img id="previewImagem" alt="Prévia" class="img-preview">
             <input id="selo" placeholder="Selo (ex: 500g aprox. 2-3 un)">
             <textarea id="descricaoCurta" rows="3" placeholder="Descrição curta"></textarea>
-            <input id="codigoInterno" placeholder="Código interno / ID de venda (opcional)">
+            <input id="codigoInterno" placeholder="Código interno / ID de venda (ex: 04)">
             <input id="codigoBarras" placeholder="Código de barras (opcional)">
             <input id="qrCode" placeholder="QR Code (opcional)">
             <label><input type="checkbox" id="promocao"> Em promoção</label>
@@ -866,6 +868,7 @@
       const payload = {
         produtoId: document.getElementById('entradaProduto').value,
         caixasQtd: Number(document.getElementById('entradaCaixas').value),
+        pesoPorCaixa: Number(document.getElementById('entradaPesoCaixa').value || 0),
         pesoCaixaMin: Number(document.getElementById('entradaPesoMin').value || 0),
         pesoCaixaMax: Number(document.getElementById('entradaPesoMax').value || 0),
         pesoMedioUnidade: Number(document.getElementById('entradaPesoMedio').value || 0),

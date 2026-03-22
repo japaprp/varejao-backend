@@ -37,6 +37,94 @@ function ensureCollections(db) {
   db.pedidos = db.pedidos || [];
 }
 
+function normalizeBusinessProfile(value) {
+  const clean = String(value || '').trim().toLowerCase();
+  if (!clean) return 'mercado';
+  if (clean.includes('pad')) return 'padaria';
+  if (clean.includes('farm')) return 'farmacia';
+  if (clean.includes('lanche') || clean.includes('bar')) return 'lanchonete';
+  return 'mercado';
+}
+
+function buildOperationalProfileConfig(profile, baseConfig = {}) {
+  const normalized = normalizeBusinessProfile(profile);
+  switch (normalized) {
+    case 'padaria':
+      return {
+        ...baseConfig,
+        businessProfile: 'padaria',
+        displayName: 'Operacao Padaria',
+        serviceFlow: true,
+        kitchenFlow: true,
+        stockFlow: true,
+        supportedRoutes: ['counter', 'kitchen', 'cold', 'stock'],
+        productionStations: ['forno', 'confeitaria', 'preparo', 'balcao'],
+        supportsComandas: true
+      };
+    case 'farmacia':
+      return {
+        ...baseConfig,
+        businessProfile: 'farmacia',
+        displayName: 'Operacao Farmacia',
+        serviceFlow: false,
+        kitchenFlow: false,
+        stockFlow: true,
+        supportedRoutes: ['counter', 'stock', 'cold'],
+        productionStations: ['balcao', 'estoque'],
+        supportsComandas: false
+      };
+    case 'lanchonete':
+      return {
+        ...baseConfig,
+        businessProfile: 'lanchonete',
+        displayName: 'Operacao Food Service',
+        serviceFlow: true,
+        kitchenFlow: true,
+        stockFlow: true,
+        supportedRoutes: ['counter', 'kitchen', 'bar', 'cold', 'stock'],
+        productionStations: ['cozinha', 'bar', 'frio', 'balcao'],
+        supportsComandas: true
+      };
+    default:
+      return {
+        ...baseConfig,
+        businessProfile: 'mercado',
+        displayName: 'Operacao Mercado',
+        serviceFlow: true,
+        kitchenFlow: false,
+        stockFlow: true,
+        supportedRoutes: ['counter', 'stock', 'cold'],
+        productionStations: ['balcao', 'estoque', 'frio'],
+        supportsComandas: false
+      };
+  }
+}
+
+function ensureOperationalConfig(db, profileOverride = '') {
+  db.operacaoConfig = db.operacaoConfig || {
+    businessProfile: 'mercado',
+    displayName: 'Operacao Flexivel',
+    serviceFlow: true,
+    kitchenFlow: true,
+    stockFlow: true,
+    supportedRoutes: ['counter', 'stock', 'cold', 'kitchen', 'bar'],
+    productionStations: ['forno', 'confeitaria', 'preparo', 'balcao'],
+    supportsComandas: true
+  };
+  const profile = normalizeBusinessProfile(profileOverride || db.operacaoConfig.businessProfile);
+  const normalized = buildOperationalProfileConfig(profile, db.operacaoConfig);
+  normalized.supportedRoutes = Array.isArray(normalized.supportedRoutes)
+    ? normalized.supportedRoutes
+    : ['counter', 'stock', 'cold'];
+  normalized.productionStations = Array.isArray(normalized.productionStations)
+    ? normalized.productionStations
+    : ['balcao', 'estoque'];
+  if (!profileOverride) {
+    db.operacaoConfig = normalized;
+  }
+  return normalized;
+}
+
 function getCartFromDb(db, cartId) {
   ensureCollections(db);
   const id = resolveCartId(cartId);
@@ -53,6 +141,10 @@ function cartSubtotal(cart) {
 function calculateFrete(totalBase) {
   if (Number(totalBase) <= 0) return 0;
   return totalBase >= 100 ? 0 : 30;
+}
+
+function roundCurrency(value) {
+  return Number(Number(value || 0).toFixed(2));
 }
 
 function getReservedQtyForProduct(db, produtoId, options = {}) {
@@ -165,9 +257,9 @@ function applyStockDeduction(db, items) {
   }
 }
 
-function buildOrderTotals({ subtotal, desconto }) {
+function buildOrderTotals({ subtotal, desconto, channel = 'online' }) {
   const totalBase = Math.max(0, subtotal - desconto);
-  const frete = calculateFrete(totalBase);
+  const frete = channel === 'fisico' ? 0 : calculateFrete(totalBase);
   const total = totalBase + frete;
   return { totalBase, frete, total };
 }
@@ -178,7 +270,14 @@ function getOrderById(db, orderId) {
 
 function isPendingStatus(status = '') {
   const s = String(status || '').toLowerCase();
-  return s.includes('aguardando') || s.includes('pendente') || s.includes('preparo') || s.includes('entrega');
+  return (
+    s.includes('aguardando') ||
+    s.includes('pendente') ||
+    s.includes('recebido') ||
+    s.includes('preparo') ||
+    s.includes('pronto') ||
+    s.includes('entrega')
+  );
 }
 
 function isCancelledStatus(status = '') {
@@ -196,8 +295,187 @@ function isToday(isoDate) {
 function resolvePaymentMethod(method = '') {
   const raw = String(method || '').trim().toLowerCase();
   if (!raw) return 'mercadopago';
+  if (raw.includes('dinhe') || raw === 'cash') return 'cash';
+  if (raw === 'pix') return 'pix';
+  if (raw.includes('debit') || raw.includes('debito')) return 'debit';
+  if (raw.includes('credit') || raw.includes('credito')) return 'credit';
   if (raw.includes('maquin')) return 'maquininha';
   return 'mercadopago';
+}
+
+function normalizeCheckoutPayments(payments = [], fallbackMethod = '', defaultAmount = 0) {
+  const list = Array.isArray(payments) ? payments : [];
+  const normalized = list
+    .map((entry, index) => {
+      const method = resolvePaymentMethod(entry?.method || fallbackMethod);
+      const amount = roundCurrency(entry?.amount);
+      if (!method || amount <= 0) {
+        return null;
+      }
+
+      const amountReceivedRaw = Number(entry?.amountReceived);
+      const changeAmountRaw = Number(entry?.changeAmount);
+      const isCash = method === 'cash';
+      const amountReceived = isCash
+        ? roundCurrency(
+            Number.isFinite(amountReceivedRaw) && amountReceivedRaw > 0 ? amountReceivedRaw : amount
+          )
+        : null;
+      const changeAmount = isCash
+        ? roundCurrency(
+            Number.isFinite(changeAmountRaw) ? changeAmountRaw : Math.max(0, (amountReceived || amount) - amount)
+          )
+        : null;
+      const cardBrand = String(entry?.cardBrand || '').trim() || null;
+      const installmentsValue = Number(entry?.installments);
+      const transactionReference = String(entry?.transactionReference || '').trim() || null;
+      const note = String(entry?.note || '').trim() || null;
+
+      return {
+        id: `pay_${Date.now()}_${index + 1}`,
+        method,
+        amount,
+        amountReceived,
+        changeAmount,
+        cardBrand,
+        installments: Number.isFinite(installmentsValue) && installmentsValue > 0
+          ? Math.trunc(installmentsValue)
+          : null,
+        transactionReference,
+        note
+      };
+    })
+    .filter(Boolean);
+
+  if (normalized.length > 0) {
+    return normalized;
+  }
+
+  const resolvedMethod = resolvePaymentMethod(fallbackMethod);
+  const roundedAmount = roundCurrency(defaultAmount);
+  if (!resolvedMethod || resolvedMethod === 'mercadopago' || roundedAmount <= 0) {
+    return [];
+  }
+
+  return [
+    {
+      id: `pay_${Date.now()}_1`,
+      method: resolvedMethod,
+      amount: roundedAmount,
+      amountReceived: resolvedMethod === 'cash' ? roundedAmount : null,
+      changeAmount: resolvedMethod === 'cash' ? 0 : null,
+      cardBrand: null,
+      installments: null,
+      transactionReference: null,
+      note: null
+    }
+  ];
+}
+
+function resolvePaymentSummaryMethod(payments = [], fallbackMethod = null) {
+  if (payments.length === 1) {
+    return payments[0]?.method || fallbackMethod || null;
+  }
+  if (payments.length > 1) {
+    return 'multiple';
+  }
+  return fallbackMethod || null;
+}
+
+function applyPhysicalCheckoutSettlement(order, payments = [], note = '') {
+  if (!Array.isArray(payments) || payments.length === 0) {
+    order.status = 'Finalizado';
+    order.observacaoFechamento = String(note || '').trim() || null;
+    return order;
+  }
+
+  const totalPaid = roundCurrency(
+    payments.reduce((sum, item) => sum + Number(item?.amount || 0), 0)
+  );
+  const totalDue = roundCurrency(order.total || 0);
+  if (Math.abs(totalPaid - totalDue) > 0.05) {
+    const err = new Error(
+      `Total pago divergente. Esperado ${totalDue.toFixed(2)} e recebido ${totalPaid.toFixed(2)}.`
+    );
+    err.status = 400;
+    throw err;
+  }
+
+  order.status = 'Pago';
+  order.observacaoFechamento = String(note || '').trim() || null;
+  order.payment = {
+    ...(order.payment || {}),
+    status: 'approved',
+    method: resolvePaymentSummaryMethod(payments, order.payment?.method || null),
+    totalPaid,
+    entries: payments,
+    updatedAt: new Date().toISOString()
+  };
+  return order;
+}
+
+function normalizeKitchenStage(status = '') {
+  const raw = String(status || '').trim().toLowerCase();
+  if (!raw) return 'received';
+  if (raw.includes('prepar')) return 'preparing';
+  if (raw.includes('ready') || raw.includes('pronto')) return 'ready';
+  if (raw.includes('deliver') || raw.includes('entreg')) return 'delivered';
+  return 'received';
+}
+
+function stageLabel(stage = 'received') {
+  switch (normalizeKitchenStage(stage)) {
+    case 'preparing':
+      return 'Em preparo';
+    case 'ready':
+      return 'Pronto';
+    case 'delivered':
+      return 'Entregue';
+    default:
+      return 'Recebido';
+  }
+}
+
+function resolveOperationalRoute(prod = {}, rawItem = {}) {
+  const haystack = [
+    rawItem.rotaOperacional,
+    prod.rotaOperacional,
+    prod.estacaoProducao,
+    prod.setor,
+    prod.nome
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  if (haystack.includes('estoque') || haystack.includes('deposito')) return 'stock';
+  if (haystack.includes('frio') || haystack.includes('gelad') || haystack.includes('congel')) return 'cold';
+  if (haystack.includes('bar') || haystack.includes('bebida') || haystack.includes('suco') || haystack.includes('cafe')) return 'bar';
+  if (haystack.includes('forno') || haystack.includes('cozinha') || haystack.includes('padaria') || haystack.includes('confeitaria') || haystack.includes('produc')) return 'kitchen';
+  return 'counter';
+}
+
+function buildOperationalItems(db, items = []) {
+  return (items || [])
+    .map((rawItem) => {
+      const prod = (db.produtos || []).find((p) => String(p.id) === String(rawItem.produtoId || ''));
+      if (!prod) return null;
+      return {
+        produtoId: prod.id,
+        produto: prod.nome,
+        unidade: prod.unidade,
+        preco: Number(rawItem.preco ?? prod.preco ?? 0),
+        quantidade: Number(rawItem.quantidade || 0),
+        rotaOperacional: resolveOperationalRoute(prod, rawItem),
+        observacao: String(rawItem.observacao || '').trim() || null,
+        lote: prod.lote || null,
+        validade: prod.validade || null,
+        exigeReceita: Boolean(prod.exigeReceita),
+        tempoProducaoMin: Number(prod.tempoProducaoMin || 0),
+        estacaoProducao: String(prod.estacaoProducao || '').trim() || null,
+        sobEncomenda: Boolean(prod.sobEncomenda)
+      };
+    })
+    .filter(Boolean);
 }
 
 function resolvePendingStatusByMethod(paymentMethod = 'mercadopago') {
@@ -317,6 +595,7 @@ export function getCheckoutPreview(codigoCupom = '', cartId = '') {
   const db = readDb();
   const cart = getCartFromDb(db, cartId);
   const subtotal = cartSubtotal(cart);
+  const channel = resolveChannelFromCartId(cartId);
   let desconto = 0;
   let cupomAplicado = null;
 
@@ -326,17 +605,17 @@ export function getCheckoutPreview(codigoCupom = '', cartId = '') {
     cupomAplicado = cupom.codigo;
   }
 
-  const totalBase = Math.max(0, subtotal - desconto);
+  const { totalBase, frete, total } = buildOrderTotals({ subtotal, desconto, channel });
   return {
     itens: cart,
     subtotal,
     desconto,
     totalBase,
-    frete: calculateFrete(totalBase),
-    total: totalBase + calculateFrete(totalBase),
+    frete,
+    total,
     cupomAplicado,
     cartId: resolveCartId(cartId),
-    canal: resolveChannelFromCartId(cartId)
+    canal: channel
   };
 }
 
@@ -365,8 +644,8 @@ export function createPendingOrder({
     cupomAplicado = coupon.codigo;
   }
 
-  const { totalBase, frete, total } = buildOrderTotals({ subtotal, desconto });
   const channel = resolveChannelFromCartId(cartKey);
+  const { totalBase, frete, total } = buildOrderTotals({ subtotal, desconto, channel });
   const paymentMethod = resolvePaymentMethod(metodoPagamento);
 
   const order = {
@@ -472,7 +751,16 @@ export function finalizePaidOrder(orderId, paymentInfo = {}) {
   return { ...normalizeOrder(order), fidelidade };
 }
 
-export function checkoutCart({ cpf = '', nomeCliente = '', cupom = '', cartId = '' } = {}) {
+export function checkoutCart({
+  cpf = '',
+  nomeCliente = '',
+  cupom = '',
+  cartId = '',
+  payments = [],
+  metodoPagamento = '',
+  discountAmount = 0,
+  note = ''
+} = {}) {
   const db = readDb();
   const cartKey = resolveCartId(cartId);
   const cart = getCartFromDb(db, cartKey);
@@ -489,21 +777,20 @@ export function checkoutCart({ cpf = '', nomeCliente = '', cupom = '', cartId = 
   if (cupom) {
     const coupon = validateCoupon(cupom, subtotal);
     desconto = Math.min(calculateCouponDiscount(coupon, subtotal), subtotal);
-    registerCouponUse(coupon.codigo);
     cupomAplicado = coupon.codigo;
   }
 
-  const totalBase = Math.max(0, subtotal - desconto);
-  const frete = calculateFrete(totalBase);
-  const total = totalBase + frete;
+  const manualDiscount = Math.max(0, Number(discountAmount || 0));
+  desconto = Math.min(subtotal, desconto + manualDiscount);
+
+  const channel = resolveChannelFromCartId(cartKey);
+  const { totalBase, frete, total } = buildOrderTotals({ subtotal, desconto, channel });
 
   const items = aggregateItemsByProduct(cart);
   ensureStockAvailability(db, items, { exceptCartId: cartKey });
   applyStockDeduction(db, items);
 
-  const channel = resolveChannelFromCartId(cartKey);
-
-  db.pedidos.push({
+  const order = {
     id: `ped_${Date.now()}`,
     createdAt: new Date().toISOString(),
     cartId: cartKey,
@@ -518,16 +805,29 @@ export function checkoutCart({ cpf = '', nomeCliente = '', cupom = '', cartId = 
     cpf: normalizeCpf(cpf) || null,
     nomeCliente: nomeCliente || null,
     status: 'Finalizado'
-  });
+  };
+  if (channel === 'fisico') {
+    const normalizedPayments = normalizeCheckoutPayments(payments, metodoPagamento, total);
+    applyPhysicalCheckoutSettlement(order, normalizedPayments, note);
+  }
+
+  db.pedidos.push(order);
 
   db.carrinhos[cartKey] = [];
+  if (cupomAplicado) {
+    registerCouponUse(cupomAplicado);
+  }
   writeDb(db);
 
   const fidelidade = applyLoyalty(cpf, nomeCliente, total);
 
   return {
     sucesso: true,
-    mensagem: 'Compra finalizada!',
+    mensagem: channel === 'fisico'
+      ? (order.status === 'Pago'
+          ? 'Venda fisica finalizada com pagamento registrado.'
+          : 'Venda fisica finalizada sem conciliacao de pagamento.')
+      : 'Compra finalizada!',
     subtotal,
     desconto,
     totalBase,
@@ -536,13 +836,17 @@ export function checkoutCart({ cpf = '', nomeCliente = '', cupom = '', cartId = 
     cupomAplicado,
     fidelidade,
     canal: channel,
-    cartId: cartKey
+    cartId: cartKey,
+    orderId: order.id,
+    status: order.status,
+    payment: order.payment || null
   };
 }
 
 export function getUnifiedOperationSummary() {
   const db = readDb();
   ensureCollections(db);
+  const operationalConfig = ensureOperationalConfig(db);
 
   const orders = (db.pedidos || []).map(normalizeOrder);
   const activeCarts = Object.entries(db.carrinhos || {})
@@ -605,6 +909,7 @@ export function getUnifiedOperationSummary() {
 
   return {
     generatedAt: new Date().toISOString(),
+    operacao: operationalConfig,
     canais: {
       online: channelStats('online'),
       fisico: channelStats('fisico')
@@ -613,4 +918,165 @@ export function getUnifiedOperationSummary() {
     pedidosPendentes: pendingOrders,
     alertasEstoque: stockAlerts
   };
+}
+
+export function getOperationalConfig(profile = '') {
+  const db = readDb();
+  ensureCollections(db);
+  return ensureOperationalConfig(db, profile);
+}
+
+export function createOperationalOrder({
+  cartId = '',
+  tableId = '',
+  serviceChannel = 'dine_in',
+  operator = '',
+  note = '',
+  businessProfile = '',
+  items = []
+} = {}) {
+  const db = readDb();
+  ensureCollections(db);
+  const operationalConfig = ensureOperationalConfig(db, businessProfile);
+  const enrichedItems = buildOperationalItems(db, items);
+  if (!enrichedItems.length) {
+    const err = new Error('Nenhum item valido foi enviado para a operacao.');
+    err.status = 400;
+    throw err;
+  }
+
+  ensureStockAvailability(db, enrichedItems, {});
+
+  const subtotal = Number(
+    enrichedItems.reduce((sum, item) => sum + Number(item.preco || 0) * Number(item.quantidade || 0), 0).toFixed(2)
+  );
+  const order = {
+    id: `ped_${Date.now()}`,
+    createdAt: new Date().toISOString(),
+    cartId: resolveCartId(cartId || `operacao-${Date.now()}`),
+    canal: 'fisico',
+    origemOperacional: 'app',
+    businessProfile: operationalConfig.businessProfile,
+    serviceChannel: String(serviceChannel || 'dine_in').trim().toLowerCase() === 'pickup' ? 'pickup' : 'dine_in',
+    mesa: String(tableId || '').trim() || null,
+    operador: String(operator || '').trim() || null,
+    observacao: String(note || '').trim() || null,
+    kitchenStage: 'received',
+    status: 'Recebido',
+    itens: aggregateItemsByProduct(enrichedItems).map((item) => {
+      const match = enrichedItems.find((row) => String(row.produtoId) === String(item.produtoId));
+      return {
+        ...item,
+        rotaOperacional: match?.rotaOperacional || 'counter',
+        observacao: match?.observacao || null,
+        lote: match?.lote || null,
+        validade: match?.validade || null,
+        exigeReceita: Boolean(match?.exigeReceita),
+        tempoProducaoMin: Number(match?.tempoProducaoMin || 0),
+        estacaoProducao: match?.estacaoProducao || null,
+        sobEncomenda: Boolean(match?.sobEncomenda)
+      };
+    }),
+    subtotal,
+    desconto: 0,
+    totalBase: subtotal,
+    frete: 0,
+    total: subtotal,
+    payment: {
+      status: 'pending',
+      method: null,
+      entries: []
+    }
+  };
+
+  db.pedidos.push(order);
+  writeDb(db);
+  return normalizeOrder(order);
+}
+
+export function listProductionQueue(filters = {}) {
+  const db = readDb();
+  ensureCollections(db);
+  const routeFilter = String(filters.rota || filters.route || '').trim().toLowerCase();
+  const profileFilter = normalizeBusinessProfile(filters.profile || filters.businessProfile || '');
+  return (db.pedidos || [])
+    .map(normalizeOrder)
+    .filter((order) => resolveOrderChannel(order) === 'fisico')
+    .filter((order) => {
+      if (!String(filters.profile || filters.businessProfile || '').trim()) {
+        return true;
+      }
+      return normalizeBusinessProfile(order.businessProfile || '') === profileFilter;
+    })
+    .filter((order) => isPendingStatus(order.status))
+    .map((order) => ({
+      ...order,
+      kitchenStage: normalizeKitchenStage(order.kitchenStage || order.status),
+      itens: (order.itens || []).filter((item) => {
+        if (!routeFilter) return true;
+        return String(item.rotaOperacional || '').trim().toLowerCase() === routeFilter;
+      })
+    }))
+    .filter((order) => (order.itens || []).length > 0)
+    .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+}
+
+export function updateProductionStatus(orderId, stage) {
+  const db = readDb();
+  ensureCollections(db);
+  const order = getOrderById(db, orderId);
+  if (!order) {
+    const err = new Error('Pedido nao encontrado');
+    err.status = 404;
+    throw err;
+  }
+  const normalized = normalizeKitchenStage(stage);
+  order.kitchenStage = normalized;
+  order.status = stageLabel(normalized);
+  writeDb(db);
+  return normalizeOrder(order);
+}
+
+export function settleOperationalOrder(orderId, { payments = [], discountAmount = 0, note = '' } = {}) {
+  const db = readDb();
+  ensureCollections(db);
+  const order = getOrderById(db, orderId);
+  if (!order) {
+    const err = new Error('Pedido nao encontrado');
+    err.status = 404;
+    throw err;
+  }
+  if (order.status === 'Pago' || order.status === 'Finalizado') {
+    return normalizeOrder(order);
+  }
+
+  const items = aggregateItemsByProduct(order.itens || []);
+  ensureStockAvailability(db, items, { exceptOrderId: order.id });
+  applyStockDeduction(db, items);
+
+  const baseSubtotal = Number(order.subtotal || 0);
+  const appliedDiscount = Math.max(0, Number(discountAmount || order.desconto || 0));
+  const totalBase = Math.max(0, baseSubtotal - appliedDiscount);
+  const totalPaid = Number(
+    (payments || []).reduce((sum, item) => sum + Number(item?.amount || 0), 0).toFixed(2)
+  );
+
+  order.desconto = appliedDiscount;
+  order.totalBase = totalBase;
+  order.total = totalBase;
+  order.frete = 0;
+  order.status = 'Pago';
+  order.kitchenStage = 'delivered';
+  order.observacaoFechamento = String(note || '').trim() || null;
+  order.payment = {
+    ...(order.payment || {}),
+    status: 'approved',
+    method: payments.length === 1 ? payments[0]?.method || null : 'multiple',
+    totalPaid,
+    entries: payments,
+    updatedAt: new Date().toISOString()
+  };
+
+  writeDb(db);
+  return normalizeOrder(order);
 }

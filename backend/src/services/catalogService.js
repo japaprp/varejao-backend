@@ -13,6 +13,113 @@ function normalizeCodeSearch(value) {
   return normalizeCode(value).toLowerCase();
 }
 
+function normalizeBusinessProfile(value, fallback = '') {
+  const clean = normalizeName(value);
+  if (!clean) return fallback;
+  if (clean.includes('pad')) return 'padaria';
+  if (clean.includes('farm')) return 'farmacia';
+  if (
+    clean.includes('lanche') ||
+    clean.includes('restaur') ||
+    clean.includes('bar')
+  ) {
+    return 'lanchonete';
+  }
+  return 'mercado';
+}
+
+function inferBusinessProfile(item = {}) {
+  const explicit = normalizeBusinessProfile(
+    item.businessProfile || item.profile || item.perfilNegocio || '',
+    ''
+  );
+  if (explicit) return explicit;
+
+  const setor = normalizeName(item.setor);
+  if (
+    item.exigeReceita === true ||
+    setor.includes('farm') ||
+    setor.includes('medic') ||
+    setor.includes('suplement')
+  ) {
+    return 'farmacia';
+  }
+  if (
+    setor.includes('padaria') ||
+    setor.includes('forno') ||
+    setor.includes('confeitaria') ||
+    setor.includes('encomend')
+  ) {
+    return 'padaria';
+  }
+  return 'mercado';
+}
+
+function isValidFutureDate(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return false;
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return parsed.getTime() >= today.getTime();
+}
+
+function validateDomainRules(profile, data) {
+  const route = normalizeCode(data.rotaOperacional).toLowerCase();
+  const lote = normalizeCode(data.lote);
+  const validade = normalizeCode(data.validade);
+  const codigoInterno = normalizeCode(data.codigoInterno);
+  const codigoBarras = normalizeCode(data.codigoBarras);
+  const estacaoProducao = String(data.estacaoProducao || '').trim();
+  const tempoProducaoMin = Number(data.tempoProducaoMin || 0);
+
+  if (profile === 'farmacia') {
+    if (!codigoInterno && !codigoBarras) {
+      const err = new Error('Item da farmacia precisa de codigo interno ou codigo de barras.');
+      err.status = 400;
+      throw err;
+    }
+    if (!lote) {
+      const err = new Error('Item da farmacia exige lote para rastreabilidade.');
+      err.status = 400;
+      throw err;
+    }
+    if (!validade) {
+      const err = new Error('Item da farmacia exige validade.');
+      err.status = 400;
+      throw err;
+    }
+    if (!isValidFutureDate(validade)) {
+      const err = new Error('Validade da farmacia precisa ser uma data valida e nao vencida.');
+      err.status = 400;
+      throw err;
+    }
+    if (route === 'kitchen' || route === 'bar') {
+      const err = new Error('Farmacia nao pode usar rota operacional de cozinha ou bar.');
+      err.status = 400;
+      throw err;
+    }
+  }
+
+  if (profile === 'padaria' && route === 'kitchen') {
+    if (!estacaoProducao) {
+      const err = new Error('Item da padaria enviado para producao precisa de estacao de producao.');
+      err.status = 400;
+      throw err;
+    }
+    if (!Number.isFinite(tempoProducaoMin) || tempoProducaoMin <= 0) {
+      const err = new Error('Item da padaria em producao precisa de tempo de producao maior que zero.');
+      err.status = 400;
+      throw err;
+    }
+  }
+}
+
+function shouldUseStrictDomainValidation(payload = {}) {
+  return payload.strictDomainValidation !== false;
+}
+
 function findProductWithDuplicateCode(db, { codigoInterno = '', codigoBarras = '', qrCode = '' }, ignoreId = '') {
   const nextCodes = [codigoInterno, codigoBarras, qrCode]
     .map(normalizeCode)
@@ -36,6 +143,14 @@ function findProductWithDuplicateCode(db, { codigoInterno = '', codigoBarras = '
 export function listProducts(filters = {}) {
   const db = readDb();
   let items = [...db.produtos];
+
+  const profileFilter = normalizeBusinessProfile(
+    filters.businessProfile || filters.profile || filters.perfilNegocio || '',
+    ''
+  );
+  if (profileFilter) {
+    items = items.filter((item) => inferBusinessProfile(item) === profileFilter);
+  }
 
   if (filters.setor) {
     const setor = normalizeSetor(filters.setor);
@@ -103,6 +218,7 @@ export function createProduct(payload) {
   const codigoInterno = normalizeCode(payload.codigoInterno);
   const codigoBarras = normalizeCode(payload.codigoBarras);
   const qrCode = normalizeCode(payload.qrCode);
+  const businessProfile = inferBusinessProfile(payload);
 
   const duplicate = findProductWithDuplicateCode(db, { codigoInterno, codigoBarras, qrCode });
   if (duplicate) {
@@ -111,8 +227,18 @@ export function createProduct(payload) {
     throw err;
   }
 
+  if (shouldUseStrictDomainValidation(payload)) {
+    validateDomainRules(businessProfile, {
+      ...payload,
+      codigoInterno,
+      codigoBarras,
+      qrCode
+    });
+  }
+
   const produto = {
     id,
+    businessProfile,
     nome: payload.nome,
     setor: payload.setor,
     preco: Number(payload.preco),
@@ -130,6 +256,13 @@ export function createProduct(payload) {
     codigoInterno,
     codigoBarras,
     qrCode,
+    rotaOperacional: normalizeCode(payload.rotaOperacional),
+    lote: payload.lote || '',
+    validade: payload.validade || '',
+    exigeReceita: Boolean(payload.exigeReceita),
+    tempoProducaoMin: Number(payload.tempoProducaoMin || 0),
+    estacaoProducao: payload.estacaoProducao || '',
+    sobEncomenda: Boolean(payload.sobEncomenda),
     promocao: Boolean(payload.promocao),
     destaque: Boolean(payload.destaque)
   };
@@ -151,6 +284,13 @@ export function updateProduct(id, payload) {
   const nextCodigoInterno = payload.codigoInterno !== undefined ? normalizeCode(payload.codigoInterno) : normalizeCode(current.codigoInterno);
   const nextCodigoBarras = payload.codigoBarras !== undefined ? normalizeCode(payload.codigoBarras) : normalizeCode(current.codigoBarras);
   const nextQrCode = payload.qrCode !== undefined ? normalizeCode(payload.qrCode) : normalizeCode(current.qrCode);
+  const nextBusinessProfile = inferBusinessProfile({
+    ...current,
+    ...payload,
+    codigoInterno: nextCodigoInterno,
+    codigoBarras: nextCodigoBarras,
+    qrCode: nextQrCode
+  });
 
   const duplicate = findProductWithDuplicateCode(
     db,
@@ -164,9 +304,20 @@ export function updateProduct(id, payload) {
     throw err;
   }
 
+  if (shouldUseStrictDomainValidation(payload)) {
+    validateDomainRules(nextBusinessProfile, {
+      ...current,
+      ...payload,
+      codigoInterno: nextCodigoInterno,
+      codigoBarras: nextCodigoBarras,
+      qrCode: nextQrCode
+    });
+  }
+
   db.produtos[index] = {
     ...current,
     ...payload,
+    businessProfile: nextBusinessProfile,
     preco: payload.preco !== undefined ? Number(payload.preco) : current.preco,
     estoque: payload.estoque !== undefined ? Number(payload.estoque) : current.estoque,
     caixasQtd: payload.caixasQtd !== undefined ? Number(payload.caixasQtd) : current.caixasQtd,
@@ -178,6 +329,13 @@ export function updateProduct(id, payload) {
     codigoInterno: nextCodigoInterno,
     codigoBarras: nextCodigoBarras,
     qrCode: nextQrCode,
+    rotaOperacional: payload.rotaOperacional !== undefined ? normalizeCode(payload.rotaOperacional) : current.rotaOperacional,
+    lote: payload.lote !== undefined ? normalizeCode(payload.lote) : current.lote,
+    validade: payload.validade !== undefined ? normalizeCode(payload.validade) : current.validade,
+    exigeReceita: payload.exigeReceita !== undefined ? Boolean(payload.exigeReceita) : current.exigeReceita,
+    tempoProducaoMin: payload.tempoProducaoMin !== undefined ? Number(payload.tempoProducaoMin) : current.tempoProducaoMin,
+    estacaoProducao: payload.estacaoProducao !== undefined ? String(payload.estacaoProducao || '').trim() : current.estacaoProducao,
+    sobEncomenda: payload.sobEncomenda !== undefined ? Boolean(payload.sobEncomenda) : current.sobEncomenda,
     promocao: payload.promocao !== undefined ? Boolean(payload.promocao) : current.promocao,
     destaque: payload.destaque !== undefined ? Boolean(payload.destaque) : current.destaque
   };
