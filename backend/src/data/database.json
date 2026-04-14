@@ -17,7 +17,10 @@
       "descricaoCurta": "Doce e fresca para o dia a dia.",
       "selo": "500g aprox. 4-5 un",
       "promocao": true,
-      "destaque": true
+      "destaque": true,
+      "codigoInterno": "HF-001",
+      "codigoBarras": "7892000000001",
+      "qrCode": "hf://produto/p001"
     },
     {
       "id": "p002",
@@ -36,7 +39,10 @@
       "descricaoCurta": "Ideal para sucos e café da manhã.",
       "selo": "500g aprox. 1 un",
       "promocao": false,
-      "destaque": true
+      "destaque": true,
+      "codigoInterno": "HF-002",
+      "codigoBarras": "7892000000002",
+      "qrCode": "hf://produto/p002"
     },
     {
       "id": "p003",
@@ -55,7 +61,10 @@
       "descricaoCurta": "Selecionado e de alta qualidade.",
       "selo": "Bandeja premium",
       "promocao": true,
-      "destaque": false
+      "destaque": false,
+      "codigoInterno": "HF-003",
+      "codigoBarras": "7892000000003",
+      "qrCode": "hf://produto/p003"
     },
     {
       "id": "p004",
@@ -74,7 +83,10 @@
       "descricaoCurta": "Rica em vitamina C.",
       "selo": "500g aprox. 3-4 un",
       "promocao": false,
-      "destaque": true
+      "destaque": true,
+      "codigoInterno": "HF-004",
+      "codigoBarras": "7892000000004",
+      "qrCode": "hf://produto/p004"
     },
     {
       "id": "p005",
@@ -93,7 +105,10 @@
       "descricaoCurta": "Perfeita para saladas e refogados.",
       "selo": "500g aprox. 2-4 un",
       "promocao": true,
-      "destaque": true
+      "destaque": true,
+      "codigoInterno": "HF-005",
+      "codigoBarras": "7892000000005",
+      "qrCode": "hf://produto/p005"
     },
     {
       "id": "p006",
@@ -112,7 +127,10 @@
       "descricaoCurta": "Tomate rasteiro de qualidade.",
       "selo": "500g aprox. 3-5 un",
       "promocao": false,
-      "destaque": true
+      "destaque": true,
+      "codigoInterno": "HF-006",
+      "codigoBarras": "7892000000006",
+      "qrCode": "hf://produto/p006"
     },
     {
       "id": "p007",
@@ -131,7 +149,10 @@
       "descricaoCurta": "Essencial para sua cozinha.",
       "selo": "500g aprox. 2-3 un",
       "promocao": true,
-      "destaque": true
+      "destaque": true,
+      "codigoInterno": "HF-007",
+      "codigoBarras": "7892000000007",
+      "qrCode": "hf://produto/p007"
     },
     {
       "id": "p008",
@@ -150,7 +171,10 @@
       "descricaoCurta": "Versátil para várias receitas.",
       "selo": "500g aprox. 2-3 un",
       "promocao": false,
-      "destaque": false
+      "destaque": false,
+      "codigoInterno": "HF-008",
+      "codigoBarras": "7892000000008",
+      "qrCode": "hf://produto/p008"
     },
     {
       "id": "p009",
@@ -169,7 +193,10 @@
       "descricaoCurta": "Folha fresca e crocante.",
       "selo": "Unidade grande",
       "promocao": true,
-      "destaque": true
+      "destaque": true,
+      "codigoInterno": "HF-009",
+      "codigoBarras": "7892000000009",
+      "qrCode": "hf://produto/p009"
     },
     {
       "id": "p010",
@@ -188,7 +215,10 @@
       "descricaoCurta": "Ideal para saladas e refogados.",
       "selo": "Unidade média",
       "promocao": false,
-      "destaque": true
+      "destaque": true,
+      "codigoInterno": "HF-010",
+      "codigoBarras": "7892000000010",
+      "qrCode": "hf://produto/p010"
     },
     {
       "id": "p011",
@@ -207,7 +237,10 @@
       "descricaoCurta": "Rica em nutrientes.",
       "selo": "Maço premium",
       "promocao": true,
-      "destaque": false
+      "destaque": false,
+      "codigoInterno": "HF-011",
+      "codigoBarras": "7892000000011",
+      "qrCode": "hf://produto/p011"
     },
     {
       "id": "p012",
@@ -226,7 +259,10 @@
       "descricaoCurta": "Sabor e qualidade garantida.",
       "selo": "Unidade",
       "promocao": false,
-      "destaque": true
+      "destaque": true,
+      "codigoInterno": "HF-012",
+      "codigoBarras": "7892000000012",
+      "qrCode": "hf://produto/p012"
     },
     {
       "id": "p013",
@@ -245,7 +281,10 @@
       "descricaoCurta": "Cremoso e ideal para saladas e vitaminas.",
       "selo": "500g aprox. 1-2 un",
       "promocao": false,
-      "destaque": true
+      "destaque": true,
+      "codigoInterno": "HF-013",
+      "codigoBarras": "7892000000013",
+      "qrCode": "hf://produto/p013"
     },
     {
       "id": "p014",
@@ -264,7 +303,10 @@
       "descricaoCurta": "Rica em vitamina C e muito saborosa.",
       "selo": "Bandeja fresca",
       "promocao": true,
-      "destaque": false
+      "destaque": false,
+      "codigoInterno": "HF-014",
+      "codigoBarras": "7892000000014",
+      "qrCode": "hf://produto/p014"
     },
     {
       "id": "p015",
@@ -283,7 +325,10 @@
       "descricaoCurta": "Fruta delicada e premium.",
       "selo": "Bandeja premium",
       "promocao": true,
-      "destaque": true
+      "destaque": true,
+      "codigoInterno": "HF-015",
+      "codigoBarras": "7892000000015",
+      "qrCode": "hf://produto/p015"
     },
     {
       "id": "p016",
@@ -302,7 +347,10 @@
       "descricaoCurta": "Perfeito para sucos e consumo natural.",
       "selo": "500g aprox. 2-3 un",
       "promocao": false,
-      "destaque": false
+      "destaque": false,
+      "codigoInterno": "HF-016",
+      "codigoBarras": "7892000000016",
+      "qrCode": "hf://produto/p016"
     },
     {
       "id": "p017",
@@ -321,7 +369,10 @@
       "descricaoCurta": "Doce e macia, ótima para sobremesas.",
       "selo": "500g aprox. 2 un",
       "promocao": false,
-      "destaque": true
+      "destaque": true,
+      "codigoInterno": "HF-017",
+      "codigoBarras": "7892000000017",
+      "qrCode": "hf://produto/p017"
     },
     {
       "id": "p018",
@@ -340,7 +391,10 @@
       "descricaoCurta": "Fruta da estação com sabor suave.",
       "selo": "500g aprox. 2 un",
       "promocao": false,
-      "destaque": false
+      "destaque": false,
+      "codigoInterno": "HF-018",
+      "codigoBarras": "7892000000018",
+      "qrCode": "hf://produto/p018"
     },
     {
       "id": "p019",
@@ -359,7 +413,10 @@
       "descricaoCurta": "Acidez equilibrada e alto valor nutritivo.",
       "selo": "500g aprox. 3-4 un",
       "promocao": false,
-      "destaque": true
+      "destaque": true,
+      "codigoInterno": "HF-019",
+      "codigoBarras": "7892000000019",
+      "qrCode": "hf://produto/p019"
     },
     {
       "id": "p020",
@@ -378,7 +435,10 @@
       "descricaoCurta": "Manga selecionada com sabor intenso.",
       "selo": "500g aprox. 1 un",
       "promocao": true,
-      "destaque": true
+      "destaque": true,
+      "codigoInterno": "HF-020",
+      "codigoBarras": "7892000000020",
+      "qrCode": "hf://produto/p020"
     },
     {
       "id": "p021",
@@ -397,7 +457,10 @@
       "descricaoCurta": "Refrescante e perfeita para o verão.",
       "selo": "Fatia ou inteira",
       "promocao": true,
-      "destaque": false
+      "destaque": false,
+      "codigoInterno": "HF-021",
+      "codigoBarras": "7892000000021",
+      "qrCode": "hf://produto/p021"
     },
     {
       "id": "p022",
@@ -416,7 +479,10 @@
       "descricaoCurta": "Doce e suculento para o dia a dia.",
       "selo": "500g aprox. 1 fatia",
       "promocao": false,
-      "destaque": false
+      "destaque": false,
+      "codigoInterno": "HF-022",
+      "codigoBarras": "7892000000022",
+      "qrCode": "hf://produto/p022"
     },
     {
       "id": "p023",
@@ -435,7 +501,10 @@
       "descricaoCurta": "Cítrica e fácil de descascar.",
       "selo": "500g aprox. 3-5 un",
       "promocao": false,
-      "destaque": true
+      "destaque": true,
+      "codigoInterno": "HF-023",
+      "codigoBarras": "7892000000023",
+      "qrCode": "hf://produto/p023"
     },
     {
       "id": "p024",
@@ -454,7 +523,10 @@
       "descricaoCurta": "Ideal para sucos e temperos.",
       "selo": "500g aprox. 6-8 un",
       "promocao": false,
-      "destaque": false
+      "destaque": false,
+      "codigoInterno": "HF-024",
+      "codigoBarras": "7892000000024",
+      "qrCode": "hf://produto/p024"
     },
     {
       "id": "p025",
@@ -473,7 +545,10 @@
       "descricaoCurta": "Essencial para receitas e temperos.",
       "selo": "Cabeças selecionadas",
       "promocao": false,
-      "destaque": true
+      "destaque": true,
+      "codigoInterno": "HF-025",
+      "codigoBarras": "7892000000025",
+      "qrCode": "hf://produto/p025"
     },
     {
       "id": "p026",
@@ -492,7 +567,10 @@
       "descricaoCurta": "Colorida e nutritiva.",
       "selo": "500g aprox. 2-3 un",
       "promocao": false,
-      "destaque": false
+      "destaque": false,
+      "codigoInterno": "HF-026",
+      "codigoBarras": "7892000000026",
+      "qrCode": "hf://produto/p026"
     },
     {
       "id": "p027",
@@ -511,7 +589,10 @@
       "descricaoCurta": "Fresco e de ótima qualidade.",
       "selo": "500g aprox. 20-25 un",
       "promocao": false,
-      "destaque": false
+      "destaque": false,
+      "codigoInterno": "HF-027",
+      "codigoBarras": "7892000000027",
+      "qrCode": "hf://produto/p027"
     },
     {
       "id": "p028",
@@ -530,7 +611,10 @@
       "descricaoCurta": "Raiz macia para cozidos e frituras.",
       "selo": "500g aprox. 1-2 pedaços",
       "promocao": false,
-      "destaque": true
+      "destaque": true,
+      "codigoInterno": "HF-028",
+      "codigoBarras": "7892000000028",
+      "qrCode": "hf://produto/p028"
     },
     {
       "id": "p029",
@@ -549,7 +633,10 @@
       "descricaoCurta": "Ótima para sopas, purês e assados.",
       "selo": "Fatia selecionada",
       "promocao": true,
-      "destaque": true
+      "destaque": true,
+      "codigoInterno": "HF-029",
+      "codigoBarras": "7892000000029",
+      "qrCode": "hf://produto/p029"
     },
     {
       "id": "p030",
@@ -568,7 +655,10 @@
       "descricaoCurta": "Ideal para gratinados e saladas.",
       "selo": "Unidade grande",
       "promocao": false,
-      "destaque": false
+      "destaque": false,
+      "codigoInterno": "HF-030",
+      "codigoBarras": "7892000000030",
+      "qrCode": "hf://produto/p030"
     },
     {
       "id": "p031",
@@ -587,7 +677,10 @@
       "descricaoCurta": "Crocrante, perfeita para saladas.",
       "selo": "Unidade premium",
       "promocao": false,
-      "destaque": true
+      "destaque": true,
+      "codigoInterno": "HF-031",
+      "codigoBarras": "7892000000031",
+      "qrCode": "hf://produto/p031"
     },
     {
       "id": "p032",
@@ -606,7 +699,10 @@
       "descricaoCurta": "Folha macia com cor intensa.",
       "selo": "Unidade",
       "promocao": false,
-      "destaque": false
+      "destaque": false,
+      "codigoInterno": "HF-032",
+      "codigoBarras": "7892000000032",
+      "qrCode": "hf://produto/p032"
     },
     {
       "id": "p033",
@@ -625,7 +721,10 @@
       "descricaoCurta": "Sabor marcante para refogados.",
       "selo": "Maço fresco",
       "promocao": false,
-      "destaque": false
+      "destaque": false,
+      "codigoInterno": "HF-033",
+      "codigoBarras": "7892000000033",
+      "qrCode": "hf://produto/p033"
     },
     {
       "id": "p034",
@@ -644,7 +743,10 @@
       "descricaoCurta": "Tempero verde indispensável.",
       "selo": "Maço",
       "promocao": false,
-      "destaque": false
+      "destaque": false,
+      "codigoInterno": "HF-034",
+      "codigoBarras": "7892000000034",
+      "qrCode": "hf://produto/p034"
     },
     {
       "id": "p035",
@@ -663,7 +765,10 @@
       "descricaoCurta": "Folha tradicional para saladas.",
       "selo": "Maço selecionado",
       "promocao": false,
-      "destaque": false
+      "destaque": false,
+      "codigoInterno": "HF-035",
+      "codigoBarras": "7892000000035",
+      "qrCode": "hf://produto/p035"
     },
     {
       "id": "p036",
@@ -682,7 +787,10 @@
       "descricaoCurta": "Aroma intenso para pratos especiais.",
       "selo": "Maço",
       "promocao": true,
-      "destaque": false
+      "destaque": false,
+      "codigoInterno": "HF-036",
+      "codigoBarras": "7892000000036",
+      "qrCode": "hf://produto/p036"
     },
     {
       "id": "p037",
@@ -701,7 +809,10 @@
       "descricaoCurta": "Folhas ricas em ferro e sabor.",
       "selo": "Maço",
       "promocao": false,
-      "destaque": true
+      "destaque": true,
+      "codigoInterno": "HF-037",
+      "codigoBarras": "7892000000037",
+      "qrCode": "hf://produto/p037"
     },
     {
       "id": "p038",
@@ -720,7 +831,10 @@
       "descricaoCurta": "Fresca para chás e receitas.",
       "selo": "Maço aromático",
       "promocao": false,
-      "destaque": false
+      "destaque": false,
+      "codigoInterno": "HF-038",
+      "codigoBarras": "7892000000038",
+      "qrCode": "hf://produto/p038"
     }
   ],
   "informacoes": {
@@ -754,6 +868,54 @@
       "bairro": "",
       "cidade": "",
       "telefone": ""
+    },
+    {
+      "id": "u_admin_1773345845767",
+      "nome": "Administrador",
+      "email": "admin@varejao.com",
+      "senhaHash": "$2a$10$kGjDHKpLB.DkGS9xpYLyK.y5G.EropGK0wvZtD1/T/8uGx5bFHHq2",
+      "role": "admin",
+      "cpf": "00000000000"
+    },
+    {
+      "id": "u_gerente_1773874110233_3vfr",
+      "nome": "Gerente Operacional",
+      "email": "gerente@varejao.com",
+      "senhaHash": "$2a$10$o9CGZcYr5x2tM83ZRdjH2u5LNw5CwZXZ8ptI7m055g6H3lBuk4Rg2",
+      "role": "gerente",
+      "cpf": ""
+    },
+    {
+      "id": "u_caixa_1773874110409_83gw",
+      "nome": "Caixa Principal",
+      "email": "caixa@varejao.com",
+      "senhaHash": "$2a$10$DVFDhFIcKO3gUpKQYJGubu1q2xAPdGLOEPHjGuX4fu0VwiAVpBfd2",
+      "role": "caixa",
+      "cpf": ""
+    },
+    {
+      "id": "u_balcao_1773874110573_j8uk",
+      "nome": "Balcao e Atendimento",
+      "email": "balcao@varejao.com",
+      "senhaHash": "$2a$10$RzxEIMeEB7UsY7ButWxnkuECkiJ2BRQyiesRdr1iCldm12.T3MiW6",
+      "role": "balcao",
+      "cpf": ""
+    },
+    {
+      "id": "u_cozinha_1773874110737_5j9m",
+      "nome": "Cozinha e Producao",
+      "email": "cozinha@varejao.com",
+      "senhaHash": "$2a$10$33rB25ywi6tfV0r3H6zK6uWjSn/K2jZ7dw4qGdWtE501ud2uA789S",
+      "role": "cozinha",
+      "cpf": ""
+    },
+    {
+      "id": "u_operador_1773874110927_9xgt",
+      "nome": "Operador de Apoio",
+      "email": "operador@varejao.com",
+      "senhaHash": "$2a$10$fPr.qUxSA5.b.ZwbNg4Q0u3TiKWIlcVPKyVatnZ.jKZmHG.Q3pe4C",
+      "role": "operador",
+      "cpf": ""
     }
   ],
   "clientesFidelidade": [],
@@ -790,5 +952,27 @@
       "categoria": "energia",
       "data": "2026-02-26T18:48:19.917Z"
     }
-  ]
+  ],
+  "carrinhos": {},
+  "operacaoConfig": {
+    "businessProfile": "mercado",
+    "displayName": "Operacao Flexivel",
+    "serviceFlow": true,
+    "kitchenFlow": true,
+    "stockFlow": true,
+    "supportedRoutes": [
+      "counter",
+      "stock",
+      "cold",
+      "kitchen",
+      "bar"
+    ],
+    "productionStations": [
+      "forno",
+      "confeitaria",
+      "preparo",
+      "balcao"
+    ],
+    "supportsComandas": true
+  }
 }
