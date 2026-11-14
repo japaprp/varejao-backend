@@ -154,6 +154,34 @@ async function main() {
       throw new Error('Admin autenticado deveria passar pela autorizacao e receber 404 para pedido inexistente.');
     }
 
+    const customerPassword = `Smoke-${Date.now()}-A!`;
+    const customer = await request('/auth/register', {
+      method: 'POST',
+      body: {
+        nome: 'Cliente Smoke',
+        email: `smoke-${Date.now()}@example.test`,
+        senha: customerPassword,
+        cpf: '12345678901',
+        cep: '12345678',
+        rua: 'Rua Smoke',
+        bairro: 'Centro',
+        cidade: 'Teste',
+        telefone: '11999999999'
+      }
+    });
+    const customerToken = String(customer?.token || '');
+    if (!customerToken) {
+      throw new Error('Cadastro smoke nao retornou token de cliente.');
+    }
+    const customerMachineConfirm = await fetch(`${baseUrl}/pagamento/maquininha/confirmar`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${customerToken}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ orderId: 'ped-smoke-customer' })
+    });
+    if (customerMachineConfirm.status !== 403) {
+      throw new Error('Cliente comum deveria receber 403 ao confirmar pagamento na maquininha.');
+    }
+
     const resetAttempt = await fetch(`${baseUrl}/auth/forgot-password`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
