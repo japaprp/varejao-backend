@@ -98,14 +98,16 @@ async function main() {
   }
   backupDatabase();
 
+  const smokeAdminPassword = process.env.SMOKE_ADMIN_PASSWORD || crypto.randomBytes(24).toString('hex');
+  const smokeTokenSecret = process.env.SMOKE_TOKEN_SECRET || crypto.randomBytes(32).toString('hex');
   const server = spawn(process.execPath, ['index.js'], {
     cwd: backendRoot,
     env: {
       ...process.env,
       PORT: String(port),
       ADMIN_EMAIL: process.env.SMOKE_ADMIN_EMAIL || 'admin@varejao.com',
-      ADMIN_PASSWORD: process.env.SMOKE_ADMIN_PASSWORD || crypto.randomBytes(24).toString('hex'),
-      TOKEN_SECRET: process.env.SMOKE_TOKEN_SECRET || crypto.randomBytes(32).toString('hex'),
+      ADMIN_PASSWORD: smokeAdminPassword,
+      TOKEN_SECRET: smokeTokenSecret,
       DISABLE_DEMO_OPERATIONAL_USERS: 'true'
     },
     stdio: ['ignore', 'pipe', 'pipe']
@@ -127,7 +129,7 @@ async function main() {
       method: 'POST',
       body: {
         email: process.env.SMOKE_ADMIN_EMAIL || 'admin@varejao.com',
-        senha: process.env.SMOKE_ADMIN_PASSWORD || server.env.ADMIN_PASSWORD
+        senha: smokeAdminPassword
       }
     });
     const token = String(login?.token || '');
