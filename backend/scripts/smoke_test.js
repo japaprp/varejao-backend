@@ -472,8 +472,26 @@ async function main() {
         fechado?.payment?.entries?.length !== 1) {
       throw new Error('Fechamento operacional valido nao reconciliou pagamento.');
     }
+    const stockAfterValidSettlement = readDb().produtos.find((item) => item.id === produto.id)?.estoque;
+    if (stockAfterValidSettlement !== stockBeforeInvalidSettlement - 2) {
+      throw new Error('Fechamento valido nao baixou o estoque exatamente pela quantidade vendida.');
+    }
 
-    console.log('Smoke QA ok: auth, catalogo, producao e fechamento operacional validados.');
+    const repeatedClose = await request(`/operacao/pedidos/${pedido.id}/fechar`, {
+      method: 'POST',
+      token,
+      body: {
+        discountAmount: 0,
+        payments: [{ method: 'pix', amount: 3 }]
+      }
+    });
+    const stockAfterRepeatedClose = readDb().produtos.find((item) => item.id === produto.id)?.estoque;
+    if (repeatedClose?.status !== 'Pago' || stockAfterRepeatedClose !== stockAfterValidSettlement ||
+        repeatedClose?.payment?.totalPaid !== 3) {
+      throw new Error('Fechamento repetido alterou novamente o estoque ou os dados do pagamento.');
+    }
+
+    console.log('Smoke QA ok: auth, payments, catalogo, estoque, producao, pedidos e recuperacao validados.');
   } finally {
     if (!server.killed) {
       server.kill('SIGTERM');
