@@ -677,6 +677,16 @@ export function createPendingOrder({
 }
 
 export function confirmMachinePayment(orderId, paymentInfo = {}) {
+  const confirmer = paymentInfo?.confirmedBy || {};
+  const confirmerId = String(confirmer.id || '').trim();
+  const confirmerRole = String(confirmer.role || '').toLowerCase();
+  const allowedRoles = new Set(['admin', 'operador', 'gerente', 'manager', 'caixa', 'cashier']);
+  if (!confirmerId || !allowedRoles.has(confirmerRole)) {
+    const err = new Error('Somente operador autenticado e autorizado pode confirmar pagamento na maquininha.');
+    err.status = 403;
+    throw err;
+  }
+
   const db = readDb();
   const order = getOrderById(db, orderId);
   if (!order) {
@@ -708,7 +718,9 @@ export function confirmMachinePayment(orderId, paymentInfo = {}) {
   return finalizePaidOrder(orderId, {
     status: 'approved',
     id: transactionId,
-    method: 'maquininha'
+    method: 'maquininha',
+    confirmedBy: { id: confirmerId, role: confirmerRole },
+    confirmedAt: new Date().toISOString()
   });
 }
 
@@ -744,6 +756,8 @@ export function finalizePaidOrder(orderId, paymentInfo = {}) {
     status: paymentInfo.status || 'approved',
     id: paymentInfo.id || order.payment?.id || null,
     method: paymentInfo.method || order.payment?.method || null,
+    ...(paymentInfo.confirmedBy ? { confirmedBy: paymentInfo.confirmedBy } : {}),
+    ...(paymentInfo.confirmedAt ? { confirmedAt: paymentInfo.confirmedAt } : {}),
     updatedAt: new Date().toISOString()
   };
 
