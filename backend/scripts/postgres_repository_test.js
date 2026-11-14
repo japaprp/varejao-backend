@@ -60,7 +60,7 @@ async function main() {
       return 'committed';
     });
     assert.equal(result.value, 'committed');
-    assert.equal(result.revision, 1);
+    assert.equal(result.revision, '1');
     assert.deepEqual(pool.state.payload.produtos, [{ id: 'p-1' }]);
     assert.deepEqual(pool.events, ['BEGIN', 'SELECT', 'UPDATE', 'COMMIT']);
     assert.equal(pool.releases, 1);
