@@ -115,10 +115,10 @@ This means replacing `readDb()/writeDb()` with asynchronous PostgreSQL calls is 
 
 ### Isolated repository prototype (2026-11-14)
 
-- Added `src/data/postgresRepository.js` as an injected-pool adapter prototype. It provides detached async reads and a synchronous, side-effect-free mutation callback inside `BEGIN` / `SELECT ... FOR UPDATE` / revision-checked `UPDATE` / `COMMIT`, with rollback and fail-closed behavior when the singleton row is absent.
+- Added `src/data/postgresRepository.js` as an injected-pool adapter prototype. It provides detached async reads and a synchronous mutation callback (the caller must keep it pure and free of external side effects) inside `BEGIN` / `SELECT ... FOR UPDATE` / revision-checked `UPDATE` / `COMMIT`, with rollback, exact string revision handling, and fail-closed behavior when the singleton row is absent. The adapter rejects returned promises, but purity is a caller contract and cannot be mechanically guaranteed.
 - Added `scripts/postgres_repository_test.js` with a deterministic fake-pool contract harness covering detached reads, locked commit/revision increment, rollback after mutator failure, rejection of async mutators, revision conflict, and missing-state rejection.
 - Added the contract test to `npm run qa`. This is a repository-interface prototype only: it is not imported by application services, no PostgreSQL driver/provider is installed or selected, and the fake-pool harness does not prove actual PostgreSQL locking/isolation. A real PostgreSQL integration test using two independent connections remains required and BLOCKED until an isolated test database can be used without creating cost or touching another project.
-- GitHub Actions run #84 passed the repository contract harness; run #85 is expected to validate the subsequent syntax-check wiring.
+- GitHub Actions run #84 passed the repository contract harness; run #85 passed syntax-check wiring. Follow-up hardening preserves BIGINT revisions as strings and avoids masking the original failure if rollback itself errors; validation for these latest changes is pending.
 
 ### Async refactor requirements
 
