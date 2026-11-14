@@ -98,6 +98,20 @@ Read-only inventory of the connected Supabase account found no project identifie
 
 No new database or branch was created. No pricing/cost confirmation, credentials, schema change, or database connection was initiated. A dedicated Varejão-owned PostgreSQL target remains a prerequisite for import rehearsal and adapter testing. Select the provider/organization and review any quoted cost before provisioning.
 
+## Additional owner-reported backup source — USB drive (2026-11-14)
+
+The owner reports that a USB flash drive contains a Varejão project/data folder, but the drive is currently unavailable and has intermittently produced errors. Its contents, exact path, timestamp, integrity, and whether it contains the live `database.json` or only project files are **unverified**. Do not treat it as a valid backup yet.
+
+When the drive is available, use a preservation-first, read-only acquisition:
+1. Do not format, repair, initialize, or write to the original drive; do not run filesystem repair tools before imaging/copying.
+2. Inspect the drive's health/read errors and identify the exact Varejão folder and files. If it is unstable, stop repeated reads and create a sector-level image with an appropriate recovery tool before file-level extraction.
+3. Copy the candidate folder to a separate healthy storage device; keep the original unchanged.
+4. Compute SHA-256 hashes and byte sizes for the copied files, compare source/copy where safely readable, and record timestamps.
+5. Inspect JSON structure and aggregate counts without printing personal data, passwords, tokens, or hashes. Never overwrite the GitHub snapshot or live service with the USB copy.
+6. Compare the USB copy, Git snapshot, and any safely obtainable live export; identify which is newest and whether it is complete before calling any one of them a migration source.
+
+Current source-of-truth assessment: GitHub is a known versioned seed snapshot; Render's mutable live state is inaccessible and at risk; USB is a promising but unverified recovery candidate. No valid complete operational backup has yet been verified.
+
 ## Deployed seed snapshot schema preflight (2026-11-14)
 
 A new read-only, privacy-safe `backend/scripts/audit_migration_source.js` validates collection shapes, primary identifiers, normalized email uniqueness, role values, bcrypt hash format, product price/stock values, order item references/quantities, and coupon-code uniqueness. It prints only aggregate counts and validation failures, never record values or PII.
