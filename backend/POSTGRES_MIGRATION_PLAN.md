@@ -94,6 +94,12 @@ The deployed commit's tracked seed file has 12 top-level collections: 38 product
 
 These results describe only the deployed Git snapshot, not the mutable Render runtime file. The script is a source preflight, not a live backup or import rehearsal.
 
+## Identifier collision hardening and stock idempotency (2026-11-14)
+
+Static review found order and user identifiers generated from `Date.now()`, which can collide when multiple records are created within the same millisecond. Order, payment-entry, and user record IDs now use Node's `crypto.randomUUID()`. Smoke tests create two users and two operational orders synchronously and assert distinct identifiers.
+
+Operational settlement regression tests also verify that a valid close deducts the sold quantity exactly once and that repeating the same close does not deduct stock again or alter the recorded payment total.
+
 ## Target recommendation: PostgreSQL
 
 PostgreSQL is recommended for transactional persistence because order, payment, inventory, coupon, loyalty, and cash-closing operations need atomic multi-record changes, constraints, indexes, and concurrent transaction isolation. This repository currently has no `pg` driver, connection pool, schema migration framework, or verified database URL. Therefore no runtime switch is safe yet.
