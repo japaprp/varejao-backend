@@ -1,3 +1,6 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { randomUUID } from 'node:crypto';
 import {
   createProduct,
   deleteProduct,
@@ -53,6 +56,7 @@ import {
 import { createPreference, getPayment, verifyWebhookSignature, validatePaymentForOrder } from '../services/paymentService.js';
 import { MP_COLLECTOR_ID, MP_WEBHOOK_SECRET } from '../config/env.js';
 import { publishAdminUpdate, publishCheckoutUpdate, registerAdminStream, registerCheckoutStream } from '../realtime/checkoutStream.js';
+import { detectImageExtension, uploadDir } from '../middlewares/uploadMiddleware.js';
 
 function getCartId(req) {
   return req.headers['x-cart-id'] || req.query.cartId || req.body?.cartId || '';
@@ -91,12 +95,24 @@ function notifyCheckout(cartId, reason = 'update') {
   }
 }
 
-export function uploadImagemController(req, res) {
-  if (!req.file) {
+export async function uploadImagemController(req, res, next) {
+  if (!req.file?.buffer) {
     return res.status(400).json({ erro: 'Imagem nao enviada' });
   }
-  const url = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
-  return res.status(201).json({ url, arquivo: req.file.filename });
+
+  const extension = detectImageExtension(req.file.buffer);
+  if (!extension) {
+    return res.status(400).json({ erro: 'Conteudo enviado nao corresponde a uma imagem JPEG, PNG, WebP ou GIF valida.' });
+  }
+
+  const filename = `${randomUUID()}.${extension}`;
+  try {
+    await fs.writeFile(path.join(uploadDir, filename), req.file.buffer, { flag: 'wx' });
+    const url = `${req.protocol}://${req.get('host')}/uploads/${filename}`;
+    return res.status(201).json({ url, arquivo: filename });
+  } catch (error) {
+    return next(error);
+  }
 }
 
 export function register(req, res, next) {
