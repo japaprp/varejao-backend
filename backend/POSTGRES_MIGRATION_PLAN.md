@@ -80,6 +80,10 @@ Before any migration/cutover, an authorized operator must take a provider-side, 
 
 Do not delete or disable any account automatically. Confirm ownership and business purpose with the system owner before remediation. If a known demo identity exists in production, suspend login through an approved, reversible procedure, rotate credentials, and preserve audit evidence; do not infer its password from a hash.
 
+## Operational settlement role separation (2026-11-14)
+
+Route review found that `POST /operacao/pedidos/:id/fechar` used the broad operational-role set, including kitchen/production and counter-service roles. This allowed a kitchen-role token to attempt payment settlement. The route now uses a narrower payment-authorized set: admin, operator, manager, and cashier roles. Production-stage updates and order creation retain the broader operational-role set. A smoke regression creates a signed kitchen-role token and verifies settlement is rejected with HTTP 403. CI is pending.
+
 ## Customer order-history authorization hardening (2026-11-14)
 
 Independent route review found that an authenticated customer account without a CPF could call `GET /pedidos?cpf=<other-customer>` because the controller fell back from the account CPF to the caller-supplied query CPF. Registration permits accounts without a CPF, so this was a real cross-customer history disclosure path. The controller now denies order-history access to non-privileged accounts without an associated CPF and never uses a caller-supplied CPF as the target for customer accounts. A smoke regression registers a CPF-less customer and verifies an arbitrary CPF query returns HTTP 403. CI for this correction is pending.
