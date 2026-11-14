@@ -78,6 +78,12 @@ Before any migration/cutover, an authorized operator must take a provider-side, 
 
 Do not delete or disable any account automatically. Confirm ownership and business purpose with the system owner before remediation. If a known demo identity exists in production, suspend login through an approved, reversible procedure, rotate credentials, and preserve audit evidence; do not infer its password from a hash.
 
+## PostgreSQL destination discovery (2026-11-14)
+
+Read-only inventory of the connected Supabase account found no project identified as Varejão. The available projects belong to other workstreams and were not inspected or reused. Render inventory likewise contains no Varejão Postgres instance. The expired EventosRP Postgres and Guerra Infinita Key Value resources are explicitly out of scope.
+
+No new database or branch was created. No pricing/cost confirmation, credentials, schema change, or database connection was initiated. A dedicated Varejão-owned PostgreSQL target remains a prerequisite for import rehearsal and adapter testing. Select the provider/organization and review any quoted cost before provisioning.
+
 ## Deployed seed snapshot schema preflight (2026-11-14)
 
 A new read-only, privacy-safe `backend/scripts/audit_migration_source.js` validates collection shapes, primary identifiers, normalized email uniqueness, role values, bcrypt hash format, product price/stock values, order item references/quantities, and coupon-code uniqueness. It prints only aggregate counts and validation failures, never record values or PII.
