@@ -408,7 +408,9 @@ async function main() {
       { discountAmount: 999, payments: [{ method: 'pix', amount: 3 }] },
       { discountAmount: 0, payments: [{ method: 'pix', amount: 2 }] },
       { discountAmount: 0, payments: [{ method: 'unknown-method', amount: 3 }] },
-      { discountAmount: 0, payments: [{ method: 'pix', amount: 'not-a-number' }] }
+      { discountAmount: 0, payments: [{ method: 'pix', amount: 'not-a-number' }] },
+      { discountAmount: 0, payments: [{ method: 'cash', amount: 3, amountReceived: 2 }] },
+      { discountAmount: 0, payments: [{ method: 'cash', amount: 3, amountReceived: 5, changeAmount: 1 }] }
     ]) {
       const rejectedSettlement = await fetch(`${baseUrl}/operacao/pedidos/${pedido.id}/fechar`, {
         method: 'POST',
