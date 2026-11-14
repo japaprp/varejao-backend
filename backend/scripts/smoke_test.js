@@ -6,6 +6,7 @@ import { addCartItem, confirmMachinePayment, createPendingOrder } from '../src/s
 import { readDb } from '../src/data/repository.js';
 import { verifyWebhookSignature, validatePaymentForOrder } from '../src/services/paymentService.js';
 import crypto from 'crypto';
+import { assertRuntimeConfig } from '../src/config/env.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -82,6 +83,19 @@ function restoreDatabase() {
 }
 
 async function main() {
+  for (const invalidConfig of [
+    { TOKEN_SECRET: '' },
+    { TOKEN_SECRET: 'short-secret' },
+    { TOKEN_SECRET: 'x'.repeat(32), NODE_ENV: 'production' },
+    { TOKEN_SECRET: 'x'.repeat(32), NODE_ENV: 'production', ADMIN_PASSWORD: 'set', DISABLE_DEMO_OPERATIONAL_USERS: 'false' }
+  ]) {
+    let rejected = false;
+    try { assertRuntimeConfig(invalidConfig); } catch { rejected = true; }
+    if (!rejected) throw new Error('Configuracao insegura deveria ser rejeitada na inicializacao.');
+  }
+  if (!assertRuntimeConfig({ TOKEN_SECRET: 'x'.repeat(32), NODE_ENV: 'production', ADMIN_PASSWORD: 'set' })) {
+    throw new Error('Configuracao minima segura deveria ser aceita.');
+  }
   backupDatabase();
 
   const server = spawn(process.execPath, ['index.js'], {
@@ -90,7 +104,8 @@ async function main() {
       ...process.env,
       PORT: String(port),
       ADMIN_EMAIL: process.env.SMOKE_ADMIN_EMAIL || 'admin@varejao.com',
-      ADMIN_PASSWORD: process.env.SMOKE_ADMIN_PASSWORD || 'admin123456',
+      ADMIN_PASSWORD: process.env.SMOKE_ADMIN_PASSWORD || crypto.randomBytes(24).toString('hex'),
+      TOKEN_SECRET: process.env.SMOKE_TOKEN_SECRET || crypto.randomBytes(32).toString('hex'),
       DISABLE_DEMO_OPERATIONAL_USERS: 'true'
     },
     stdio: ['ignore', 'pipe', 'pipe']
@@ -112,7 +127,7 @@ async function main() {
       method: 'POST',
       body: {
         email: process.env.SMOKE_ADMIN_EMAIL || 'admin@varejao.com',
-        senha: process.env.SMOKE_ADMIN_PASSWORD || 'admin123456'
+        senha: process.env.SMOKE_ADMIN_PASSWORD || server.env.ADMIN_PASSWORD
       }
     });
     const token = String(login?.token || '');
