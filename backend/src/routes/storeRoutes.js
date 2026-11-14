@@ -71,6 +71,7 @@ import {
 const router = Router();
 const operationalRoles = ['admin', 'operador', 'gerente', 'manager', 'caixa', 'cashier', 'balcao', 'waiter', 'cozinha', 'kitchen', 'chef', 'producao'];
 const managementRoles = ['admin', 'operador', 'gerente', 'manager'];
+const settlementRoles = ['admin', 'operador', 'gerente', 'manager', 'caixa', 'cashier'];
 
 router.post('/auth/register', authLimiter, validateRegisterPayload, register);
 router.post('/auth/login', authLimiter, validateLoginPayload, login);
@@ -104,7 +105,7 @@ router.get('/operacao/config', getOperationalConfigController);
 router.post('/operacao/pedidos', requireAuth, requireRole(operationalRoles), postOperationalOrderController);
 router.get('/operacao/producao', requireAuth, requireRole(operationalRoles), getProductionQueueController);
 router.patch('/operacao/pedidos/:id/producao-status', requireAuth, requireRole(operationalRoles), putProductionStatusController);
-router.post('/operacao/pedidos/:id/fechar', requireAuth, requireRole(operationalRoles), postOperationalSettlementController);
+router.post('/operacao/pedidos/:id/fechar', requireAuth, requireRole(settlementRoles), postOperationalSettlementController);
 router.post('/pagamento/preferencia', paymentLimiter, postPagamentoPreferencia);
 router.post('/pagamento/maquininha/iniciar', paymentLimiter, requireAuth, requireRole(['admin', 'operador', 'gerente', 'manager', 'caixa', 'cashier']), postPagamentoMaquininhaIniciar);
 router.post('/pagamento/maquininha/confirmar', paymentLimiter, requireAuth, requireRole(['admin', 'operador', 'gerente', 'manager', 'caixa', 'cashier']), postPagamentoMaquininhaConfirmar);
