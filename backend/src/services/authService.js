@@ -129,23 +129,19 @@ function ensureAdminUser() {
     return;
   }
 
-  if (ADMIN_PASSWORD && existing.role === 'admin') {
-    const shouldUpdate = !verifyPassword(ADMIN_PASSWORD, existing.senhaHash);
-    if (shouldUpdate) {
-      existing.senhaHash = hashPassword(ADMIN_PASSWORD);
-    }
+  let changed = false;
+  if (ADMIN_PASSWORD && existing.role === 'admin' &&
+      !verifyPassword(ADMIN_PASSWORD, existing.senhaHash)) {
+    existing.senhaHash = hashPassword(ADMIN_PASSWORD);
+    changed = true;
   }
 
   if (ensureOperationalSeedUsers(db)) {
-    writeDb(db);
-    return;
+    changed = true;
   }
 
-  if (ADMIN_PASSWORD && existing?.role === 'admin') {
-    const shouldPersistAdmin = !verifyPassword(ADMIN_PASSWORD, existing.senhaHash);
-    if (shouldPersistAdmin) {
-      writeDb(db);
-    }
+  if (changed) {
+    writeDb(db);
   }
 }
 
