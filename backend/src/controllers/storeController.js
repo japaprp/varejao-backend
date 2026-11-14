@@ -483,7 +483,15 @@ export function getOperationalConfigController(req, res) {
 
 export function postOperationalOrderController(req, res, next) {
   try {
-    const created = createOperationalOrder(req.body || {});
+    const created = createOperationalOrder({
+      ...(req.body || {}),
+      actor: {
+        id: req.user?.id,
+        nome: req.user?.nome,
+        role: req.user?.role
+      },
+      operator: undefined
+    });
     notifyAdmin('operacao_pedido_criado', {
       pedidoId: created.id,
       canal: created.canal
@@ -500,7 +508,11 @@ export function getProductionQueueController(req, res) {
 
 export function putProductionStatusController(req, res, next) {
   try {
-    const updated = updateProductionStatus(req.params.id, req.body?.status || '');
+    const updated = updateProductionStatus(req.params.id, req.body?.status || '', {
+      id: req.user?.id,
+      nome: req.user?.nome,
+      role: req.user?.role
+    });
     notifyAdmin('operacao_producao_status', {
       pedidoId: updated.id,
       status: updated.status
@@ -513,7 +525,11 @@ export function putProductionStatusController(req, res, next) {
 
 export function postOperationalSettlementController(req, res, next) {
   try {
-    const settled = settleOperationalOrder(req.params.id, req.body || {});
+    const settled = settleOperationalOrder(req.params.id, req.body || {}, {
+      id: req.user?.id,
+      nome: req.user?.nome,
+      role: req.user?.role
+    });
     notifyAdmin('operacao_pedido_fechado', {
       pedidoId: settled.id,
       status: settled.status
