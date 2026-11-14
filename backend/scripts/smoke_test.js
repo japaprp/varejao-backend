@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { spawn } from 'child_process';
+import { confirmMachinePayment } from '../src/services/cartService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -114,6 +115,74 @@ async function main() {
     const token = String(login?.token || '');
     if (!token) {
       throw new Error('Login smoke nao retornou token.');
+    }
+
+    let serviceDeniedWithoutActor = false;
+    try {
+      confirmMachinePayment('missing-order');
+    } catch (error) {
+      serviceDeniedWithoutActor = error.status === 403;
+    }
+    if (!serviceDeniedWithoutActor) {
+      throw new Error('Servico de confirmacao deveria exigir operador autenticado.');
+    }
+
+    const unauthMachineStart = await fetch(`${baseUrl}/pagamento/maquininha/iniciar`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ cartId: 'fisico-smoke-unauth' })
+    });
+    if (unauthMachineStart.status !== 401) {
+      throw new Error('Maquininha iniciar sem autenticacao deveria retornar 401.');
+    }
+
+    const unauthMachineConfirm = await fetch(`${baseUrl}/pagamento/maquininha/confirmar`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ orderId: 'ped-smoke-unauth' })
+    });
+    if (unauthMachineConfirm.status !== 401) {
+      throw new Error('Maquininha confirmar sem autenticacao deveria retornar 401.');
+    }
+
+    const authorizedMachineConfirm = await fetch(`${baseUrl}/pagamento/maquininha/confirmar`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ orderId: 'ped-smoke-missing' })
+    });
+    if (authorizedMachineConfirm.status !== 404) {
+      throw new Error('Admin autenticado deveria passar pela autorizacao e receber 404 para pedido inexistente.');
+    }
+
+    const resetAttempt = await fetch(`${baseUrl}/auth/forgot-password`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: 'admin@example.test' })
+    });
+    if (resetAttempt.status !== 503) {
+      throw new Error('Recuperacao sem token/email configurado deveria falhar fechado com 503.');
+    }
+
+    const allowedOrigin = await fetch(`${baseUrl}/informacoes`, {
+      headers: { origin: 'https://japaprp.github.io' }
+    });
+    if (allowedOrigin.status !== 200 || allowedOrigin.headers.get('access-control-allow-origin') !== 'https://japaprp.github.io') {
+      throw new Error('Origem oficial do GitHub Pages deveria ser permitida pelo CORS.');
+    }
+    const untrustedOrigin = await fetch(`${baseUrl}/informacoes`, {
+      headers: { origin: 'https://untrusted.onrender.com' }
+    });
+    if (untrustedOrigin.status !== 403) {
+      throw new Error('Origem Render nao cadastrada deveria receber 403.');
+    }
+
+    const oversizedPayload = await fetch(`${baseUrl}/auth/login`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ payload: 'x'.repeat(1024 * 1024 + 100) })
+    });
+    if (oversizedPayload.status !== 413) {
+      throw new Error('Payload JSON acima de 1 MB deveria receber 413.');
     }
 
     const farmaciaError = await fetch(`${baseUrl}/produtos`, {
