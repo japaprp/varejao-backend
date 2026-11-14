@@ -1071,7 +1071,7 @@ export function updateProductionStatus(orderId, stage) {
   return normalizeOrder(order);
 }
 
-export function settleOperationalOrder(orderId, { payments = [], discountAmount = 0, note = '' } = {}) {
+export function settleOperationalOrder(orderId, { payments, discountAmount, note = '' } = {}) {
   const db = readDb();
   ensureCollections(db);
   const order = getOrderById(db, orderId);
@@ -1084,20 +1084,73 @@ export function settleOperationalOrder(orderId, { payments = [], discountAmount 
     return normalizeOrder(order);
   }
 
+  const baseSubtotal = Number(order.subtotal);
+  const requestedDiscount = discountAmount === undefined || discountAmount === null || discountAmount === ''
+    ? Number(order.desconto || 0)
+    : Number(discountAmount);
+  if (!Number.isFinite(baseSubtotal) || baseSubtotal < 0 ||
+      !Number.isFinite(requestedDiscount) || requestedDiscount < 0 || requestedDiscount > baseSubtotal) {
+    const err = new Error('Desconto ou subtotal invalido para fechamento.');
+    err.status = 400;
+    throw err;
+  }
+
+  if (!Array.isArray(payments) || payments.length === 0) {
+    const err = new Error('Informe ao menos uma forma de pagamento para fechar o pedido como pago.');
+    err.status = 400;
+    throw err;
+  }
+
+  const allowedMethods = new Set([
+    'cash', 'dinheiro', 'pix', 'debit', 'debito', 'debit_card',
+    'credit', 'credito', 'credit_card', 'maquininha',
+    'mercadopago', 'mercado pago'
+  ]);
+  for (const entry of payments) {
+    const rawMethod = String(entry?.method || '').trim().toLowerCase();
+    const amount = Number(entry?.amount);
+    if (!allowedMethods.has(rawMethod) || !Number.isFinite(amount) || amount <= 0) {
+      const err = new Error('Forma ou valor de pagamento invalido.');
+      err.status = 400;
+      throw err;
+    }
+    if (['cash', 'dinheiro'].includes(rawMethod)) {
+      const received = entry?.amountReceived === undefined || entry?.amountReceived === null || entry?.amountReceived === ''
+        ? amount
+        : Number(entry.amountReceived);
+      if (!Number.isFinite(received) || received < amount) {
+        const err = new Error('Valor recebido em dinheiro nao pode ser menor que o valor da venda.');
+        err.status = 400;
+        throw err;
+      }
+    }
+  }
+
+  const totalDue = roundCurrency(baseSubtotal - requestedDiscount);
+  const normalizedPayments = normalizeCheckoutPayments(payments, '', totalDue);
+  if (normalizedPayments.length !== payments.length) {
+    const err = new Error('Uma ou mais formas de pagamento nao puderam ser validadas.');
+    err.status = 400;
+    throw err;
+  }
+  const totalPaid = roundCurrency(
+    normalizedPayments.reduce((sum, item) => sum + Number(item.amount || 0), 0)
+  );
+  if (Math.abs(totalPaid - totalDue) > 0.01) {
+    const err = new Error(
+      `Total pago divergente. Esperado ${totalDue.toFixed(2)} e recebido ${totalPaid.toFixed(2)}.`
+    );
+    err.status = 400;
+    throw err;
+  }
+
   const items = aggregateItemsByProduct(order.itens || []);
   ensureStockAvailability(db, items, { exceptOrderId: order.id });
   applyStockDeduction(db, items);
 
-  const baseSubtotal = Number(order.subtotal || 0);
-  const appliedDiscount = Math.max(0, Number(discountAmount || order.desconto || 0));
-  const totalBase = Math.max(0, baseSubtotal - appliedDiscount);
-  const totalPaid = Number(
-    (payments || []).reduce((sum, item) => sum + Number(item?.amount || 0), 0).toFixed(2)
-  );
-
-  order.desconto = appliedDiscount;
-  order.totalBase = totalBase;
-  order.total = totalBase;
+  order.desconto = requestedDiscount;
+  order.totalBase = totalDue;
+  order.total = totalDue;
   order.frete = 0;
   order.status = 'Pago';
   order.kitchenStage = 'delivered';
@@ -1105,9 +1158,9 @@ export function settleOperationalOrder(orderId, { payments = [], discountAmount 
   order.payment = {
     ...(order.payment || {}),
     status: 'approved',
-    method: payments.length === 1 ? payments[0]?.method || null : 'multiple',
+    method: resolvePaymentSummaryMethod(normalizedPayments, null),
     totalPaid,
-    entries: payments,
+    entries: normalizedPayments,
     updatedAt: new Date().toISOString()
   };
 
