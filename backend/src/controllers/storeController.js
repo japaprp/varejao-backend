@@ -447,7 +447,10 @@ export function getPedidosPorCpf(req, res) {
     return res.json(listOrdersByCpf(requestedCpf));
   }
 
-  const targetCpf = userCpf || requestedCpf;
+  if (!userCpf) {
+    return res.status(403).json({ erro: 'Associe um CPF verificado a sua conta para consultar o historico de pedidos.' });
+  }
+  const targetCpf = userCpf;
   if (!targetCpf) {
     return res.status(400).json({ erro: 'CPF do usuario nao disponivel para consulta.' });
   }
