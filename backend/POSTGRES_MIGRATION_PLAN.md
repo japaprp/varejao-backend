@@ -28,6 +28,28 @@ The connected Render workspace was inspected without changing resources:
 
 Evidence scope: service metadata, workspace resource inventory, and deployment metadata only. No environment variable values, logs, database contents, or user records were read.
 
+## Additional operational payment integrity audit (2026-11-14)
+
+A static review found that `settleOperationalOrder()` previously marked an operational order as paid and deducted stock without requiring a non-empty payment list or reconciling the payment total against the order total. It also accepted arbitrary payment method strings and did not bound the requested discount to the subtotal. This could create a paid order with zero/underpayment and a stock deduction.
+
+The PR branch now:
+- requires at least one payment entry;
+- validates each method against the supported operational payment methods;
+- rejects non-finite/non-positive payment amounts;
+- validates discounts as finite and between zero and subtotal;
+- requires the rounded payment sum to match the amount due within R$0.01;
+- validates cash received amount and change;
+- normalizes and persists validated payment entries;
+- performs stock availability checks and deduction only after payment validation succeeds.
+
+Regression smoke coverage now exercises empty payments, excessive discount, underpayment, unknown method, non-numeric amount, insufficient cash received, and inconsistent change. It verifies failed settlements leave both order status and stock unchanged before a valid PIX settlement.
+
+## Rate-limiter client-IP trust — BLOCKED pending proxy topology confirmation
+
+Static review also found that `rateLimitMiddleware.js` currently keys buckets from the leftmost `X-Forwarded-For` value. That value is client-controllable unless a trusted reverse proxy sanitizes/appends the chain and the Express trust-proxy configuration matches the actual topology. The app currently does not configure `trust proxy`. Using a spoofable address can let callers rotate identities and bypass per-IP limits; simply enabling `trust proxy` with an assumed hop count can also trust spoofed values or produce a shared-proxy limit.
+
+No speculative proxy trust setting was added. Before changing this control, verify the Render ingress chain and whether direct-to-origin access is possible; then configure an explicit trusted proxy policy and use Express `req.ip`/a bounded distributed limiter. The current in-memory limiter is also per-process and not distributed, so it is not a production-grade control across multiple instances. Treat this as a release blocker until verified and corrected.
+
 ## Production account audit — BLOCKED pending authorized access
 
 Before any migration/cutover, an authorized operator must take a provider-side, read-only snapshot and produce a privacy-preserving report with:
