@@ -2,7 +2,10 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { spawn } from 'child_process';
-import { confirmMachinePayment } from '../src/services/cartService.js';
+import { addCartItem, confirmMachinePayment, createPendingOrder } from '../src/services/cartService.js';
+import { readDb } from '../src/data/repository.js';
+import { verifyWebhookSignature, validatePaymentForOrder } from '../src/services/paymentService.js';
+import crypto from 'crypto';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -115,6 +118,25 @@ async function main() {
     const token = String(login?.token || '');
     if (!token) {
       throw new Error('Login smoke nao retornou token.');
+    }
+
+    const webhookManifest = 'id:987654321;request-id:smoke-request-1;ts:1700000000000;';
+    const webhookDigest = crypto.createHmac('sha256', 'smoke-webhook-secret').update(webhookManifest).digest('hex');
+    if (!verifyWebhookSignature({
+      xSignature: `ts=1700000000000,v1=${webhookDigest}`,
+      xRequestId: 'smoke-request-1',
+      dataId: '987654321',
+      secret: 'smoke-webhook-secret'
+    })) {
+      throw new Error('Assinatura HMAC valida deveria ser aceita.');
+    }
+    if (verifyWebhookSignature({
+      xSignature: `ts=1700000000000,v1=${webhookDigest}`,
+      xRequestId: 'request-id-adulterado',
+      dataId: '987654321',
+      secret: 'smoke-webhook-secret'
+    })) {
+      throw new Error('Assinatura HMAC com request-id adulterado deveria ser rejeitada.');
     }
 
     let serviceDeniedWithoutActor = false;
@@ -248,6 +270,76 @@ async function main() {
         codigoInterno: `PAD-${Date.now()}`
       }
     });
+
+    const machineCartId = 'caixa-smoke-maquininha';
+    addCartItem({ produtoId: produto.id, quantidade: 1 }, machineCartId);
+    const machineOrder = createPendingOrder({ cartId: machineCartId, metodoPagamento: 'maquininha' });
+
+    let missingProofRejected = false;
+    try {
+      confirmMachinePayment(machineOrder.id, {
+        confirmedBy: { id: login.usuario?.id || 'smoke-admin', role: 'admin' }
+      });
+    } catch (error) {
+      missingProofRejected = error.status === 400;
+    }
+    if (!missingProofRejected) {
+      throw new Error('Confirmacao da maquininha sem NSU/autorizacao deveria retornar 400.');
+    }
+
+    const confirmedMachineOrder = confirmMachinePayment(machineOrder.id, {
+      nsu: 'NSU123456',
+      confirmedBy: { id: login.usuario?.id || 'smoke-admin', role: 'admin' }
+    });
+    const persistedMachineOrder = readDb().pedidos.find((item) => item.id === machineOrder.id);
+    if (confirmedMachineOrder.status !== 'Pago' ||
+        persistedMachineOrder?.payment?.transactionReference !== 'NSU123456' ||
+        persistedMachineOrder?.payment?.confirmedBy?.id !== (login.usuario?.id || 'smoke-admin') ||
+        !persistedMachineOrder?.payment?.confirmedAt) {
+      throw new Error('Confirmacao valida nao persistiu NSU, operador e horario.');
+    }
+
+    let duplicateMachineConfirmationRejected = false;
+    try {
+      confirmMachinePayment(machineOrder.id, {
+        nsu: 'NSU123456',
+        confirmedBy: { id: login.usuario?.id || 'smoke-admin', role: 'admin' }
+      });
+    } catch (error) {
+      duplicateMachineConfirmationRejected = error.status === 409;
+    }
+    if (!duplicateMachineConfirmationRejected) {
+      throw new Error('Confirmacao duplicada da maquininha deveria retornar 409.');
+    }
+
+    const validPayment = {
+      id: 'mp-payment-1',
+      external_reference: 'order-1',
+      currency_id: 'BRL',
+      collector_id: 'collector-1',
+      transaction_amount: 25.50
+    };
+    const validOrder = { id: 'order-1', total: 25.50 };
+    if (!validatePaymentForOrder(validPayment, validOrder, 'collector-1')) {
+      throw new Error('Pagamento com pedido, valor, moeda e recebedor correspondentes deveria ser aceito.');
+    }
+    for (const invalidPayment of [
+      { ...validPayment, transaction_amount: 25.49 },
+      { ...validPayment, currency_id: 'USD' },
+      { ...validPayment, collector_id: 'collector-2' },
+      { ...validPayment, external_reference: 'other-order' }
+    ]) {
+      if (validatePaymentForOrder(invalidPayment, validOrder, 'collector-1')) {
+        throw new Error('Pagamento divergente deveria ser rejeitado.');
+      }
+    }
+
+    const webhookWithoutConfig = await fetch(`${baseUrl}/pagamento/webhook?data.id=987654321`, {
+      method: 'POST'
+    });
+    if (webhookWithoutConfig.status !== 503) {
+      throw new Error('Webhook sem segredo e ID do recebedor configurados deveria falhar fechado com 503.');
+    }
 
     const produtosPadaria = await request('/produtos?businessProfile=padaria');
     if (!Array.isArray(produtosPadaria) || !produtosPadaria.some((item) => item.id === produto.id)) {
