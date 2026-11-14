@@ -1118,8 +1118,14 @@ export function settleOperationalOrder(orderId, { payments, discountAmount, note
       const received = entry?.amountReceived === undefined || entry?.amountReceived === null || entry?.amountReceived === ''
         ? amount
         : Number(entry.amountReceived);
-      if (!Number.isFinite(received) || received < amount) {
-        const err = new Error('Valor recebido em dinheiro nao pode ser menor que o valor da venda.');
+      const expectedChange = roundCurrency(received - amount);
+      const suppliedChange = entry?.changeAmount === undefined || entry?.changeAmount === null || entry?.changeAmount === ''
+        ? expectedChange
+        : Number(entry.changeAmount);
+      if (!Number.isFinite(received) || received < amount ||
+          !Number.isFinite(suppliedChange) || suppliedChange < 0 ||
+          Math.abs(suppliedChange - expectedChange) > 0.01) {
+        const err = new Error('Valor recebido ou troco em dinheiro invalido.');
         err.status = 400;
         throw err;
       }
