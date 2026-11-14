@@ -34,6 +34,8 @@ A static review found that `settleOperationalOrder()` previously marked an opera
 
 A second integrity issue was found in operational order creation: the service accepted a client-supplied unit price instead of using the trusted catalog price. The branch now ignores client price overrides, uses the catalog price, and rejects malformed items, unknown products, non-positive quantities, and invalid catalog prices.
 
+A further route audit found that the unauthenticated legacy `POST /finalizar` endpoint exposed `checkoutCart()`, which could deduct stock and create a finalized order without a trusted payment confirmation. The current repository frontend does not call this endpoint: online checkout uses the Mercado Pago preference/webhook flow, and physical checkout uses authenticated operational routes. The controller now disables the legacy endpoint with HTTP 410 and an explanatory response. Regression smoke tests submit both physical and online cart IDs to the endpoint and verify that order count and stock remain unchanged.
+
 The PR branch now:
 - requires at least one payment entry;
 - validates each method against the supported operational payment methods;
