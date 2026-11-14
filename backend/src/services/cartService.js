@@ -462,32 +462,37 @@ function buildOperationalItems(db, items = []) {
   }
 
   return items.map((rawItem) => {
-      const prod = (db.produtos || []).find((p) => String(p.id) === String(rawItem?.produtoId || ''));
-      const quantity = Number(rawItem?.quantidade);
-      const catalogPrice = Number(prod?.preco);
-      if (!prod || !Number.isFinite(quantity) || quantity <= 0 ||
-          !Number.isFinite(catalogPrice) || catalogPrice < 0) {
-        const err = new Error('Produto, quantidade ou preco de catalogo invalido no pedido operacional.');
-        err.status = 400;
-        throw err;
-      }
-      return {
-        produtoId: prod.id,
-        produto: prod.nome,
-        unidade: prod.unidade,
-        // The catalog is authoritative. Never accept a unit price supplied by the client.
-        preco: catalogPrice,
-        quantidade: quantity,
-        rotaOperacional: resolveOperationalRoute(prod, rawItem),
-        observacao: String(rawItem.observacao || '').trim() || null,
-        lote: prod.lote || null,
-        validade: prod.validade || null,
-        exigeReceita: Boolean(prod.exigeReceita),
-        tempoProducaoMin: Number(prod.tempoProducaoMin || 0),
-        estacaoProducao: String(prod.estacaoProducao || '').trim() || null,
-        sobEncomenda: Boolean(prod.sobEncomenda)
-      };
-    });
+    if (!rawItem || typeof rawItem !== 'object' || Array.isArray(rawItem)) {
+      const err = new Error('Item invalido no pedido operacional.');
+      err.status = 400;
+      throw err;
+    }
+    const prod = (db.produtos || []).find((p) => String(p.id) === String(rawItem.produtoId || ''));
+    const quantity = Number(rawItem.quantidade);
+    const catalogPrice = Number(prod?.preco);
+    if (!prod || !Number.isFinite(quantity) || quantity <= 0 ||
+        !Number.isFinite(catalogPrice) || catalogPrice < 0) {
+      const err = new Error('Produto, quantidade ou preco de catalogo invalido no pedido operacional.');
+      err.status = 400;
+      throw err;
+    }
+    return {
+      produtoId: prod.id,
+      produto: prod.nome,
+      unidade: prod.unidade,
+      // The catalog is authoritative. Never accept a unit price supplied by the client.
+      preco: catalogPrice,
+      quantidade: quantity,
+      rotaOperacional: resolveOperationalRoute(prod, rawItem),
+      observacao: String(rawItem.observacao || '').trim() || null,
+      lote: prod.lote || null,
+      validade: prod.validade || null,
+      exigeReceita: Boolean(prod.exigeReceita),
+      tempoProducaoMin: Number(prod.tempoProducaoMin || 0),
+      estacaoProducao: String(prod.estacaoProducao || '').trim() || null,
+      sobEncomenda: Boolean(prod.sobEncomenda)
+    };
+  });
 }
 
 function resolvePendingStatusByMethod(paymentMethod = 'mercadopago') {
