@@ -84,6 +84,18 @@ Do not delete or disable any account automatically. Confirm ownership and busine
 
 Route review found that `POST /operacao/pedidos/:id/fechar` used the broad operational-role set, including kitchen/production and counter-service roles. This allowed a kitchen-role token to attempt payment settlement. The route now uses a narrower payment-authorized set: admin, operator, manager, and cashier roles. Production-stage updates and order creation retain the broader operational-role set. A smoke regression creates a signed kitchen-role token and verifies settlement is rejected with HTTP 403. CI is pending.
 
+## Operator attribution and current-account authorization (2026-11-14)
+
+Operational records previously accepted an operator label from the request body, and production/settlement actions did not consistently persist the authenticated actor. The API now derives the operator identity from the authenticated session:
+- Operational order creation stores operator ID, role, and name from `req.user`; a client-supplied operator label is ignored.
+- Production-stage changes append a bounded (latest 100 events) `productionHistory` with stage, timestamp, and authenticated actor.
+- Operational settlement stores `settledBy` and `settledAt`.
+- Machine payment confirmation already stores the confirming actor and transaction reference.
+
+A separate authentication review found that `getUserByToken()` trusted the user/role snapshot embedded in a signed token until expiry. It now resolves the user ID against the current database record on every authenticated request and returns the current sanitized account. This invalidates access for deleted accounts and prevents stale role claims from retaining privileges after a role change. Smoke regressions cover stale admin-to-kitchen role refresh, deleted-user token rejection, spoofed operator labels, production actor history, and settlement attribution.
+
+The current-account lookup still uses the JSON repository. It does not solve the already documented multi-instance/concurrent-write limitations; transactional persistence and durable storage remain blocked on backup and migration readiness.
+
 ## Authorization audit follow-up (2026-11-14)
 
 Two additional authorization issues were found and corrected:
