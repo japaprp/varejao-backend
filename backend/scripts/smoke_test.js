@@ -368,6 +368,29 @@ async function main() {
       throw new Error('Config operacional de padaria nao retornou o profile esperado.');
     }
 
+    const operationalOrdersBeforeInvalidItems = readDb().pedidos.length;
+    for (const invalidItems of [
+      [{ produtoId: produto.id, quantidade: 0 }],
+      [{ produtoId: 'produto-inexistente-smoke', quantidade: 1 }],
+      [null]
+    ]) {
+      const invalidOperationalOrder = await fetch(`${baseUrl}/operacao/pedidos`, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+        body: JSON.stringify({
+          businessProfile: 'padaria',
+          tableId: 'BALCAO-INVALIDO',
+          items: invalidItems
+        })
+      });
+      if (invalidOperationalOrder.status !== 400) {
+        throw new Error(`Item operacional invalido deveria retornar 400, recebeu ${invalidOperationalOrder.status}.`);
+      }
+    }
+    if (readDb().pedidos.length !== operationalOrdersBeforeInvalidItems) {
+      throw new Error('Itens operacionais invalidos criaram pedidos indevidos.');
+    }
+
     const pedido = await request('/operacao/pedidos', {
       method: 'POST',
       token,
