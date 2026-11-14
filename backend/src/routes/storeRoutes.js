@@ -106,8 +106,8 @@ router.get('/operacao/producao', requireAuth, requireRole(operationalRoles), get
 router.patch('/operacao/pedidos/:id/producao-status', requireAuth, requireRole(operationalRoles), putProductionStatusController);
 router.post('/operacao/pedidos/:id/fechar', requireAuth, requireRole(operationalRoles), postOperationalSettlementController);
 router.post('/pagamento/preferencia', paymentLimiter, postPagamentoPreferencia);
-router.post('/pagamento/maquininha/iniciar', paymentLimiter, postPagamentoMaquininhaIniciar);
-router.post('/pagamento/maquininha/confirmar', paymentLimiter, postPagamentoMaquininhaConfirmar);
+router.post('/pagamento/maquininha/iniciar', paymentLimiter, requireAuth, requireRole(['admin', 'operador', 'gerente', 'manager', 'caixa', 'cashier']), postPagamentoMaquininhaIniciar);
+router.post('/pagamento/maquininha/confirmar', paymentLimiter, requireAuth, requireRole(['admin', 'operador', 'gerente', 'manager', 'caixa', 'cashier']), postPagamentoMaquininhaConfirmar);
 router.post('/pagamento/webhook', paymentLimiter, postPagamentoWebhook);
 router.get('/pedidos', requireAuth, getPedidosPorCpf);
 router.get('/admin/pedidos', requireAuth, requireRole(['admin', 'operador']), getPedidosAdmin);
