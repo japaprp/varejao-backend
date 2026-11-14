@@ -57,7 +57,6 @@ const orders = Array.isArray(db.pedidos) ? db.pedidos : [];
 const idAudits = {
   produtos: checkUniqueIds('produtos', products),
   usuarios: checkUniqueIds('usuarios', users),
-  cupons: checkUniqueIds('cupons', coupons),
   pedidos: checkUniqueIds('pedidos', orders),
   saidas: checkUniqueIds('saidas', Array.isArray(db.saidas) ? db.saidas : [])
 };
@@ -109,7 +108,9 @@ for (const order of orders) {
 if (invalidOrderLines) errors.push(`pedidos: ${invalidOrderLines} invalid item references/quantities`);
 
 const couponCodes = coupons.map((coupon) => String(coupon?.codigo || '').trim().toLowerCase()).filter(Boolean);
+const missingCouponCodes = coupons.length - couponCodes.length;
 const duplicateCouponCodes = duplicateCount(couponCodes);
+if (missingCouponCodes) errors.push(`cupons: ${missingCouponCodes} records without a code`);
 if (duplicateCouponCodes) errors.push(`cupons: ${duplicateCouponCodes} duplicate normalized codes`);
 
 const report = {
@@ -123,6 +124,7 @@ const report = {
     malformedPasswordHashes: malformedHashes,
     invalidProductPriceOrStockRecords: invalidProductValues,
     invalidOrderItemReferencesOrQuantities: invalidOrderLines,
+    missingCouponCodes,
     duplicateNormalizedCouponCodes: duplicateCouponCodes
   },
   errors
