@@ -378,11 +378,15 @@ async function main() {
         items: [
           {
             produtoId: produto.id,
-            quantidade: 2
+            quantidade: 2,
+            preco: 0.01
           }
         ]
       }
     });
+    if (pedido?.itens?.[0]?.preco !== 1.5 || pedido?.subtotal !== 3) {
+      throw new Error('Pedido operacional aceitou preco adulterado enviado pelo cliente.');
+    }
 
     const fila = await request('/operacao/producao?profile=padaria', {
       token
