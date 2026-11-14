@@ -470,7 +470,7 @@ async function main() {
       body: {
         businessProfile: 'padaria',
         tableId: 'BALCAO-1',
-        operator: 'Smoke QA',
+        operator: 'Cliente tentou falsificar o operador',
         items: [
           {
             produtoId: produto.id,
@@ -482,6 +482,11 @@ async function main() {
     });
     if (pedido?.itens?.[0]?.preco !== 1.5 || pedido?.subtotal !== 3) {
       throw new Error('Pedido operacional aceitou preco adulterado enviado pelo cliente.');
+    }
+    if (pedido?.operadorId !== login.usuario?.id ||
+        pedido?.operadorRole !== login.usuario?.role ||
+        pedido?.operador === 'Cliente tentou falsificar o operador') {
+      throw new Error('Pedido operacional aceitou identidade de operador fornecida pelo cliente.');
     }
 
     const kitchenToken = createSmokeAuthToken({
@@ -516,6 +521,13 @@ async function main() {
     });
     if (preparo?.status !== 'Em preparo') {
       throw new Error('Atualizacao de producao nao retornou status esperado.');
+    }
+    const productionAudit = readDb().pedidos.find((item) => item.id === pedido.id)?.productionHistory || [];
+    const latestProductionEvent = productionAudit[productionAudit.length - 1];
+    if (latestProductionEvent?.stage !== 'preparing' ||
+        latestProductionEvent?.actor?.id !== login.usuario?.id ||
+        latestProductionEvent?.actor?.role !== login.usuario?.role) {
+      throw new Error('Historico de producao nao registrou a identidade autenticada do operador.');
     }
 
     const stockBeforeInvalidSettlement = readDb().produtos.find((item) => item.id === produto.id)?.estoque;
@@ -558,8 +570,11 @@ async function main() {
       }
     });
     if (fechado?.status !== 'Pago' || fechado?.payment?.totalPaid !== 3 ||
-        fechado?.payment?.entries?.length !== 1) {
-      throw new Error('Fechamento operacional valido nao reconciliou pagamento.');
+        fechado?.payment?.entries?.length !== 1 ||
+        fechado?.settledBy?.id !== login.usuario?.id ||
+        fechado?.settledBy?.role !== login.usuario?.role ||
+        !fechado?.settledAt) {
+      throw new Error('Fechamento operacional valido nao reconciliou pagamento e identidade do operador.');
     }
     const stockAfterValidSettlement = readDb().produtos.find((item) => item.id === produto.id)?.estoque;
     if (stockAfterValidSettlement !== stockBeforeInvalidSettlement - 2) {
