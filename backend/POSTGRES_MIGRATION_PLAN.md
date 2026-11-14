@@ -94,6 +94,8 @@ Operational records previously accepted an operator label from the request body,
 
 A separate authentication review found that `getUserByToken()` trusted the user/role snapshot embedded in a signed token until expiry. It now resolves the user ID against the current database record on every authenticated request and returns the current sanitized account. This invalidates access for deleted accounts and prevents stale role claims from retaining privileges after a role change. Smoke regressions cover stale admin-to-kitchen role refresh, deleted-user token rejection, spoofed operator labels, production actor history, and settlement attribution.
 
+Validation: GitHub Actions run #76 passed on commit `caf43773374f60e76d522d20f6c801703a766be0`. Logs confirm migration preflight `errors: []`, rate-limiter tests, upload-policy tests, and full smoke QA. Runs #72–#75 revealed test-fixture gaps caused by the new current-account lookup (synthetic test identities were not persisted in the smoke database); the fixtures now create the corresponding temporary database users before signing tokens.
+
 The current-account lookup still uses the JSON repository. It does not solve the already documented multi-instance/concurrent-write limitations; transactional persistence and durable storage remain blocked on backup and migration readiness.
 
 ## Authorization audit follow-up (2026-11-14)
