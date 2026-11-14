@@ -375,6 +375,23 @@ async function main() {
       throw new Error('Webhook sem segredo e ID do recebedor configurados deveria falhar fechado com 503.');
     }
 
+    const publicPhysicalCartId = 'caixa-smoke-public-finalizar';
+    addCartItem({ produtoId: produto.id, quantidade: 1 }, publicPhysicalCartId);
+    const ordersBeforePublicPhysicalFinalize = readDb().pedidos.length;
+    const stockBeforePublicPhysicalFinalize = readDb().produtos.find((item) => item.id === produto.id)?.estoque;
+    const publicPhysicalFinalize = await fetch(`${baseUrl}/finalizar`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-cart-id': publicPhysicalCartId },
+      body: JSON.stringify({ payments: [{ method: 'pix', amount: 1.5 }] })
+    });
+    if (publicPhysicalFinalize.status !== 403) {
+      throw new Error(`Finalizacao publica de venda fisica deveria retornar 403, recebeu ${publicPhysicalFinalize.status}.`);
+    }
+    if (readDb().pedidos.length !== ordersBeforePublicPhysicalFinalize ||
+        readDb().produtos.find((item) => item.id === produto.id)?.estoque !== stockBeforePublicPhysicalFinalize) {
+      throw new Error('Finalizacao publica fisica alterou pedidos ou estoque sem operador autenticado.');
+    }
+
     const idProbeOrderA = createOperationalOrder({
       businessProfile: 'padaria',
       items: [{ produtoId: produto.id, quantidade: 1 }]
