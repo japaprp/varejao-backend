@@ -32,16 +32,11 @@ app.use(cors({
     // Permite chamadas sem Origin (curl, webhook server-to-server).
     if (!origin) return callback(null, true);
 
-    // Base segura para ambientes de desenvolvimento e serviços Render.
+    // Hosts remotos precisam estar explicitamente cadastrados; apenas localhost e origens exatas sao aceitos.
     if (isLocalOrigin(origin)) {
       return callback(null, true);
     }
 
-    if (allowedOrigins.length === 0) {
-      const err = new Error('CORS_ALLOWED_ORIGINS nao configurado');
-      err.status = 403;
-      return callback(err);
-    }
     if (allowedOrigins.includes(origin)) return callback(null, true);
     const err = new Error('Origem nao permitida pelo CORS');
     err.status = 403;
