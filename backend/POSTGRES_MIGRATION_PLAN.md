@@ -78,6 +78,14 @@ Before any migration/cutover, an authorized operator must take a provider-side, 
 
 Do not delete or disable any account automatically. Confirm ownership and business purpose with the system owner before remediation. If a known demo identity exists in production, suspend login through an approved, reversible procedure, rotate credentials, and preserve audit evidence; do not infer its password from a hash.
 
+## Deployed seed snapshot schema preflight (2026-11-14)
+
+A new read-only, privacy-safe `backend/scripts/audit_migration_source.js` validates collection shapes, primary identifiers, normalized email uniqueness, role values, bcrypt hash format, product price/stock values, order item references/quantities, and coupon-code uniqueness. It prints only aggregate counts and validation failures, never record values or PII.
+
+The deployed commit's tracked seed file has 12 top-level collections: 38 products, 7 users, 2 coupons, 1 cash/expense record, and empty order/stock-movement/customer-loyalty arrays; the remaining configuration collections are objects. The 7 users comprise 1 customer, 1 admin, and 5 operational roles; all 7 have bcrypt-formatted hashes. Product and user records use string IDs, while coupons have no `id` field and are keyed by `codigo`. The first preflight test incorrectly assumed coupon IDs; CI exposed that schema mismatch, and the checker was corrected to validate normalized coupon codes instead.
+
+These results describe only the deployed Git snapshot, not the mutable Render runtime file. The script is a source preflight, not a live backup or import rehearsal.
+
 ## Target recommendation: PostgreSQL
 
 PostgreSQL is recommended for transactional persistence because order, payment, inventory, coupon, loyalty, and cash-closing operations need atomic multi-record changes, constraints, indexes, and concurrent transaction isolation. This repository currently has no `pg` driver, connection pool, schema migration framework, or verified database URL. Therefore no runtime switch is safe yet.
