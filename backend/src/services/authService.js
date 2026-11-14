@@ -359,6 +359,13 @@ export async function loginWithFacebookToken(payload) {
 
 export function getUserByToken(token) {
   const payload = verifyAuthToken(token);
-  if (!payload || !payload.user) return null;
-  return payload.user;
+  const tokenUserId = String(payload?.user?.id || '').trim();
+  if (!tokenUserId) return null;
+
+  // Authorization claims are refreshed from the current account record on every request.
+  // A signed token must not preserve stale roles or access after account removal.
+  const db = readDb();
+  const currentUser = (db.usuarios || []).find((user) => String(user.id || '') === tokenUserId);
+  if (!currentUser) return null;
+  return sanitizeUser(currentUser);
 }
