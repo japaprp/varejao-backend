@@ -292,11 +292,17 @@ async function main() {
       throw new Error('Cliente comum deveria receber 403 ao confirmar pagamento na maquininha.');
     }
 
-    const cpfLessCustomerToken = createSmokeAuthToken({
-      id: 'smoke-no-cpf-customer',
+    const noCpfSuffix = crypto.randomBytes(6).toString('hex');
+    const cpfLessCustomer = registerUser({
       nome: 'Cliente sem CPF',
-      email: 'smoke-no-cpf@example.test',
-      role: 'cliente',
+      email: `smoke-no-cpf-${noCpfSuffix}@example.test`,
+      senha: `NoCpf-${noCpfSuffix}!`
+    });
+    const cpfLessCustomerToken = createSmokeAuthToken({
+      id: cpfLessCustomer.usuario.id,
+      nome: cpfLessCustomer.usuario.nome,
+      email: cpfLessCustomer.usuario.email,
+      role: cpfLessCustomer.usuario.role,
       cpf: ''
     }, smokeTokenSecret);
     const arbitraryCpfHistory = await fetch(`${baseUrl}/pedidos?cpf=52998224725`, {
