@@ -345,7 +345,11 @@ export function postPagamentoMaquininhaConfirmar(req, res, next) {
       return res.status(400).json({ erro: 'orderId obrigatorio' });
     }
 
-    const pedido = confirmMachinePayment(orderId, { nsu, autorizacao });
+    const pedido = confirmMachinePayment(orderId, {
+      nsu,
+      autorizacao,
+      confirmedBy: { id: req.user?.id, role: req.user?.role }
+    });
     notifyCheckout(pedido?.cartId, 'maquininha_confirmada');
     return res.json({ sucesso: true, pedido });
   } catch (error) {
