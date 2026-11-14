@@ -148,10 +148,20 @@ PostgreSQL is recommended for transactional persistence because order, payment, 
 
 ## Current status
 
-- Static repository persistence audit: PASS.
-- Tracked JSON snapshot account summary: PASS (7 records; 5 legacy demo identity matches).
-- Live production account audit: BLOCKED (no authorized host/database read access in this task).
-- PostgreSQL provider/connection configuration: NOT RUN (not selected/verified).
-- Import rehearsal and checksum reconciliation: NOT RUN.
-- Runtime adapter replacement: NOT RUN.
+- Render proxy/client-IP handling review: PASS (followed current Render guidance; no speculative Express trust-proxy hop count).
+- Bounded local rate limiter and deterministic tests: PASS.
+- Distributed/durable rate-limit store: BLOCKED (no Varejão-owned store; do not reuse another project's Redis).
+- Legacy unauthenticated `POST /finalizar` route closure and no-mutation regression tests: PASS.
+- Operational payment reconciliation, stock-preservation, stock-once/idempotency tests: PASS.
+- Collision-resistant order/payment/user IDs and regression tests: PASS.
+- Image upload MIME allowlist, magic-byte validation, UUID naming, and tests: PASS.
+- Static repository persistence audit and deployed snapshot schema preflight: PASS.
+- Tracked JSON snapshot account summary: PASS (7 records; 5 operational identities; no duplicate normalized emails; bcrypt hashes present).
+- Render live filesystem persistence risk: CONFIRMED CRITICAL (Free plan, local JSON and uploads directories are ephemeral).
+- Live runtime backup/export: BLOCKED (no SSH/shell on Free plan; no full-database export endpoint; current mutable runtime file not accessible through approved read-only channel).
+- Live production account audit: BLOCKED until a trustworthy runtime export is obtained.
+- PostgreSQL destination: NOT RUN (no Varejão-specific Render or Supabase project found; no resource created).
+- Import rehearsal/checksum reconciliation: NOT RUN (requires a preserved source snapshot and dedicated isolated PostgreSQL).
+- Transactional runtime adapter: NOT RUN (must follow verified source backup and isolated import rehearsal).
+- Durable media storage: NOT RUN (requires a Varejão-owned object-storage target).
 - Production migration/cutover: NOT AUTHORIZED; not performed.
