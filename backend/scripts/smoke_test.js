@@ -537,6 +537,17 @@ async function main() {
       throw new Error('Pedido operacional aceitou identidade de operador fornecida pelo cliente.');
     }
 
+    const kitchenUserDb = readDb();
+    kitchenUserDb.usuarios = (kitchenUserDb.usuarios || []).filter((user) => user.id !== 'smoke-kitchen-user');
+    kitchenUserDb.usuarios.push({
+      id: 'smoke-kitchen-user',
+      nome: 'Smoke Kitchen',
+      email: 'kitchen@example.test',
+      senhaHash: '',
+      role: 'cozinha',
+      cpf: ''
+    });
+    writeDb(kitchenUserDb);
     const kitchenToken = createSmokeAuthToken({
       id: 'smoke-kitchen-user',
       nome: 'Smoke Kitchen',
