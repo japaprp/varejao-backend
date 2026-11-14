@@ -2,9 +2,10 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { spawn } from 'child_process';
-import { addCartItem, confirmMachinePayment, createPendingOrder } from '../src/services/cartService.js';
+import { addCartItem, confirmMachinePayment, createPendingOrder, createOperationalOrder } from '../src/services/cartService.js';
 import { readDb } from '../src/data/repository.js';
 import { verifyWebhookSignature, validatePaymentForOrder } from '../src/services/paymentService.js';
+import { registerUser } from '../src/services/authService.js';
 import crypto from 'crypto';
 import { assertRuntimeConfig } from '../src/config/env.js';
 
@@ -193,6 +194,22 @@ async function main() {
       throw new Error('Admin autenticado deveria passar pela autorizacao e receber 404 para pedido inexistente.');
     }
 
+    const idProbeSuffix = crypto.randomBytes(6).toString('hex');
+    const idProbeUserA = registerUser({
+      nome: 'ID Probe A',
+      email: `id-probe-a-${idProbeSuffix}@example.test`,
+      senha: `Probe-${idProbeSuffix}-A!`
+    });
+    const idProbeUserB = registerUser({
+      nome: 'ID Probe B',
+      email: `id-probe-b-${idProbeSuffix}@example.test`,
+      senha: `Probe-${idProbeSuffix}-B!`
+    });
+    if (!idProbeUserA.usuario?.id || !idProbeUserB.usuario?.id ||
+        idProbeUserA.usuario.id === idProbeUserB.usuario.id) {
+      throw new Error('Cadastros distintos geraram IDs de usuario iguais.');
+    }
+
     const customerPassword = `Smoke-${Date.now()}-A!`;
     const customer = await request('/auth/register', {
       method: 'POST',
@@ -356,6 +373,18 @@ async function main() {
     });
     if (webhookWithoutConfig.status !== 503) {
       throw new Error('Webhook sem segredo e ID do recebedor configurados deveria falhar fechado com 503.');
+    }
+
+    const idProbeOrderA = createOperationalOrder({
+      businessProfile: 'padaria',
+      items: [{ produtoId: produto.id, quantidade: 1 }]
+    });
+    const idProbeOrderB = createOperationalOrder({
+      businessProfile: 'padaria',
+      items: [{ produtoId: produto.id, quantidade: 1 }]
+    });
+    if (!idProbeOrderA?.id || !idProbeOrderB?.id || idProbeOrderA.id === idProbeOrderB.id) {
+      throw new Error('Pedidos operacionais distintos geraram IDs iguais.');
     }
 
     const produtosPadaria = await request('/produtos?businessProfile=padaria');
