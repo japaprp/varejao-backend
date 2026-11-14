@@ -80,6 +80,10 @@ Before any migration/cutover, an authorized operator must take a provider-side, 
 
 Do not delete or disable any account automatically. Confirm ownership and business purpose with the system owner before remediation. If a known demo identity exists in production, suspend login through an approved, reversible procedure, rotate credentials, and preserve audit evidence; do not infer its password from a hash.
 
+## Customer order-history authorization hardening (2026-11-14)
+
+Independent route review found that an authenticated customer account without a CPF could call `GET /pedidos?cpf=<other-customer>` because the controller fell back from the account CPF to the caller-supplied query CPF. Registration permits accounts without a CPF, so this was a real cross-customer history disclosure path. The controller now denies order-history access to non-privileged accounts without an associated CPF and never uses a caller-supplied CPF as the target for customer accounts. A smoke regression registers a CPF-less customer and verifies an arbitrary CPF query returns HTTP 403. CI for this correction is pending.
+
 ## Upload endpoint hardening (2026-11-14)
 
 The admin-only image upload path previously trusted the client-supplied MIME type and retained the sanitized original filename/extension. The branch now:
