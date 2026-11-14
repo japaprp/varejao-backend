@@ -398,6 +398,12 @@ export async function postPagamentoWebhook(req, res, next) {
       return res.status(409).json({ erro: 'Metodo de pagamento do pedido nao corresponde ao Mercado Pago.' });
     }
 
+    const orderIsAlreadyPaid = order.status === 'Pago' || order.status === 'Finalizado' ||
+      String(order.payment?.status || '').toLowerCase() === 'approved';
+    if (orderIsAlreadyPaid && payment.status !== 'approved') {
+      return res.status(409).json({ erro: 'Evento de pagamento nao pode rebaixar um pedido ja pago.' });
+    }
+
     if (payment.status === 'approved') {
       const pedido = finalizePaidOrder(orderId, {
         status: payment.status,
