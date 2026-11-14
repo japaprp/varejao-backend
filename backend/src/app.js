@@ -17,13 +17,6 @@ function isLocalOrigin(origin = '') {
   return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
 }
 
-function isRenderOrigin(origin = '') {
-  return /^https?:\/\/[a-z0-9-]+\.onrender\.com$/i.test(origin);
-}
-
-function isGithubPagesOrigin(origin = '') {
-  return /^https:\/\/[a-z0-9-]+\.github\.io$/i.test(origin);
-}
 
 app.disable('x-powered-by');
 app.use((req, res, next) => {
@@ -40,7 +33,7 @@ app.use(cors({
     if (!origin) return callback(null, true);
 
     // Base segura para ambientes de desenvolvimento e serviços Render.
-    if (isLocalOrigin(origin) || isRenderOrigin(origin) || isGithubPagesOrigin(origin)) {
+    if (isLocalOrigin(origin)) {
       return callback(null, true);
     }
 
@@ -55,7 +48,7 @@ app.use(cors({
     return callback(err);
   }
 }));
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 app.use(storeRoutes);
 
