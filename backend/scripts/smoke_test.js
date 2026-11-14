@@ -8,7 +8,6 @@ import { verifyWebhookSignature, validatePaymentForOrder } from '../src/services
 import { registerUser } from '../src/services/authService.js';
 import crypto from 'crypto';
 import { assertRuntimeConfig } from '../src/config/env.js';
-import { createAuthToken } from '../src/utils/security.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -485,9 +484,13 @@ async function main() {
       throw new Error('Pedido operacional aceitou preco adulterado enviado pelo cliente.');
     }
 
-    const kitchenToken = createAuthToken({
-      user: { id: 'smoke-kitchen-user', nome: 'Smoke Kitchen', email: 'kitchen@example.test', role: 'cozinha' }
-    }, 60 * 60 * 1000);
+    const kitchenToken = createSmokeAuthToken({
+      id: 'smoke-kitchen-user',
+      nome: 'Smoke Kitchen',
+      email: 'kitchen@example.test',
+      role: 'cozinha',
+      cpf: ''
+    }, smokeTokenSecret);
     const kitchenSettlement = await fetch(`${baseUrl}/operacao/pedidos/${pedido.id}/fechar`, {
       method: 'POST',
       headers: { authorization: `Bearer ${kitchenToken}`, 'content-type': 'application/json' },
