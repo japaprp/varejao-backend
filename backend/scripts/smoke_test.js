@@ -402,6 +402,30 @@ async function main() {
       throw new Error('Atualizacao de producao nao retornou status esperado.');
     }
 
+    const stockBeforeInvalidSettlement = readDb().produtos.find((item) => item.id === produto.id)?.estoque;
+    for (const invalidBody of [
+      {},
+      { discountAmount: 999, payments: [{ method: 'pix', amount: 3 }] },
+      { discountAmount: 0, payments: [{ method: 'pix', amount: 2 }] },
+      { discountAmount: 0, payments: [{ method: 'unknown-method', amount: 3 }] },
+      { discountAmount: 0, payments: [{ method: 'pix', amount: 'not-a-number' }] }
+    ]) {
+      const rejectedSettlement = await fetch(`${baseUrl}/operacao/pedidos/${pedido.id}/fechar`, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+        body: JSON.stringify(invalidBody)
+      });
+      if (rejectedSettlement.status !== 400) {
+        throw new Error(`Fechamento operacional invalido deveria retornar 400, recebeu ${rejectedSettlement.status}.`);
+      }
+    }
+    const orderAfterRejectedSettlements = readDb().pedidos.find((item) => item.id === pedido.id);
+    const stockAfterRejectedSettlement = readDb().produtos.find((item) => item.id === produto.id)?.estoque;
+    if (orderAfterRejectedSettlements?.status !== 'Em preparo' ||
+        stockAfterRejectedSettlement !== stockBeforeInvalidSettlement) {
+      throw new Error('Tentativa de fechamento invalida alterou pedido ou estoque.');
+    }
+
     const fechado = await request(`/operacao/pedidos/${pedido.id}/fechar`, {
       method: 'POST',
       token,
@@ -415,8 +439,9 @@ async function main() {
         ]
       }
     });
-    if (fechado?.status !== 'Pago') {
-      throw new Error('Fechamento operacional nao concluiu como Pago.');
+    if (fechado?.status !== 'Pago' || fechado?.payment?.totalPaid !== 3 ||
+        fechado?.payment?.entries?.length !== 1) {
+      throw new Error('Fechamento operacional valido nao reconciliou pagamento.');
     }
 
     console.log('Smoke QA ok: auth, catalogo, producao e fechamento operacional validados.');
