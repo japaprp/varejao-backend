@@ -32,6 +32,8 @@ Evidence scope: service metadata, workspace resource inventory, and deployment m
 
 A static review found that `settleOperationalOrder()` previously marked an operational order as paid and deducted stock without requiring a non-empty payment list or reconciling the payment total against the order total. It also accepted arbitrary payment method strings and did not bound the requested discount to the subtotal. This could create a paid order with zero/underpayment and a stock deduction.
 
+A second integrity issue was found in operational order creation: the service accepted a client-supplied unit price instead of using the trusted catalog price. The branch now ignores client price overrides, uses the catalog price, and rejects malformed items, unknown products, non-positive quantities, and invalid catalog prices.
+
 The PR branch now:
 - requires at least one payment entry;
 - validates each method against the supported operational payment methods;
