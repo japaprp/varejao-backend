@@ -110,7 +110,7 @@ export function verifyWebhookSignature({ xSignature = '', xRequestId = '', dataI
   );
   const timestamp = fields.ts;
   const receivedSignature = fields.v1;
-  if (!/^\\d+$/.test(timestamp || '') || !/^[a-f0-9]{64}$/i.test(receivedSignature || '')) {
+  if (!/^\d+$/.test(timestamp || '') || !/^[a-f0-9]{64}$/i.test(receivedSignature || '')) {
     return false;
   }
 
