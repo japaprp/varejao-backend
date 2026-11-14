@@ -714,11 +714,30 @@ export function confirmMachinePayment(orderId, paymentInfo = {}) {
     throw err;
   }
 
-  const transactionId = String(paymentInfo?.nsu || paymentInfo?.autorizacao || '').trim() || ('maq_' + Date.now());
+  if (order.status === 'Pago' || order.status === 'Finalizado' || order.payment?.status === 'approved') {
+    const err = new Error('Pagamento da maquininha ja foi confirmado.');
+    err.status = 409;
+    throw err;
+  }
+  if (String(order.status || '').toLowerCase() !== 'aguardando pagamento na maquininha' ||
+      String(order.payment?.status || '').toLowerCase() !== 'pending') {
+    const err = new Error('Pedido nao esta aguardando confirmacao da maquininha.');
+    err.status = 409;
+    throw err;
+  }
+
+  const transactionId = String(paymentInfo?.nsu || paymentInfo?.autorizacao || '').trim();
+  if (!/^[A-Za-z0-9._/-]{4,80}$/.test(transactionId)) {
+    const err = new Error('NSU ou codigo de autorizacao valido e obrigatorio para confirmar a maquininha.');
+    err.status = 400;
+    throw err;
+  }
+
   return finalizePaidOrder(orderId, {
     status: 'approved',
     id: transactionId,
     method: 'maquininha',
+    transactionReference: transactionId,
     confirmedBy: { id: confirmerId, role: confirmerRole },
     confirmedAt: new Date().toISOString()
   });
@@ -756,6 +775,7 @@ export function finalizePaidOrder(orderId, paymentInfo = {}) {
     status: paymentInfo.status || 'approved',
     id: paymentInfo.id || order.payment?.id || null,
     method: paymentInfo.method || order.payment?.method || null,
+    ...(paymentInfo.transactionReference ? { transactionReference: paymentInfo.transactionReference } : {}),
     ...(paymentInfo.confirmedBy ? { confirmedBy: paymentInfo.confirmedBy } : {}),
     ...(paymentInfo.confirmedAt ? { confirmedAt: paymentInfo.confirmedAt } : {}),
     updatedAt: new Date().toISOString()
