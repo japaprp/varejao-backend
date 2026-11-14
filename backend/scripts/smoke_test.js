@@ -218,7 +218,7 @@ async function main() {
         nome: 'Cliente Smoke',
         email: `smoke-${Date.now()}@example.test`,
         senha: customerPassword,
-        cpf: '12345678901',
+        cpf: '52998224725',
         cep: '12345678',
         rua: 'Rua Smoke',
         bairro: 'Centro',
@@ -248,7 +248,7 @@ async function main() {
     if (!cpfLessCustomer?.token) {
       throw new Error('Cadastro smoke sem CPF nao retornou token.');
     }
-    const arbitraryCpfHistory = await fetch(`${baseUrl}/pedidos?cpf=12345678901`, {
+    const arbitraryCpfHistory = await fetch(`${baseUrl}/pedidos?cpf=52998224725`, {
       headers: { authorization: `Bearer ${cpfLessCustomer.token}` }
     });
     if (arbitraryCpfHistory.status !== 403) {
