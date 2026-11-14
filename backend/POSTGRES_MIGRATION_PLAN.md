@@ -84,6 +84,16 @@ Do not delete or disable any account automatically. Confirm ownership and busine
 
 Route review found that `POST /operacao/pedidos/:id/fechar` used the broad operational-role set, including kitchen/production and counter-service roles. This allowed a kitchen-role token to attempt payment settlement. The route now uses a narrower payment-authorized set: admin, operator, manager, and cashier roles. Production-stage updates and order creation retain the broader operational-role set. A smoke regression creates a signed kitchen-role token and verifies settlement is rejected with HTTP 403. CI is pending.
 
+## Authorization audit follow-up (2026-11-14)
+
+Two additional authorization issues were found and corrected:
+- Customer order history: a customer account with no associated CPF could previously supply another CPF in `GET /pedidos?cpf=...`. Customer accounts without an associated CPF are now denied; customer history lookup always targets the CPF bound to the authenticated token. Regression test verifies HTTP 403 for a validly signed CPF-less customer token.
+- Operational settlement: the settlement route previously accepted the broad operational role set, including kitchen/production users. It now permits only admin, operator, manager, and cashier roles. Production queue/status and order creation retain the broader operational role set. Regression test verifies a signed kitchen-role token receives HTTP 403.
+
+QA evidence:
+- Runs #59–#66 exposed defects in the new test fixtures, not failures in the application corrections: the CPF test used a checksum-invalid sample, and subsequent test tokens were signed with the parent process's unset secret rather than the isolated smoke server secret. The fixtures were corrected to use a valid synthetic CPF and tokens signed with the smoke server's configured secret.
+- GitHub Actions run #67 passed on commit `0d786594f2610b8d3a6d8403c6f68a357a76db4e`. Logs confirm migration preflight `errors: []`, rate-limiter tests, upload-policy tests, and full smoke QA (`auth, payments, catalog, stock, production, orders, and recovery`).
+
 ## Customer order-history authorization hardening (2026-11-14)
 
 Independent route review found that an authenticated customer account without a CPF could call `GET /pedidos?cpf=<other-customer>` because the controller fell back from the account CPF to the caller-supplied query CPF. Registration permits accounts without a CPF, so this was a real cross-customer history disclosure path. The controller now denies order-history access to non-privileged accounts without an associated CPF and never uses a caller-supplied CPF as the target for customer accounts. A smoke regression registers a CPF-less customer and verifies an arbitrary CPF query returns HTTP 403. CI for this correction is pending.
