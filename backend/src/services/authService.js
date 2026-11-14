@@ -16,7 +16,7 @@ const SESSION_TTL_MS = 1000 * 60 * 60 * 12;
 const googleClient = GOOGLE_CLIENT_ID ? new OAuth2Client(GOOGLE_CLIENT_ID) : null;
 
 function ensureOperationalSeedUsers(db) {
-  if (DISABLE_DEMO_OPERATIONAL_USERS) {
+  if (DISABLE_DEMO_OPERATIONAL_USERS || !DEMO_OPERATIONAL_PASSWORD) {
     return false;
   }
   db.usuarios = db.usuarios || [];
