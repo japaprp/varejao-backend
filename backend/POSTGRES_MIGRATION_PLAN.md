@@ -46,7 +46,7 @@ The PR branch now:
 
 Regression smoke coverage now exercises empty payments, excessive discount, underpayment, unknown method, non-numeric amount, insufficient cash received, and inconsistent change. It verifies failed settlements leave both order status and stock unchanged before a valid PIX settlement.
 
-## Rate-limiter client-IP trust — BLOCKED pending proxy topology confirmation
+## Rate limiter — bounded local implementation; distributed persistence remains blocked
 
 The Render service is a public Render Web Service. Render's current security guidance explicitly says inbound traffic passes through Cloudflare and Render load balancers, the socket address is a proxy address, and applications should read `X-Forwarded-For` for the client IP. It recommends application-level rate limiting and a distributed store such as Render Key Value when running multiple instances. Therefore, the previous claim that simply using the first `X-Forwarded-For` value proves a spoofing vulnerability was too strong and is withdrawn. We did not enable Express `trust proxy` or assume a hop count.
 
