@@ -6,15 +6,15 @@ function clone(value) {
 }
 
 class FakeClient {
-  constructor(pool) { this.pool = pool; this.working = null; this.released = false; }
+  constructor(pool) { this.pool = pool; this.working = null; this.started = false; this.released = false; }
   async query(sql, params = []) {
     const normalized = String(sql).replace(/\\s+/g, ' ').trim().toUpperCase();
     this.pool.events.push(normalized.split(' ')[0]);
-    if (normalized === 'BEGIN') { this.working = clone(this.pool.state); return { rowCount: null, rows: [] }; }
-    if (normalized === 'COMMIT') { this.pool.state = clone(this.working); this.working = null; return { rowCount: null, rows: [] }; }
-    if (normalized === 'ROLLBACK') { this.working = null; return { rowCount: null, rows: [] }; }
+    if (normalized === 'BEGIN') { this.working = this.pool.state ? clone(this.pool.state) : null; this.started = true; return { rowCount: null, rows: [] }; }
+    if (normalized === 'COMMIT') { this.pool.state = clone(this.working); this.working = null; this.started = false; return { rowCount: null, rows: [] }; }
+    if (normalized === 'ROLLBACK') { this.working = null; this.started = false; return { rowCount: null, rows: [] }; }
     if (normalized.includes('SELECT REVISION, PAYLOAD') && normalized.includes('FOR UPDATE')) {
-      if (!this.working) throw new Error('Transaction not started');
+      if (!this.started) throw new Error('Transaction not started');
       if (!this.working) return { rowCount: 0, rows: [] };
       return { rowCount: 1, rows: [{ revision: this.working.revision, payload: clone(this.working.payload) }] };
     }
