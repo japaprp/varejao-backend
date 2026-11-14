@@ -42,6 +42,18 @@ async function waitForServer(timeoutMs = 20000) {
   throw lastError || new Error('Servidor nao respondeu dentro do tempo esperado.');
 }
 
+function createSmokeAuthToken(user, secret) {
+  const now = Date.now();
+  const payload = {
+    user,
+    iat: now,
+    exp: now + 60 * 60 * 1000
+  };
+  const encoded = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const signature = crypto.createHmac('sha256', secret).update(encoded).digest('base64url');
+  return `${encoded}.${signature}`;
+}
+
 async function request(pathname, { method = 'GET', token = '', body } = {}) {
   const headers = {};
   if (token) {
@@ -239,17 +251,15 @@ async function main() {
       throw new Error('Cliente comum deveria receber 403 ao confirmar pagamento na maquininha.');
     }
 
-    const noCpfSuffix = crypto.randomBytes(6).toString('hex');
-    const cpfLessCustomer = registerUser({
+    const cpfLessCustomerToken = createSmokeAuthToken({
+      id: 'smoke-no-cpf-customer',
       nome: 'Cliente sem CPF',
-      email: `smoke-no-cpf-${noCpfSuffix}@example.test`,
-      senha: `NoCpf-${noCpfSuffix}!`
-    });
-    if (!cpfLessCustomer?.token) {
-      throw new Error('Cadastro smoke sem CPF nao retornou token.');
-    }
+      email: 'smoke-no-cpf@example.test',
+      role: 'cliente',
+      cpf: ''
+    }, smokeTokenSecret);
     const arbitraryCpfHistory = await fetch(`${baseUrl}/pedidos?cpf=52998224725`, {
-      headers: { authorization: `Bearer ${cpfLessCustomer.token}` }
+      headers: { authorization: `Bearer ${cpfLessCustomerToken}` }
     });
     if (arbitraryCpfHistory.status !== 403) {
       throw new Error(`Cliente sem CPF nao pode consultar historico por CPF arbitrario; esperado 403, recebido ${arbitraryCpfHistory.status}.`);
