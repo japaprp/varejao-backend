@@ -6,7 +6,6 @@ import {
 } from '../services/catalogService.js';
 import {
   addCartItem,
-  checkoutCart,
   createPendingOrder,
   createOperationalOrder,
   confirmMachinePayment,
@@ -275,15 +274,10 @@ export function streamAdminOperacao(req, res) {
   req.on('close', cleanup);
 }
 
-export function postFinalizar(req, res, next) {
-  try {
-    const cartId = getCartId(req);
-    const result = checkoutCart({ ...(req.body || {}), cartId });
-    notifyCheckout(result.cartId || cartId, 'checkout_finalizado');
-    res.json(result);
-  } catch (error) {
-    next(error);
-  }
+export function postFinalizar(req, res) {
+  return res.status(410).json({
+    erro: 'Endpoint legado de finalizacao desativado. Para compras online, inicie o pagamento pelo Mercado Pago; para vendas fisicas, use o fluxo operacional autenticado.'
+  });
 }
 
 export async function postPagamentoPreferencia(req, res, next) {
