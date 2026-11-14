@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { getProductById, getProductByName } from './catalogService.js';
 import {
   calculateCouponDiscount,
@@ -332,7 +333,7 @@ function normalizeCheckoutPayments(payments = [], fallbackMethod = '', defaultAm
       const note = String(entry?.note || '').trim() || null;
 
       return {
-        id: `pay_${Date.now()}_${index + 1}`,
+        id: `pay_${randomUUID()}`,
         method,
         amount,
         amountReceived,
@@ -359,7 +360,7 @@ function normalizeCheckoutPayments(payments = [], fallbackMethod = '', defaultAm
 
   return [
     {
-      id: `pay_${Date.now()}_1`,
+      id: `pay_${randomUUID()}`,
       method: resolvedMethod,
       amount: roundedAmount,
       amountReceived: resolvedMethod === 'cash' ? roundedAmount : null,
@@ -666,7 +667,7 @@ export function createPendingOrder({
   const paymentMethod = resolvePaymentMethod(metodoPagamento);
 
   const order = {
-    id: `ped_${Date.now()}`,
+    id: `ped_${randomUUID()}`,
     createdAt: new Date().toISOString(),
     cartId: cartKey,
     canal: channel,
@@ -842,7 +843,7 @@ export function checkoutCart({
   applyStockDeduction(db, items);
 
   const order = {
-    id: `ped_${Date.now()}`,
+    id: `ped_${randomUUID()}`,
     createdAt: new Date().toISOString(),
     cartId: cartKey,
     canal: channel,
@@ -1002,9 +1003,9 @@ export function createOperationalOrder({
     enrichedItems.reduce((sum, item) => sum + Number(item.preco || 0) * Number(item.quantidade || 0), 0).toFixed(2)
   );
   const order = {
-    id: `ped_${Date.now()}`,
+    id: `ped_${randomUUID()}`,
     createdAt: new Date().toISOString(),
-    cartId: resolveCartId(cartId || `operacao-${Date.now()}`),
+    cartId: resolveCartId(cartId || `operacao-${randomUUID()}`),
     canal: 'fisico',
     origemOperacional: 'app',
     businessProfile: operationalConfig.businessProfile,
