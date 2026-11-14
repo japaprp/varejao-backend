@@ -836,6 +836,11 @@ export function checkoutCart({
   desconto = Math.min(subtotal, desconto + manualDiscount);
 
   const channel = resolveChannelFromCartId(cartKey);
+  if (channel === 'fisico') {
+    const err = new Error('Pedidos fisicos devem usar o fluxo operacional autenticado.');
+    err.status = 403;
+    throw err;
+  }
   const { totalBase, frete, total } = buildOrderTotals({ subtotal, desconto, channel });
 
   const items = aggregateItemsByProduct(cart);
@@ -858,11 +863,6 @@ export function checkoutCart({
     nomeCliente: nomeCliente || null,
     status: 'Finalizado'
   };
-  if (channel === 'fisico') {
-    const normalizedPayments = normalizeCheckoutPayments(payments, metodoPagamento, total);
-    applyPhysicalCheckoutSettlement(order, normalizedPayments, note);
-  }
-
   db.pedidos.push(order);
 
   db.carrinhos[cartKey] = [];
@@ -875,11 +875,7 @@ export function checkoutCart({
 
   return {
     sucesso: true,
-    mensagem: channel === 'fisico'
-      ? (order.status === 'Pago'
-          ? 'Venda fisica finalizada com pagamento registrado.'
-          : 'Venda fisica finalizada sem conciliacao de pagamento.')
-      : 'Compra finalizada!',
+    mensagem: 'Compra finalizada!',
     subtotal,
     desconto,
     totalBase,
