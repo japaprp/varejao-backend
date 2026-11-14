@@ -80,6 +80,18 @@ Before any migration/cutover, an authorized operator must take a provider-side, 
 
 Do not delete or disable any account automatically. Confirm ownership and business purpose with the system owner before remediation. If a known demo identity exists in production, suspend login through an approved, reversible procedure, rotate credentials, and preserve audit evidence; do not infer its password from a hash.
 
+## Upload endpoint hardening (2026-11-14)
+
+The admin-only image upload path previously trusted the client-supplied MIME type and retained the sanitized original filename/extension. The branch now:
+- accepts only JPEG, PNG, WebP, and GIF MIME types (SVG and active document types are rejected);
+- buffers uploads with the existing 5 MB limit and validates the file signature before writing;
+- generates a random UUID filename with an extension derived from the detected signature, not the supplied filename;
+- rejects content whose signature does not match an allowed raster image.
+
+The upload policy test covers supported formats, SVG/HTML/JavaScript rejection, valid image signatures, and non-image content. GitHub Actions run #53 passed the upload policy tests, rate-limiter tests, migration-source preflight, and smoke QA.
+
+Remaining limitation: accepted images are still written under the service-local `uploads/` directory. On the active Render Free service this directory is ephemeral, so durable media storage must move to a Varejão-owned object-storage bucket/CDN before production use.
+
 ## PostgreSQL destination discovery (2026-11-14)
 
 Read-only inventory of the connected Supabase account found no project identified as Varejão. The available projects belong to other workstreams and were not inspected or reused. Render inventory likewise contains no Varejão Postgres instance. The expired EventosRP Postgres and Guerra Infinita Key Value resources are explicitly out of scope.
