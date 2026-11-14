@@ -84,6 +84,20 @@ Do not delete or disable any account automatically. Confirm ownership and busine
 
 Route review found that `POST /operacao/pedidos/:id/fechar` used the broad operational-role set, including kitchen/production and counter-service roles. This allowed a kitchen-role token to attempt payment settlement. The route now uses a narrower payment-authorized set: admin, operator, manager, and cashier roles. Production-stage updates and order creation retain the broader operational-role set. A smoke regression creates a signed kitchen-role token and verifies settlement is rejected with HTTP 403. CI is pending.
 
+## Public cart/session ownership and checkout identity — release blocker (2026-11-14)
+
+Static route/service review found an unresolved trust boundary:
+- `POST/GET /carrinho`, `GET /checkout`, and `GET /stream/checkout` are public and identify a cart using caller-controlled `x-cart-id`, query `cartId`, or body `cartId`.
+- When no cart ID is supplied, `resolveCartId()` falls back to the shared key `default`.
+- Public `POST /pagamento/preferencia` uses the supplied cart ID to create a pending order and clears that cart. Checkout CPF and customer name are also accepted from the request body.
+- There is no server-side cart owner/session binding or proof that a supplied CPF belongs to the caller. An absent/default cart ID can therefore cause cross-session cart access; predictable/reused cart IDs can expose cart/checkout state or interfere with another checkout. Client-supplied CPF also cannot be treated as verified identity.
+
+Status: **BLOCKED — not changed in this backend-only PR**. The repository contains no frontend client, so the current cart-ID generation/storage contract cannot be verified. Blindly requiring a new token format could break the external storefront. Before release, inspect the actual frontend and migrate to an opaque high-entropy server-issued cart capability (or authenticated owner binding), remove the shared `default` fallback, bind checkout to that capability, add expiration and idempotency, and verify customer identity before associating CPF/loyalty data. Do not treat a caller-supplied cart ID or CPF as authorization.
+
+## Concurrent writes and transactional integrity — release blocker
+
+The current JSON repository still performs synchronous whole-file read/modify/write without cross-process locking, atomic compare-and-swap, or database transactions. Single-process smoke tests cannot prove correctness under multiple instances or concurrent requests. A process-local lock would not protect separate instances and is not an adequate production fix. This remains **BLOCKED** until a verified backup is preserved, an isolated Varejão-owned database is selected, and transactional persistence plus concurrency/rollback tests are implemented. No live data or infrastructure has been changed.
+
 ## Operator attribution and current-account authorization (2026-11-14)
 
 Operational records previously accepted an operator label from the request body, and production/settlement actions did not consistently persist the authenticated actor. The API now derives the operator identity from the authenticated session:
