@@ -162,6 +162,32 @@ The repository contains the storefront frontend; this is not an external-client-
 - `admin.html` displays cart IDs in its active-cart table. No separate physical-cart creation or authenticated cart-session issuance flow was found in the inspected frontend.
 - `Carrinho.html` is only a redirect page. No other storefront page in the repository defines an alternative cart-token contract.
 
+### LeitorCodigo Mobile integration — external client compatibility (2026-11-14)
+
+The companion repository `japaprp/leitordecodigo` was inspected because it directly integrates with the Varejão cart API. Its README identifies it as a React Native + Expo Android PDV/scanner app (not a browser extension in the inspected repository). Do not treat it as a separate browser extension unless another artifact/repository is supplied.
+
+**Confirmed integration contract**
+- `src/integrations/http/varejaoBridge.ts` sends scanned items to `POST /carrinho` using `x-cart-id`; checkout summary uses `GET /checkout` with the same header.
+- The bridge uses `sessionId` as the cart ID (fallback to `clientOrderId`). There is no cart-session bootstrap call, no `X-Cart-Token`, no owner binding, and no cart capability lifecycle.
+- `src/integrations/adapters/mockPdvAdapter.ts` selects the Varejão bridge when the configured send endpoint includes `/carrinho`. It passes configured integration headers from `buildHeaders(cfg)`, but the operator token created by the app's current mock `authenticate()` is not used to authorize cart writes or checkout reads.
+- Current mock authentication checks non-empty username/password and tenant license only; it derives the operator ID and role from user input and issues a mock token. It is not production authentication.
+- The app creates `clientOrderId` and stores offline work per tenant in SQLite, but its in-memory `processedActions` map is not durable or shared across app restarts/devices. End-to-end duplicate prevention therefore depends on a server-side unique/idempotency contract that is not established by this cart bridge.
+- The bridge resolves product IDs against the catalog but falls back to the app-supplied `productId` when it cannot resolve a match. The backend must validate the product against its own catalog and calculate price/total server-side; it must not trust the mobile item's price/name/subtotal.
+- The bridge performs one `POST /carrinho` per scanned item, then reads `/checkout`. The new API must preserve this shape during the compatibility window or introduce a versioned batch endpoint and update the mobile app in a coordinated release.
+- The app's README explicitly marks real-device scanner validation, offline retry/backoff, atomic idempotency, secure operator/device authentication, tenant isolation, and failure recovery as production roadmap items. The September audit records the same mock-auth and client-side total risks.
+
+**Required coordinated change**
+1. Keep `cart_id` as a locator for compatibility, but require a separate 256-bit cart capability in `X-Cart-Token` for all cart mutations and reads.
+2. Add a mobile session-bootstrap operation to the Varejão bridge and persist the returned capability securely on-device (never SQLite plaintext unless protected by the platform keystore; assess Expo SecureStore integration before implementation).
+3. Bind each session server-side to the authenticated tenant, device/operator, store, channel, and expiry. Never infer tenant or physical/online channel from client-supplied IDs.
+4. Replace mock authentication with server-issued short-lived operator/device credentials and role scopes. A configured static API key may identify an integration client, but must not impersonate individual operators or grant unrestricted tenant access.
+5. Add an idempotent batch/order endpoint accepting `clientOrderId`, with a unique server-side constraint and transactionally persisted result. Retry after timeout must return the original result.
+6. Continue accepting item identifiers only as lookup hints. Re-resolve product, current price, stock, discounts, and totals from the backend catalog inside the same transaction that reserves/records the order.
+7. Preserve the offline queue and tenant partitioning, but do not report a queued item as accepted/processed by the backend. Keep explicit pending/sending/confirmed/failed states and clear only after server-confirmed idempotent acknowledgment.
+8. Run contract tests against both clients (web storefront and LeitorCodigo Android), including cross-tenant/cart isolation, missing/expired token, unauthorized role, replay, duplicate retry, timeout after server commit, price tampering, product mismatch, and app restart while offline.
+
+**Status:** source audit PASS; no LeitorCodigo source or Varejão runtime code changed as part of this compatibility review. Coordinated implementation, Android device tests, and real PostgreSQL integration remain NOT RUN/BLOCKED.
+
 ### Existing backend behavior — confirmed
 
 - `GET/POST /carrinho`, `GET /checkout`, `GET /stream/checkout`, and `POST /pagamento/preferencia` are public.
