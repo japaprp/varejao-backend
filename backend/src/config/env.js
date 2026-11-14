@@ -9,8 +9,26 @@ export const CORS_ALLOWED_ORIGINS = process.env.CORS_ALLOWED_ORIGINS || FRONTEND
 export const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 export const FACEBOOK_APP_ID = process.env.FACEBOOK_APP_ID || '';
 export const FACEBOOK_APP_SECRET = process.env.FACEBOOK_APP_SECRET || '';
-export const TOKEN_SECRET = process.env.TOKEN_SECRET || 'troque-este-token-secret-em-producao';
+// Never ship a reusable signing key. Configure a unique random value (32+ chars) in the host.
+export const TOKEN_SECRET = process.env.TOKEN_SECRET || '';
 export const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@varejao.com';
-export const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123456';
-export const DEMO_OPERATIONAL_PASSWORD = process.env.DEMO_OPERATIONAL_PASSWORD || '12345678';
-export const DISABLE_DEMO_OPERATIONAL_USERS = process.env.DISABLE_DEMO_OPERATIONAL_USERS === 'true';
+// No built-in administrator or operational passwords.
+export const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
+export const DEMO_OPERATIONAL_PASSWORD = process.env.DEMO_OPERATIONAL_PASSWORD || '';
+// Demo operational accounts are opt-in, not created by default.
+export const DISABLE_DEMO_OPERATIONAL_USERS = process.env.DISABLE_DEMO_OPERATIONAL_USERS !== 'false';
+
+export function assertRuntimeConfig(env = process.env) {
+  const tokenSecret = String(env.TOKEN_SECRET || '');
+  if (tokenSecret.length < 32) {
+    throw new Error('Configuracao invalida: TOKEN_SECRET deve ser definido com pelo menos 32 caracteres aleatorios.');
+  }
+  if (env.NODE_ENV === 'production' && !String(env.ADMIN_PASSWORD || '')) {
+    throw new Error('Configuracao invalida: ADMIN_PASSWORD deve ser definido no ambiente de producao.');
+  }
+  const demoDisabled = env.DISABLE_DEMO_OPERATIONAL_USERS !== 'false';
+  if (env.NODE_ENV === 'production' && !demoDisabled && !String(env.DEMO_OPERATIONAL_PASSWORD || '')) {
+    throw new Error('Configuracao invalida: DEMO_OPERATIONAL_PASSWORD e obrigatorio quando contas operacionais de demonstracao estao habilitadas.');
+  }
+  return true;
+}
