@@ -238,6 +238,24 @@ async function main() {
       throw new Error('Cliente comum deveria receber 403 ao confirmar pagamento na maquininha.');
     }
 
+    const cpfLessCustomer = await request('/auth/register', {
+      method: 'POST',
+      body: {
+        nome: 'Cliente sem CPF',
+        email: `smoke-no-cpf-${crypto.randomBytes(6).toString('hex')}@example.test`,
+        senha: `NoCpf-${crypto.randomBytes(6).toString('hex')}!`
+      }
+    });
+    if (!cpfLessCustomer?.token) {
+      throw new Error('Cadastro smoke sem CPF nao retornou token.');
+    }
+    const arbitraryCpfHistory = await fetch(`${baseUrl}/pedidos?cpf=12345678901`, {
+      headers: { authorization: `Bearer ${cpfLessCustomer.token}` }
+    });
+    if (arbitraryCpfHistory.status !== 403) {
+      throw new Error(`Cliente sem CPF nao pode consultar historico por CPF arbitrario; esperado 403, recebido ${arbitraryCpfHistory.status}.`);
+    }
+
     const resetAttempt = await fetch(`${baseUrl}/auth/forgot-password`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
