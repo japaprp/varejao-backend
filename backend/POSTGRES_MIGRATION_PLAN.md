@@ -80,6 +80,81 @@ Before any migration/cutover, an authorized operator must take a provider-side, 
 
 Do not delete or disable any account automatically. Confirm ownership and business purpose with the system owner before remediation. If a known demo identity exists in production, suspend login through an approved, reversible procedure, rotate credentials, and preserve audit evidence; do not infer its password from a hash.
 
+## Checkout/cart contract audit and compatibility-first ownership design (2026-11-14)
+
+### Existing frontend contract — confirmed from repository source
+
+The repository contains the storefront frontend; this is not an external-client-only integration. The current browser contract is:
+- `app-core.js` stores `cart_id` in localStorage. It accepts a `?cart=` URL parameter and overwrites the stored ID. New IDs use `crypto.randomUUID()`, with a weaker `Date.now()+Math.random()` fallback.
+- `index.html` captures the cart ID synchronously at page load, appends it to `Pagamento.html?api=...&cart=...`, and sends it as `X-Cart-Id` on `POST /carrinho`.
+- `Pagamento.html` resolves the same ID, sends `X-Cart-Id` to `GET /checkout`, cart rehydration, `POST /pagamento/preferencia`, and `POST /pagamento/maquininha/iniciar`; it puts the cart ID in the EventSource URL as `?cartId=...`.
+- The frontend keeps a second local cart (`cart_items`) and attempts to rehydrate the backend cart if the backend returns an empty cart. This is an existing recovery path and must be preserved during rollout.
+- `Pagamento.html` decides whether to show the physical/maquininha UI by regex-matching the caller-controlled cart ID (`caixa|pdv|balcao|fisic|sessao|session|mesa|comanda`). The backend independently derives channel from the same string. A client-controlled identifier is therefore also controlling business channel.
+- `admin.html` displays cart IDs in its active-cart table. No separate physical-cart creation or authenticated cart-session issuance flow was found in the inspected frontend.
+- `Carrinho.html` is only a redirect page. No other storefront page in the repository defines an alternative cart-token contract.
+
+### Existing backend behavior — confirmed
+
+- `GET/POST /carrinho`, `GET /checkout`, `GET /stream/checkout`, and `POST /pagamento/preferencia` are public.
+- `getCartId(req)` trusts `X-Cart-Id`, query `cartId`, or body `cartId`, in that order.
+- Missing IDs become the shared `default` key in `cartService.resolveCartId()`.
+- Cart contents are stored in `database.json` under `carrinhos[cartId]`; there is no session owner, capability hash, expiration, or revocation record.
+- Checkout SSE subscriptions are keyed only by cart ID. `notifyCheckout()` publishes the checkout preview, including item details and totals, to every subscriber with that ID.
+- `POST /pagamento/preferencia` creates and persists a pending order and clears the cart before calling Mercado Pago. A provider error/timeout can therefore leave an empty cart and a pending order without a usable preference. There is no application idempotency key.
+- The pending order stores caller-provided CPF/name. On payment approval, `finalizePaidOrder()` calls `applyLoyalty(order.cpf, order.nomeCliente, order.total)`; an unverified CPF can therefore receive loyalty attribution.
+- The physical/maquininha routes require an authenticated operator. However, the current `Pagamento.html` requests for both `POST /pagamento/maquininha/iniciar` and `POST /pagamento/maquininha/confirmar` do not send an Authorization header. The page's public physical-mode detection and backend role gate are inconsistent; the current browser flow appears unable to complete those protected requests. This needs a dedicated UI/authentication contract test before changing the route.
+- The maquininha start endpoint also receives a caller-selected cart ID; physical channel must not be inferred from a public identifier.
+- CORS is configured with exact allowed origins and the `cors` package defaults. The new contract should explicitly document/allow `X-Cart-Token` and `Idempotency-Key` and include OPTIONS preflight tests.
+
+### Security and compatibility conclusions
+
+1. `cart_id` is currently both a locator and a bearer credential. It is exposed in the URL, page text, browser history, and SSE query string. It must become a non-secret locator; authorization must use a separate capability never placed in a URL.
+2. The shared `default` cart must be removed. Requests without an explicit valid cart session must return 401/400 and must never read or create a shared cart.
+3. The business channel must be server-owned session metadata, not a regex over a client-controlled ID. Public self-service session issuance creates `online` sessions only. Physical sessions/orders must be created through authenticated operator workflows with explicit role, store, and channel scope.
+4. A cart capability must be generated with a cryptographically secure 256-bit random value. Store only its SHA-256 hash, bind it to a random public cart ID, channel, optional authenticated owner, created/last-used/expiry timestamps, and revocation state. Compare hashes safely; do not log or display the raw capability.
+5. Guest checkout can remain available, but a typed CPF/name is not proof of identity. Preserve the UI fields as unverified purchase details if legally/operationally needed; do not associate them with customer history or award loyalty until verified. For logged-in customers, derive identity from the current authenticated account. For guests, add an explicit verification flow before loyalty attribution.
+6. The browser's local `cart_items` fallback and rehydration behavior must remain functional. Session rotation should rebind the existing cart only when the client proves possession of the old high-entropy cart capability; do not silently claim arbitrary legacy IDs. For clients that lost their old capability, start a fresh cart and let the existing local-cart rehydration restore only the items still present in that browser.
+7. The EventSource API cannot set a custom Authorization header. Replace the permanent cart ID subscription with a short-lived, cart-bound stream ticket minted by an authenticated POST, or retain polling with `X-Cart-Token`. Never put the permanent cart capability in a query string.
+8. Checkout creation needs an application idempotency key bound to cart session + request fingerprint. Persist the pending order/idempotency state transactionally; retries must return the same order/preference result or a safe retry state, not create duplicate orders. Do not clear the cart irreversibly before the provider operation has a recoverable state.
+9. Expired/revoked sessions must stop reserving stock. Expiration cleanup must be transactional and must not delete carts linked to pending/paid orders.
+
+### Compatibility-first implementation and rollout (not yet implemented)
+
+**Phase 0 — contract tests and baseline**
+- Add frontend contract tests for cart ID persistence, `?cart=` behavior, local-cart fallback/rehydration, online checkout, physical/maquininha authorization, SSE/polling, and Mercado Pago return navigation.
+- Add backend regressions proving that arbitrary IDs, missing IDs, `default`, cross-session reads, and unauthorized SSE subscriptions are denied once enforcement is enabled.
+- Add tests for guest CPF not receiving loyalty credit without verification, idempotent preference retries, provider failure recovery, and physical channel authorization.
+- Record current request/response shapes as compatibility fixtures before changing them.
+
+**Phase 1 — additive v2 session capability**
+- Add `POST /carrinho/sessao` returning `cartId` (public locator) and `cartToken` (256-bit secret) for an online session. Store only token hash and session metadata.
+- Add `X-Cart-Token` to cart read/write, checkout preview, payment preference, and cart stream authorization. Keep response JSON fields and storefront UX unchanged.
+- Update `app-core.js` with an async session bootstrap; update `index.html` and `Pagamento.html` to await it before cart requests, persist the token separately, and keep `cart_id` as a locator only. Keep `cart_items` rehydration.
+- Replace SSE with token-authorized polling initially, or add a short-lived stream ticket. Do not expose the permanent token in URLs.
+- Keep legacy clients behind an explicit temporary compatibility mode, instrument only aggregate legacy-request counts, and set a documented removal date. The mode must be fail-closed when enforcement is enabled.
+
+**Phase 2 — authenticated physical flow**
+- Remove client-ID regex channel detection. Physical sales use the existing authenticated operational order/settlement routes, or a separately issued physical session bound to an operator and store.
+- Repair the maquininha UI contract: send the current operator bearer token for protected start/confirm actions, and test that kitchen/customer roles cannot initiate or confirm settlement.
+- Never allow a public online session to become physical by changing its locator.
+
+**Phase 3 — enforce and retire legacy**
+- After frontend deployment and adoption evidence, explicitly enable strict session enforcement; legacy requests without a valid capability return 401/403. This requires a separate deployment/configuration authorization and is not part of this PR.
+- Remove `default` fallback and raw cart-ID authorization. Revoke/expire legacy cart sessions safely.
+- Preserve old order `cartId` values as historical references; do not rewrite historical orders merely to rotate active cart sessions.
+
+### Release gates
+
+- No frontend/backend contract change without browser-level and API integration coverage.
+- No raw capability in URL, DOM text, logs, analytics, or admin tables.
+- Cross-session isolation tests: A cannot read, mutate, stream, or checkout B's cart.
+- Missing/expired/revoked capability tests return denial without creating a cart.
+- Physical channel and operator identity are server-derived.
+- CPF/loyalty attribution requires verified identity.
+- Preference retry/provider-timeout tests prove no duplicate order and no unrecoverable cart loss.
+- Compatibility rollout has a measured legacy window and an explicit strict-enforcement switch.
+- Current implementation status: **AUDIT PASS / DESIGN DOCUMENTED / CODE NOT RUN / ENFORCEMENT NOT ENABLED**. No production changes.
+
 ## Operational settlement role separation (2026-11-14)
 
 Route review found that `POST /operacao/pedidos/:id/fechar` used the broad operational-role set, including kitchen/production and counter-service roles. This allowed a kitchen-role token to attempt payment settlement. The route now uses a narrower payment-authorized set: admin, operator, manager, and cashier roles. Production-stage updates and order creation retain the broader operational-role set. A smoke regression creates a signed kitchen-role token and verifies settlement is rejected with HTTP 403. CI is pending.
