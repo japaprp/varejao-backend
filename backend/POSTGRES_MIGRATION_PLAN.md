@@ -113,6 +113,13 @@ This means replacing `readDb()/writeDb()` with asynchronous PostgreSQL calls is 
 - Keep append-only payment/stock/loyalty/audit ledgers. Avoid rewriting all application state for a single product or order.
 - Stage B follows only after Stage A parity and rollback tests pass; it is not a prerequisite to preserve source data safely.
 
+### Isolated repository prototype (2026-11-14)
+
+- Added `src/data/postgresRepository.js` as an injected-pool adapter prototype. It provides detached async reads and a synchronous, side-effect-free mutation callback inside `BEGIN` / `SELECT ... FOR UPDATE` / revision-checked `UPDATE` / `COMMIT`, with rollback and fail-closed behavior when the singleton row is absent.
+- Added `scripts/postgres_repository_test.js` with a deterministic fake-pool contract harness covering detached reads, locked commit/revision increment, rollback after mutator failure, rejection of async mutators, revision conflict, and missing-state rejection.
+- Added the contract test to `npm run qa`. This is a repository-interface prototype only: it is not imported by application services, no PostgreSQL driver/provider is installed or selected, and the fake-pool harness does not prove actual PostgreSQL locking/isolation. A real PostgreSQL integration test using two independent connections remains required and BLOCKED until an isolated test database can be used without creating cost or touching another project.
+- GitHub Actions run #84 passed the repository contract harness; run #85 is expected to validate the subsequent syntax-check wiring.
+
 ### Async refactor requirements
 
 - Convert repository APIs to async and update all 47 reads / 23 writes and their transitive callers. Controllers must await service results and route errors through Express error handling.
