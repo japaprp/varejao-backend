@@ -979,6 +979,7 @@ export function createOperationalOrder({
   tableId = '',
   serviceChannel = 'dine_in',
   operator = '',
+  actor = null,
   note = '',
   businessProfile = '',
   items = []
@@ -1007,7 +1008,10 @@ export function createOperationalOrder({
     businessProfile: operationalConfig.businessProfile,
     serviceChannel: String(serviceChannel || 'dine_in').trim().toLowerCase() === 'pickup' ? 'pickup' : 'dine_in',
     mesa: String(tableId || '').trim() || null,
-    operador: String(operator || '').trim() || null,
+    // Audit identity comes from the authenticated server-side actor, never the request body.
+    operador: String(actor?.nome || '').trim() || null,
+    operadorId: String(actor?.id || '').trim() || null,
+    operadorRole: String(actor?.role || '').trim().toLowerCase() || null,
     observacao: String(note || '').trim() || null,
     kitchenStage: 'received',
     status: 'Recebido',
@@ -1069,7 +1073,7 @@ export function listProductionQueue(filters = {}) {
     .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 }
 
-export function updateProductionStatus(orderId, stage) {
+export function updateProductionStatus(orderId, stage, actor = null) {
   const db = readDb();
   ensureCollections(db);
   const order = getOrderById(db, orderId);
@@ -1081,11 +1085,25 @@ export function updateProductionStatus(orderId, stage) {
   const normalized = normalizeKitchenStage(stage);
   order.kitchenStage = normalized;
   order.status = stageLabel(normalized);
+  const productionEvent = {
+    stage: normalized,
+    status: order.status,
+    changedAt: new Date().toISOString(),
+    actor: actor?.id ? {
+      id: String(actor.id),
+      role: String(actor.role || '').toLowerCase(),
+      name: String(actor.nome || '').trim() || null
+    } : null
+  };
+  order.productionHistory = [
+    ...(Array.isArray(order.productionHistory) ? order.productionHistory : []),
+    productionEvent
+  ].slice(-100);
   writeDb(db);
   return normalizeOrder(order);
 }
 
-export function settleOperationalOrder(orderId, { payments, discountAmount, note = '' } = {}) {
+export function settleOperationalOrder(orderId, { payments, discountAmount, note = '' } = {}, actor = null) {
   const db = readDb();
   ensureCollections(db);
   const order = getOrderById(db, orderId);
@@ -1175,14 +1193,21 @@ export function settleOperationalOrder(orderId, { payments, discountAmount, note
   order.status = 'Pago';
   order.kitchenStage = 'delivered';
   order.observacaoFechamento = String(note || '').trim() || null;
+  const settledAt = new Date().toISOString();
   order.payment = {
     ...(order.payment || {}),
     status: 'approved',
     method: resolvePaymentSummaryMethod(normalizedPayments, null),
     totalPaid,
     entries: normalizedPayments,
-    updatedAt: new Date().toISOString()
+    updatedAt: settledAt
   };
+  order.settledBy = actor?.id ? {
+    id: String(actor.id),
+    role: String(actor.role || '').toLowerCase(),
+    name: String(actor.nome || '').trim() || null
+  } : null;
+  order.settledAt = settledAt;
 
   writeDb(db);
   return normalizeOrder(order);
