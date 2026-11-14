@@ -80,6 +80,68 @@ Before any migration/cutover, an authorized operator must take a provider-side, 
 
 Do not delete or disable any account automatically. Confirm ownership and business purpose with the system owner before remediation. If a known demo identity exists in production, suspend login through an approved, reversible procedure, rotate credentials, and preserve audit evidence; do not infer its password from a hash.
 
+## Transactional PostgreSQL migration — implementation architecture and readiness (2026-11-14)
+
+### Repository impact inventory
+
+A source-level inventory of the current branch confirms the JSON repository is directly used by eight service modules:
+- `authService.js`: 9 reads, 6 writes.
+- `catalogService.js`: 6 reads, 3 writes.
+- `cartService.js`: 16 reads, 8 writes.
+- `financeService.js`: 3 reads, 2 writes.
+- `inventoryService.js`: 6 reads, 2 writes.
+- `loyaltyService.js`: 2 reads, 1 write.
+- `couponService.js`: 2 reads, 1 write.
+- `contentService.js`: 3 reads, 0 writes.
+- Total observed call sites: **47 readDb() and 23 writeDb()** across these service modules. The exported service surface is predominantly synchronous; only two async exports were found in authService, and the store controller has both async and synchronous handlers.
+
+This means replacing `readDb()/writeDb()` with asynchronous PostgreSQL calls is not a drop-in repository-file change. Every caller, nested service call, controller response path, webhook, and smoke fixture must be audited and migrated. A synchronous in-memory cache or fire-and-forget database flush is explicitly rejected because it would reintroduce stale reads/lost updates across instances.
+
+### Recommended two-stage persistence strategy
+
+**Stage A — transactional compatibility repository (initial cutover)**
+- Use the existing `varejao_app_state` singleton JSONB row as a temporary compatibility boundary, not as the final normalized schema.
+- Implement an async unit-of-work API. Each mutation obtains a dedicated pool client, begins a transaction, takes `SELECT ... FOR UPDATE` on singleton row 1, reads the latest revision/payload, applies a pure domain mutation to one in-memory transaction state, validates invariants, updates payload and increments revision, then commits. Any failure rolls back.
+- All nested operations in one business action must share the same transaction state; they must not open nested independent repository transactions. Refactor coupon, loyalty, inventory, catalog, and order helpers into pure functions over the shared transaction state where appropriate.
+- Read-only operations use an async consistent snapshot. No service may synchronously read a stale process cache.
+- Keep a revision check in the UPDATE as a second guard, and use a PostgreSQL advisory lock for migration/import/cutover operations.
+- This stage serializes writes at one row. It closes the current lost-update window and gives atomic rollback, but is intentionally a transitional throughput bottleneck. It is not the final normalized data model.
+
+**Stage B — normalized transactional tables**
+- Move high-contention entities into relational tables with explicit constraints and foreign keys: users, products, carts/cart sessions, cart items, orders, order items, payment attempts/events, stock movements/reservations, coupons/redemptions, loyalty ledger, cash/expense records, and audit events.
+- Use row-level locks/conditional updates for stock and order transitions. Add unique constraints for payment provider references, idempotency keys, normalized user emails, and coupon redemptions where business rules require them.
+- Keep append-only payment/stock/loyalty/audit ledgers. Avoid rewriting all application state for a single product or order.
+- Stage B follows only after Stage A parity and rollback tests pass; it is not a prerequisite to preserve source data safely.
+
+### Async refactor requirements
+
+- Convert repository APIs to async and update all 47 reads / 23 writes and their transitive callers. Controllers must await service results and route errors through Express error handling.
+- Do not mechanically wrap each old `writeDb()` in its own transaction: a single payment/order operation often spans cart clearing, coupon redemption, stock, loyalty, and payment state. These effects must commit or roll back together.
+- Define explicit transaction boundaries for: account registration/role change, catalog mutation, stock entry/loss, operational order creation, production transitions, order settlement, payment approval/webhook, coupon redemption, and loyalty accrual.
+- External calls (Mercado Pago, email, object storage) must not occur while holding a database row lock. Persist an intent/idempotency record in a transaction, perform the external call, then persist the result in a second transaction with retry/reconciliation semantics. Use an outbox/reconciliation process for uncertain provider timeouts.
+- Payment webhooks must be idempotent under duplicate and concurrent delivery. Stock deduction, coupon use, and loyalty accrual must occur exactly once per paid order.
+- Add optimistic revision checks where useful, but do not mistake an in-process mutex for cross-instance correctness.
+
+### Migration/import protocol
+
+1. **Source preservation gate:** obtain a complete authorized export of the live Render data and preserve the USB folder before any import. The committed `database.json` is only a repository snapshot; it is not a substitute for live data. Calculate SHA-256 for each preserved source and retain immutable copies.
+2. **Preflight:** validate schema, collection counts, unique IDs, foreign references, monetary values, stock, order/payment states, user hashes, cart/session references, and canonical JSON digest. Report only aggregate counts; never print PII or password hashes.
+3. **Isolated rehearsal:** import a copy of the verified source into a dedicated non-production PostgreSQL instance. Use a single transaction and advisory lock. Refuse to overwrite an existing non-empty singleton row. Record source hash, imported revision, counts, and result in `varejao_migration_audit`.
+4. **Parity checks:** compare canonical JSON digest (after explicitly documented normalization), collection counts, user/order/product IDs, order totals, stock totals, payment references, coupon redemptions, loyalty balances, and cart/order links.
+5. **Failure test:** deliberately inject a validation error and prove a full rollback leaves no partial import. Test restore from the preserved backup into a fresh isolated database.
+6. **Concurrency QA:** use at least two independent database connections/processes to race stock reservation/deduction, cart updates, order settlement, duplicate webhook events, and the same idempotency key. Verify no lost updates, duplicate charges/orders, double stock deduction, negative stock, or double loyalty accrual.
+7. **Cutover plan:** prepare a reversible maintenance window, write freeze, final delta/export, parity check, read-only verification, and rollback trigger. Cutover/deploy requires separate explicit authorization.
+8. **Post-cutover:** keep the source backup immutable through the agreed rollback window; verify health, error rate, order/payment reconciliation, and backup restore before considering the migration complete.
+
+### Readiness and blockers
+
+- Transactional schema foundation exists in `0001_postgres_foundation.sql`; it is non-destructive and unapplied.
+- Runtime PostgreSQL adapter, `pg` dependency, async service refactor, import runner, and concurrency tests: **NOT IMPLEMENTED**.
+- Live Render export and verified complete backup: **BLOCKED**. The user-reported USB folder is unavailable in this session and has not been inspected; Render Free service has no discovered full export path.
+- Dedicated Varejão PostgreSQL provider/instance: **NOT SELECTED / NOT CREATED**. Do not reuse resources from other projects or incur cost without explicit approval.
+- Import rehearsal, restore rehearsal, production cutover, and deployment: **NOT RUN / NOT AUTHORIZED**.
+- The correct next implementation work that does not require live data is an isolated async repository prototype plus deterministic unit/integration tests against a disposable local PostgreSQL test service or a mock contract harness. This must not be represented as proof of live migration or cross-instance production readiness.
+
 ## Checkout/cart contract audit and compatibility-first ownership design (2026-11-14)
 
 ### Existing frontend contract — confirmed from repository source
