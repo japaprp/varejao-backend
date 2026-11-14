@@ -1,3 +1,6 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { randomUUID } from 'node:crypto';
 import {
   createProduct,
   deleteProduct,
@@ -6,7 +9,6 @@ import {
 } from '../services/catalogService.js';
 import {
   addCartItem,
-  checkoutCart,
   createPendingOrder,
   createOperationalOrder,
   confirmMachinePayment,
@@ -51,8 +53,10 @@ import {
   getAnalyticsSummary,
   getTopProdutos
 } from '../services/analyticsService.js';
-import { createPreference, getPayment } from '../services/paymentService.js';
+import { createPreference, getPayment, verifyWebhookSignature, validatePaymentForOrder } from '../services/paymentService.js';
+import { MP_COLLECTOR_ID, MP_WEBHOOK_SECRET } from '../config/env.js';
 import { publishAdminUpdate, publishCheckoutUpdate, registerAdminStream, registerCheckoutStream } from '../realtime/checkoutStream.js';
+import { detectImageExtension, uploadDir } from '../middlewares/uploadMiddleware.js';
 
 function getCartId(req) {
   return req.headers['x-cart-id'] || req.query.cartId || req.body?.cartId || '';
@@ -91,12 +95,24 @@ function notifyCheckout(cartId, reason = 'update') {
   }
 }
 
-export function uploadImagemController(req, res) {
-  if (!req.file) {
+export async function uploadImagemController(req, res, next) {
+  if (!req.file?.buffer) {
     return res.status(400).json({ erro: 'Imagem nao enviada' });
   }
-  const url = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
-  return res.status(201).json({ url, arquivo: req.file.filename });
+
+  const extension = detectImageExtension(req.file.buffer);
+  if (!extension) {
+    return res.status(400).json({ erro: 'Conteudo enviado nao corresponde a uma imagem JPEG, PNG, WebP ou GIF valida.' });
+  }
+
+  const filename = `${randomUUID()}.${extension}`;
+  try {
+    await fs.writeFile(path.join(uploadDir, filename), req.file.buffer, { flag: 'wx' });
+    const url = `${req.protocol}://${req.get('host')}/uploads/${filename}`;
+    return res.status(201).json({ url, arquivo: filename });
+  } catch (error) {
+    return next(error);
+  }
 }
 
 export function register(req, res, next) {
@@ -274,15 +290,10 @@ export function streamAdminOperacao(req, res) {
   req.on('close', cleanup);
 }
 
-export function postFinalizar(req, res, next) {
-  try {
-    const cartId = getCartId(req);
-    const result = checkoutCart({ ...(req.body || {}), cartId });
-    notifyCheckout(result.cartId || cartId, 'checkout_finalizado');
-    res.json(result);
-  } catch (error) {
-    next(error);
-  }
+export function postFinalizar(req, res) {
+  return res.status(410).json({
+    erro: 'Endpoint legado de finalizacao desativado. Para compras online, inicie o pagamento pelo Mercado Pago; para vendas fisicas, use o fluxo operacional autenticado.'
+  });
 }
 
 export async function postPagamentoPreferencia(req, res, next) {
@@ -345,7 +356,11 @@ export function postPagamentoMaquininhaConfirmar(req, res, next) {
       return res.status(400).json({ erro: 'orderId obrigatorio' });
     }
 
-    const pedido = confirmMachinePayment(orderId, { nsu, autorizacao });
+    const pedido = confirmMachinePayment(orderId, {
+      nsu,
+      autorizacao,
+      confirmedBy: { id: req.user?.id, role: req.user?.role }
+    });
     notifyCheckout(pedido?.cartId, 'maquininha_confirmada');
     return res.json({ sucesso: true, pedido });
   } catch (error) {
@@ -355,15 +370,48 @@ export function postPagamentoMaquininhaConfirmar(req, res, next) {
 
 export async function postPagamentoWebhook(req, res, next) {
   try {
-    const paymentId = req.body?.data?.id || req.query?.data?.id || req.body?.id || req.query?.id;
+    const paymentId = String(req.query?.['data.id'] || '').trim();
     if (!paymentId) {
-      return res.status(200).json({ recebido: true });
+      return res.status(400).json({ erro: 'Parametro data.id obrigatorio.' });
+    }
+    if (!MP_WEBHOOK_SECRET || !MP_COLLECTOR_ID) {
+      return res.status(503).json({ erro: 'Webhook do Mercado Pago indisponivel: MP_WEBHOOK_SECRET e MP_COLLECTOR_ID precisam estar configurados.' });
+    }
+
+    const signatureIsValid = verifyWebhookSignature({
+      xSignature: req.get('x-signature') || '',
+      xRequestId: req.get('x-request-id') || '',
+      dataId: paymentId,
+      secret: MP_WEBHOOK_SECRET
+    });
+    if (!signatureIsValid) {
+      return res.status(401).json({ erro: 'Assinatura do webhook invalida.' });
     }
 
     const payment = await getPayment(paymentId);
-    const orderId = payment.external_reference;
+    if (String(payment.id || '') !== paymentId) {
+      return res.status(400).json({ erro: 'Identificador do pagamento divergente.' });
+    }
+
+    const orderId = String(payment.external_reference || '').trim();
     if (!orderId) {
-      return res.status(200).json({ recebido: true });
+      return res.status(400).json({ erro: 'Pagamento sem referencia externa.' });
+    }
+    const order = listOrdersAll({}).find((item) => String(item.id) === orderId);
+    if (!order) {
+      return res.status(404).json({ erro: 'Pedido vinculado ao pagamento nao encontrado.' });
+    }
+    if (!validatePaymentForOrder(payment, order, MP_COLLECTOR_ID)) {
+      return res.status(400).json({ erro: 'Pagamento nao corresponde ao pedido, valor, moeda ou conta recebedora.' });
+    }
+    if (!['mercadopago', 'pix', 'credit', 'debit'].includes(String(order.payment?.method || '').toLowerCase())) {
+      return res.status(409).json({ erro: 'Metodo de pagamento do pedido nao corresponde ao Mercado Pago.' });
+    }
+
+    const orderIsAlreadyPaid = order.status === 'Pago' || order.status === 'Finalizado' ||
+      String(order.payment?.status || '').toLowerCase() === 'approved';
+    if (orderIsAlreadyPaid && payment.status !== 'approved') {
+      return res.status(409).json({ erro: 'Evento de pagamento nao pode rebaixar um pedido ja pago.' });
     }
 
     if (payment.status === 'approved') {
@@ -373,9 +421,14 @@ export async function postPagamentoWebhook(req, res, next) {
         method: payment.payment_method_id || payment.payment_type_id
       });
       notifyCheckout(pedido?.cartId, 'webhook_pagamento_aprovado');
-    } else {
-      const pedido = updateOrderStatus(orderId, payment.status === 'rejected' ? 'Pagamento recusado' : 'Pagamento pendente');
+    } else if (payment.status === 'rejected') {
+      const pedido = updateOrderStatus(orderId, 'Pagamento recusado');
       notifyCheckout(pedido?.cartId, 'webhook_pagamento_atualizado');
+    } else if (payment.status === 'pending' || payment.status === 'in_process') {
+      const pedido = updateOrderStatus(orderId, 'Pagamento pendente');
+      notifyCheckout(pedido?.cartId, 'webhook_pagamento_atualizado');
+    } else {
+      return res.status(400).json({ erro: 'Status de pagamento nao reconhecido.' });
     }
 
     return res.status(200).json({ recebido: true });
@@ -394,7 +447,10 @@ export function getPedidosPorCpf(req, res) {
     return res.json(listOrdersByCpf(requestedCpf));
   }
 
-  const targetCpf = userCpf || requestedCpf;
+  if (!userCpf) {
+    return res.status(403).json({ erro: 'Associe um CPF verificado a sua conta para consultar o historico de pedidos.' });
+  }
+  const targetCpf = userCpf;
   if (!targetCpf) {
     return res.status(400).json({ erro: 'CPF do usuario nao disponivel para consulta.' });
   }
@@ -427,7 +483,15 @@ export function getOperationalConfigController(req, res) {
 
 export function postOperationalOrderController(req, res, next) {
   try {
-    const created = createOperationalOrder(req.body || {});
+    const created = createOperationalOrder({
+      ...(req.body || {}),
+      actor: {
+        id: req.user?.id,
+        nome: req.user?.nome,
+        role: req.user?.role
+      },
+      operator: undefined
+    });
     notifyAdmin('operacao_pedido_criado', {
       pedidoId: created.id,
       canal: created.canal
@@ -444,7 +508,11 @@ export function getProductionQueueController(req, res) {
 
 export function putProductionStatusController(req, res, next) {
   try {
-    const updated = updateProductionStatus(req.params.id, req.body?.status || '');
+    const updated = updateProductionStatus(req.params.id, req.body?.status || '', {
+      id: req.user?.id,
+      nome: req.user?.nome,
+      role: req.user?.role
+    });
     notifyAdmin('operacao_producao_status', {
       pedidoId: updated.id,
       status: updated.status
@@ -457,7 +525,11 @@ export function putProductionStatusController(req, res, next) {
 
 export function postOperationalSettlementController(req, res, next) {
   try {
-    const settled = settleOperationalOrder(req.params.id, req.body || {});
+    const settled = settleOperationalOrder(req.params.id, req.body || {}, {
+      id: req.user?.id,
+      nome: req.user?.nome,
+      role: req.user?.role
+    });
     notifyAdmin('operacao_pedido_fechado', {
       pedidoId: settled.id,
       status: settled.status

@@ -17,13 +17,6 @@ function isLocalOrigin(origin = '') {
   return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
 }
 
-function isRenderOrigin(origin = '') {
-  return /^https?:\/\/[a-z0-9-]+\.onrender\.com$/i.test(origin);
-}
-
-function isGithubPagesOrigin(origin = '') {
-  return /^https:\/\/[a-z0-9-]+\.github\.io$/i.test(origin);
-}
 
 app.disable('x-powered-by');
 app.use((req, res, next) => {
@@ -39,23 +32,18 @@ app.use(cors({
     // Permite chamadas sem Origin (curl, webhook server-to-server).
     if (!origin) return callback(null, true);
 
-    // Base segura para ambientes de desenvolvimento e serviços Render.
-    if (isLocalOrigin(origin) || isRenderOrigin(origin) || isGithubPagesOrigin(origin)) {
+    // Hosts remotos precisam estar explicitamente cadastrados; apenas localhost e origens exatas sao aceitos.
+    if (isLocalOrigin(origin)) {
       return callback(null, true);
     }
 
-    if (allowedOrigins.length === 0) {
-      const err = new Error('CORS_ALLOWED_ORIGINS nao configurado');
-      err.status = 403;
-      return callback(err);
-    }
     if (allowedOrigins.includes(origin)) return callback(null, true);
     const err = new Error('Origem nao permitida pelo CORS');
     err.status = 403;
     return callback(err);
   }
 }));
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 app.use(storeRoutes);
 

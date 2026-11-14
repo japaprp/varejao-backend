@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { FRONTEND_URL, MP_ACCESS_TOKEN, MP_WEBHOOK_URL } from '../config/env.js';
 
 const BASE_URL = 'https://api.mercadopago.com';
@@ -94,4 +95,40 @@ export async function getPayment(paymentId) {
     throw err;
   }
   return data;
+}
+
+
+export function verifyWebhookSignature({ xSignature = '', xRequestId = '', dataId = '', secret = '' } = {}) {
+  if (!secret || !xSignature || !xRequestId || !dataId) return false;
+
+  const fields = Object.fromEntries(
+    String(xSignature).split(',').map((part) => {
+      const separator = part.indexOf('=');
+      if (separator < 0) return ['', ''];
+      return [part.slice(0, separator).trim(), part.slice(separator + 1).trim()];
+    }).filter(([key, value]) => key && value)
+  );
+  const timestamp = fields.ts;
+  const receivedSignature = fields.v1;
+  if (!/^\d+$/.test(timestamp || '') || !/^[a-f0-9]{64}$/i.test(receivedSignature || '')) {
+    return false;
+  }
+
+  const manifest = `id:${String(dataId).toLowerCase()};request-id:${String(xRequestId)};ts:${timestamp};`;
+  const expected = crypto.createHmac('sha256', secret).update(manifest).digest();
+  const received = Buffer.from(receivedSignature, 'hex');
+  return received.length === expected.length && crypto.timingSafeEqual(received, expected);
+}
+
+export function validatePaymentForOrder(payment, order, expectedCollectorId) {
+  if (!payment || !order || !expectedCollectorId) return false;
+  if (String(payment.id || '') !== String(payment.id || '').trim() || !String(payment.id || '').trim()) return false;
+  if (String(payment.external_reference || '') !== String(order.id || '')) return false;
+  if (String(payment.currency_id || '') !== 'BRL') return false;
+  if (String(payment.collector_id || '') !== String(expectedCollectorId)) return false;
+
+  const paid = Number(payment.transaction_amount);
+  const due = Number(order.total);
+  if (!Number.isFinite(paid) || !Number.isFinite(due) || Math.abs(paid - due) > 0.01) return false;
+  return true;
 }

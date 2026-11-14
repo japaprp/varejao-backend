@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { OAuth2Client } from 'google-auth-library';
 import {
   ADMIN_EMAIL,
@@ -16,7 +17,7 @@ const SESSION_TTL_MS = 1000 * 60 * 60 * 12;
 const googleClient = GOOGLE_CLIENT_ID ? new OAuth2Client(GOOGLE_CLIENT_ID) : null;
 
 function ensureOperationalSeedUsers(db) {
-  if (DISABLE_DEMO_OPERATIONAL_USERS) {
+  if (DISABLE_DEMO_OPERATIONAL_USERS || !DEMO_OPERATIONAL_PASSWORD) {
     return false;
   }
   db.usuarios = db.usuarios || [];
@@ -55,7 +56,7 @@ function ensureOperationalSeedUsers(db) {
       continue;
     }
     db.usuarios.push({
-      id: `u_${item.role}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      id: `u_${item.role}_${randomUUID()}`,
       nome: item.nome,
       email: item.email,
       senhaHash: hashPassword(DEMO_OPERATIONAL_PASSWORD),
@@ -117,7 +118,7 @@ function ensureAdminUser() {
   if (!existing) {
     if (!ADMIN_PASSWORD) return;
     db.usuarios.push({
-      id: `u_admin_${Date.now()}`,
+      id: `u_admin_${randomUUID()}`,
       nome: 'Administrador',
       email: ADMIN_EMAIL,
       senhaHash: hashPassword(ADMIN_PASSWORD),
@@ -129,23 +130,19 @@ function ensureAdminUser() {
     return;
   }
 
-  if (ADMIN_PASSWORD && existing.role === 'admin') {
-    const shouldUpdate = !verifyPassword(ADMIN_PASSWORD, existing.senhaHash);
-    if (shouldUpdate) {
-      existing.senhaHash = hashPassword(ADMIN_PASSWORD);
-    }
+  let changed = false;
+  if (ADMIN_PASSWORD && existing.role === 'admin' &&
+      !verifyPassword(ADMIN_PASSWORD, existing.senhaHash)) {
+    existing.senhaHash = hashPassword(ADMIN_PASSWORD);
+    changed = true;
   }
 
   if (ensureOperationalSeedUsers(db)) {
-    writeDb(db);
-    return;
+    changed = true;
   }
 
-  if (ADMIN_PASSWORD && existing?.role === 'admin') {
-    const shouldPersistAdmin = !verifyPassword(ADMIN_PASSWORD, existing.senhaHash);
-    if (shouldPersistAdmin) {
-      writeDb(db);
-    }
+  if (changed) {
+    writeDb(db);
   }
 }
 
@@ -165,7 +162,7 @@ export function registerUser(payload) {
 
   const db = readDb();
   const user = {
-    id: `u_${Date.now()}`,
+    id: `u_${randomUUID()}`,
     nome,
     email,
     senhaHash: hashPassword(senha),
@@ -208,24 +205,10 @@ export function loginUser(payload) {
   return { token, usuario: sanitizeUser(user) };
 }
 
-export function forgotPassword(payload) {
-  const email = String(payload?.email || '').trim();
-  const novaSenha = String(payload?.novaSenha || '');
-  const user = findUserByEmail(email);
-
-  if (!user) {
-    return { ok: true };
-  }
-
-  const db = readDb();
-  const idx = db.usuarios.findIndex((u) => u.id === user.id);
-  if (idx < 0) {
-    return { ok: true };
-  }
-
-  db.usuarios[idx].senhaHash = hashPassword(novaSenha);
-  writeDb(db);
-  return { ok: true };
+export function forgotPassword() {
+  const err = new Error('Recuperacao de senha indisponivel: o fluxo seguro de token de uso unico e envio de email ainda nao esta configurado.');
+  err.status = 503;
+  throw err;
 }
 
 export function getGoogleAuthConfig() {
@@ -273,7 +256,7 @@ export async function loginWithGoogleToken(payload) {
   if (!user) {
     const db = readDb();
     user = {
-      id: `u_${Date.now()}`,
+      id: `u_${randomUUID()}`,
       nome,
       email,
       senhaHash: hashPassword(createToken()),
@@ -352,7 +335,7 @@ export async function loginWithFacebookToken(payload) {
   if (!user) {
     const db = readDb();
     user = {
-      id: `u_${Date.now()}`,
+      id: `u_${randomUUID()}`,
       nome: String(profile.name || 'Cliente Facebook'),
       email: String(profile.email || `facebook_${sub}@oauth.local`),
       senhaHash: hashPassword(createToken()),
@@ -376,6 +359,13 @@ export async function loginWithFacebookToken(payload) {
 
 export function getUserByToken(token) {
   const payload = verifyAuthToken(token);
-  if (!payload || !payload.user) return null;
-  return payload.user;
+  const tokenUserId = String(payload?.user?.id || '').trim();
+  if (!tokenUserId) return null;
+
+  // Authorization claims are refreshed from the current account record on every request.
+  // A signed token must not preserve stale roles or access after account removal.
+  const db = readDb();
+  const currentUser = (db.usuarios || []).find((user) => String(user.id || '') === tokenUserId);
+  if (!currentUser) return null;
+  return sanitizeUser(currentUser);
 }
