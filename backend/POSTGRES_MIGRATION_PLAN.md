@@ -15,6 +15,19 @@ This preparation is based on the Git-tracked branch source only. It does not ins
 - The tracked snapshot has no orders, stock entries, stock losses, or loyalty-customer records; this is a fixture observation, not a production-data statement.
 - Do not print user identifiers, names, emails, CPF, phone numbers, password hashes, tokens, or full records in audit logs.
 
+## Render workspace infrastructure audit (read-only, 2026-11-14)
+
+The connected Render workspace was inspected without changing resources:
+
+- Active backend service `varejao-backend-1` (`srv-d6gvbhjuibrs739lqbug`) points to this repository, branch `main`, root directory `backend`, Node runtime, free plan, one instance, and automatic deploy on commit. Its latest listed live deployment is commit `91248f7fa864cd3ff378ec366e1ccd96401346ab` ("Seed operational catalog codes and demo roles"), deployed 2026-04-14.
+- A second backend service `varejao-backend` (`srv-d6gdahh4tr6s73dbc3l0`) points to the same repository but is suspended and configured with Go runtime despite the Node backend. Do not reactivate it.
+- A separate static site `varejao-backend01` also points to this repository; it is not a database.
+- No Render PostgreSQL instance for Varejao was found in the workspace inventory. The only listed PostgreSQL resource is `eventosrp-db`, belonging to a different project, suspended/expired; it must not be used for Varejao.
+- The active backend service details did not expose a persistent disk mount. Because the app currently writes `src/data/database.json` locally and there is no Varejao PostgreSQL resource, persistence durability and actual live data location must be verified before any restart, redeploy, or migration. Do not assume the tracked JSON fixture is the live data.
+- The service is connected to `main` with automatic deployment enabled. PR branch changes are not deployed by this service unless merged to main; no merge or deploy was performed during this audit.
+
+Evidence scope: service metadata, workspace resource inventory, and deployment metadata only. No environment variable values, logs, database contents, or user records were read.
+
 ## Production account audit — BLOCKED pending authorized access
 
 Before any migration/cutover, an authorized operator must take a provider-side, read-only snapshot and produce a privacy-preserving report with:
