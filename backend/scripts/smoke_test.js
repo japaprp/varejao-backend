@@ -3,7 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { spawn } from 'child_process';
 import { addCartItem, confirmMachinePayment, createPendingOrder, createOperationalOrder } from '../src/services/cartService.js';
-import { readDb } from '../src/data/repository.js';
+import { readDb, writeDb } from '../src/data/repository.js';
 import { verifyWebhookSignature, validatePaymentForOrder } from '../src/services/paymentService.js';
 import { registerUser } from '../src/services/authService.js';
 import crypto from 'crypto';
@@ -145,6 +145,48 @@ async function main() {
         senha: smokeAdminPassword
       }
     });
+
+    const staleRoleUserId = 'smoke-stale-role-user';
+    const staleRoleDb = readDb();
+    staleRoleDb.usuarios = (staleRoleDb.usuarios || []).filter((user) => user.id !== staleRoleUserId);
+    staleRoleDb.usuarios.push({
+      id: staleRoleUserId,
+      nome: 'Smoke Role Refresh',
+      email: 'smoke-role-refresh@example.test',
+      senhaHash: '',
+      role: 'cozinha',
+      cpf: ''
+    });
+    writeDb(staleRoleDb);
+    try {
+      const staleAdminToken = createSmokeAuthToken({
+        id: staleRoleUserId,
+        nome: 'Smoke Role Refresh',
+        email: 'smoke-role-refresh@example.test',
+        role: 'admin',
+        cpf: ''
+      }, smokeTokenSecret);
+      const refreshedUser = await request('/auth/me', { token: staleAdminToken });
+      if (refreshedUser?.role !== 'cozinha') {
+        throw new Error('Token antigo preservou privilegio admin apos rebaixamento de funcao.');
+      }
+      const deletedUserToken = createSmokeAuthToken({
+        id: 'smoke-deleted-user',
+        nome: 'Deleted Smoke User',
+        email: 'deleted@example.test',
+        role: 'admin'
+      }, smokeTokenSecret);
+      const deletedUserResponse = await fetch(`${baseUrl}/auth/me`, {
+        headers: { authorization: `Bearer ${deletedUserToken}` }
+      });
+      if (deletedUserResponse.status !== 401) {
+        throw new Error('Token de usuario removido deveria ser rejeitado com HTTP 401.');
+      }
+    } finally {
+      const cleanupDb = readDb();
+      cleanupDb.usuarios = (cleanupDb.usuarios || []).filter((user) => user.id !== staleRoleUserId);
+      writeDb(cleanupDb);
+    }
     const token = String(login?.token || '');
     if (!token) {
       throw new Error('Login smoke nao retornou token.');
