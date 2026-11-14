@@ -239,13 +239,11 @@ async function main() {
       throw new Error('Cliente comum deveria receber 403 ao confirmar pagamento na maquininha.');
     }
 
-    const cpfLessCustomer = await request('/auth/register', {
-      method: 'POST',
-      body: {
-        nome: 'Cliente sem CPF',
-        email: `smoke-no-cpf-${crypto.randomBytes(6).toString('hex')}@example.test`,
-        senha: `NoCpf-${crypto.randomBytes(6).toString('hex')}!`
-      }
+    const noCpfSuffix = crypto.randomBytes(6).toString('hex');
+    const cpfLessCustomer = registerUser({
+      nome: 'Cliente sem CPF',
+      email: `smoke-no-cpf-${noCpfSuffix}@example.test`,
+      senha: `NoCpf-${noCpfSuffix}!`
     });
     if (!cpfLessCustomer?.token) {
       throw new Error('Cadastro smoke sem CPF nao retornou token.');
