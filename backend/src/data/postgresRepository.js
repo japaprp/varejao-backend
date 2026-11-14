@@ -10,7 +10,8 @@ function assertStateObject(value) {
 
 function assertSynchronousMutation(value) {
   if (value && typeof value.then === 'function') {
-    throw new TypeError('Transaction mutators must be synchronous and side-effect-free.');
+    Promise.resolve(value).catch(() => {});
+    throw new TypeError('Transaction mutators must be synchronous.');
   }
 }
 
@@ -34,7 +35,7 @@ export function createPostgresRepository(pool, { validateState = assertStateObje
 
     const payload = cloneJson(result.rows[0].payload);
     validateState(payload);
-    return { revision: Number(result.rows[0].revision), payload };
+    return { revision: String(result.rows[0].revision), payload };
   }
 
   async function transact(mutator) {
@@ -75,16 +76,17 @@ export function createPostgresRepository(pool, { validateState = assertStateObje
 
       await client.query('COMMIT');
       transactionOpen = false;
-      return { value, revision: Number(updated.rows[0].revision) };
+      return { value, revision: String(updated.rows[0].revision) };
     } catch (error) {
+      const failure = error instanceof Error ? error : new Error(String(error));
       if (transactionOpen) {
         try {
           await client.query('ROLLBACK');
         } catch (rollbackError) {
-          error.rollbackError = rollbackError;
+          failure.rollbackError = rollbackError;
         }
       }
-      throw error;
+      throw failure;
     } finally {
       client.release();
     }
