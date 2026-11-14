@@ -208,24 +208,10 @@ export function loginUser(payload) {
   return { token, usuario: sanitizeUser(user) };
 }
 
-export function forgotPassword(payload) {
-  const email = String(payload?.email || '').trim();
-  const novaSenha = String(payload?.novaSenha || '');
-  const user = findUserByEmail(email);
-
-  if (!user) {
-    return { ok: true };
-  }
-
-  const db = readDb();
-  const idx = db.usuarios.findIndex((u) => u.id === user.id);
-  if (idx < 0) {
-    return { ok: true };
-  }
-
-  db.usuarios[idx].senhaHash = hashPassword(novaSenha);
-  writeDb(db);
-  return { ok: true };
+export function forgotPassword() {
+  const err = new Error('Recuperacao de senha indisponivel: o fluxo seguro de token de uso unico e envio de email ainda nao esta configurado.');
+  err.status = 503;
+  throw err;
 }
 
 export function getGoogleAuthConfig() {
