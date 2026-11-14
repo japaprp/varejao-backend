@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { OAuth2Client } from 'google-auth-library';
 import {
   ADMIN_EMAIL,
@@ -55,7 +56,7 @@ function ensureOperationalSeedUsers(db) {
       continue;
     }
     db.usuarios.push({
-      id: `u_${item.role}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      id: `u_${item.role}_${randomUUID()}`,
       nome: item.nome,
       email: item.email,
       senhaHash: hashPassword(DEMO_OPERATIONAL_PASSWORD),
@@ -117,7 +118,7 @@ function ensureAdminUser() {
   if (!existing) {
     if (!ADMIN_PASSWORD) return;
     db.usuarios.push({
-      id: `u_admin_${Date.now()}`,
+      id: `u_admin_${randomUUID()}`,
       nome: 'Administrador',
       email: ADMIN_EMAIL,
       senhaHash: hashPassword(ADMIN_PASSWORD),
@@ -161,7 +162,7 @@ export function registerUser(payload) {
 
   const db = readDb();
   const user = {
-    id: `u_${Date.now()}`,
+    id: `u_${randomUUID()}`,
     nome,
     email,
     senhaHash: hashPassword(senha),
@@ -255,7 +256,7 @@ export async function loginWithGoogleToken(payload) {
   if (!user) {
     const db = readDb();
     user = {
-      id: `u_${Date.now()}`,
+      id: `u_${randomUUID()}`,
       nome,
       email,
       senhaHash: hashPassword(createToken()),
@@ -334,7 +335,7 @@ export async function loginWithFacebookToken(payload) {
   if (!user) {
     const db = readDb();
     user = {
-      id: `u_${Date.now()}`,
+      id: `u_${randomUUID()}`,
       nome: String(profile.name || 'Cliente Facebook'),
       email: String(profile.email || `facebook_${sub}@oauth.local`),
       senhaHash: hashPassword(createToken()),
