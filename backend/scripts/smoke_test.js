@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -82,6 +83,86 @@ async function request(pathname, { method = 'GET', token = '', body } = {}) {
   }
 
   return json;
+}
+
+async function verifyCartSessions(productId, operatorToken) {
+  async function createSession() {
+    const response = await fetch(`${baseUrl}/carrinho/sessao`, { method: 'POST' });
+    assert.equal(response.status, 201);
+    assert.equal(response.headers.get('cache-control'), 'no-store');
+    return response.json();
+  }
+
+  const first = await createSession();
+  const second = await createSession();
+  assert.notEqual(first.cartId, second.cartId);
+  assert.notEqual(first.cartToken, second.cartToken);
+  assert.equal(Buffer.from(first.cartToken, 'base64url').length, 32);
+
+  const firstHeaders = { 'x-cart-id': first.cartId, 'x-cart-token': first.cartToken };
+  const item = JSON.stringify({ produtoId: productId, quantidade: 1 });
+  const added = await fetch(`${baseUrl}/carrinho`, {
+    method: 'POST',
+    headers: { ...firstHeaders, 'content-type': 'application/json' },
+    body: item
+  });
+  assert.equal(added.status, 200);
+  const summary = await fetch(`${baseUrl}/checkout`, { headers: firstHeaders });
+  assert.equal(summary.status, 200);
+  const preview = await summary.json();
+  assert.equal(preview.canal, 'online');
+  assert.equal(preview.itens[0].produtoId, productId);
+
+  const wrongHeaders = { 'x-cart-id': first.cartId, 'x-cart-token': second.cartToken };
+  const orderCount = readDb().pedidos.length;
+  for (const [route, method] of [
+    ['/carrinho', 'GET'],
+    ['/carrinho', 'POST'],
+    ['/carrinho', 'DELETE'],
+    ['/checkout', 'GET'],
+    ['/stream/checkout', 'GET'],
+    ['/pagamento/preferencia', 'POST']
+  ]) {
+    const response = await fetch(`${baseUrl}${route}`, { method, headers: wrongHeaders });
+    assert.equal(response.status, 401, `Acesso de outro carrinho recusado em ${route}`);
+  }
+  const checkoutWithoutToken = await fetch(`${baseUrl}/checkout?cartId=${first.cartId}`);
+  assert.equal(checkoutWithoutToken.status, 401);
+  const protectedStream = await fetch(`${baseUrl}/stream/checkout`, { headers: firstHeaders });
+  assert.equal(protectedStream.status, 410);
+  const terminal = await fetch(`${baseUrl}/pagamento/maquininha/iniciar`, {
+    method: 'POST',
+    headers: { ...firstHeaders, authorization: `Bearer ${operatorToken}` }
+  });
+  assert.equal(terminal.status, 403);
+
+  const db = readDb();
+  assert.equal(db.pedidos.length, orderCount);
+  assert.equal(db.carrinhos[first.cartId][0].quantidade, 1);
+  assert.ok(!JSON.stringify(db.cartSessions).includes(first.cartToken));
+  db.cartSessions[first.cartId].expiresAt = Date.now() - 1000;
+  db.cartSessions[second.cartId].revokedAt = Date.now();
+  writeDb(db);
+
+  const expired = await fetch(`${baseUrl}/carrinho`, { headers: firstHeaders });
+  assert.equal(expired.status, 401);
+  const revoked = await fetch(`${baseUrl}/checkout`, {
+    headers: { 'x-cart-id': second.cartId, 'x-cart-token': second.cartToken }
+  });
+  assert.equal(revoked.status, 401);
+  const third = await createSession();
+  assert.ok(!readDb().carrinhos[first.cartId]);
+  const thirdHeaders = { 'x-cart-id': third.cartId, 'x-cart-token': third.cartToken };
+  const thirdItem = await fetch(`${baseUrl}/carrinho`, {
+    method: 'POST',
+    headers: { ...thirdHeaders, 'content-type': 'application/json' },
+    body: item
+  });
+  assert.equal(thirdItem.status, 200);
+  const cleared = await fetch(`${baseUrl}/carrinho`, { method: 'DELETE', headers: thirdHeaders });
+  assert.equal(cleared.status, 204);
+  assert.ok(!readDb().carrinhos[third.cartId]);
+  console.log('Carrinho: sessão, isolamento, expiração e canal validados.');
 }
 
 function backupDatabase() {
@@ -378,6 +459,8 @@ async function main() {
         codigoInterno: `PAD-${Date.now()}`
       }
     });
+
+    await verifyCartSessions(produto.id, token);
 
     const machineCartId = 'caixa-smoke-maquininha';
     addCartItem({ produtoId: produto.id, quantidade: 1 }, machineCartId);

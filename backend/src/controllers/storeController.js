@@ -9,6 +9,7 @@ import {
 } from '../services/catalogService.js';
 import {
   addCartItem,
+  clearCart,
   createPendingOrder,
   createOperationalOrder,
   confirmMachinePayment,
@@ -24,6 +25,7 @@ import {
   updateProductionStatus,
   updateOrderStatus
 } from '../services/cartService.js';
+import { createOnlineCartSession } from '../services/cartSessionService.js';
 import { getFidelidade, getInformacoes, getPromocoes } from '../services/contentService.js';
 import { getLoyaltyByCpf } from '../services/loyaltyService.js';
 import {
@@ -57,10 +59,6 @@ import { createPreference, getPayment, verifyWebhookSignature, validatePaymentFo
 import { MP_COLLECTOR_ID, MP_WEBHOOK_SECRET } from '../config/env.js';
 import { publishAdminUpdate, publishCheckoutUpdate, registerAdminStream, registerCheckoutStream } from '../realtime/checkoutStream.js';
 import { detectImageExtension, uploadDir } from '../middlewares/uploadMiddleware.js';
-
-function getCartId(req) {
-  return req.headers['x-cart-id'] || req.query.cartId || req.body?.cartId || '';
-}
 
 function getStreamToken(req) {
   const queryToken = String(req.query?.token || '').trim();
@@ -221,9 +219,18 @@ export function removeProduto(req, res) {
   return res.json({ sucesso: true });
 }
 
+export function postCartSession(req, res, next) {
+  try {
+    res.setHeader('Cache-Control', 'no-store');
+    res.status(201).json(createOnlineCartSession());
+  } catch (error) {
+    next(error);
+  }
+}
+
 export function postCarrinho(req, res, next) {
   try {
-    const cartId = getCartId(req);
+    const cartId = req.cartId;
     const result = addCartItem(req.body, cartId);
     notifyCheckout(cartId, 'item_added');
     res.json(result);
@@ -233,23 +240,37 @@ export function postCarrinho(req, res, next) {
 }
 
 export function getCarrinho(req, res) {
-  res.json(listCart(getCartId(req)));
+  res.json(listCart(req.cartId));
+}
+
+export function deleteCarrinho(req, res, next) {
+  try {
+    if (!req.isProtectedCart) return res.status(404).json({ erro: 'Sessão protegida do carrinho indisponível.' });
+    clearCart(req.cartId);
+    notifyCheckout(req.cartId, 'cart_cleared');
+    return res.status(204).end();
+  } catch (error) {
+    return next(error);
+  }
 }
 
 export function getCheckout(req, res, next) {
   try {
     const cupom = req.query.cupom || '';
-    res.json(getCheckoutPreview(cupom, getCartId(req)));
+    res.json(getCheckoutPreview(cupom, req.cartId));
   } catch (error) {
     next(error);
   }
 }
 
 export function streamCheckout(req, res) {
-  const cartId = getCartId(req);
+  if (req.isProtectedCart) {
+    return res.status(410).json({ erro: 'Consulte a rota /checkout para atualizar o carrinho.' });
+  }
+  const cartId = req.cartId;
 
   res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Cache-Control', 'no-store, no-transform');
   res.setHeader('Connection', 'keep-alive');
   res.setHeader('X-Accel-Buffering', 'no');
 
@@ -298,7 +319,7 @@ export function postFinalizar(req, res) {
 
 export async function postPagamentoPreferencia(req, res, next) {
   try {
-    const cartId = getCartId(req);
+    const cartId = req.cartId;
     const order = createPendingOrder({
       ...(req.body || {}),
       cartId,
@@ -323,8 +344,11 @@ export async function postPagamentoPreferencia(req, res, next) {
 
 
 export function postPagamentoMaquininhaIniciar(req, res, next) {
+  if (req.isProtectedCart) {
+    return res.status(403).json({ erro: 'Este carrinho pertence ao canal online.' });
+  }
   try {
-    const cartId = getCartId(req);
+    const cartId = req.cartId;
     const order = createPendingOrder({
       ...(req.body || {}),
       cartId,

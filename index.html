@@ -143,9 +143,9 @@
     </div>
   </footer>
 
-  <script src="app-core.js?v=20260228-1"></script>
+  <script src="app-core.js?v=cart-session-1"></script>
   <script>
-    const API = AppCore.resolveApiBase();
+    const API = AppCore.resolveCartApiBase();
     const CART_ID = AppCore.resolveCartId();
     const money = AppCore.money;
     const safeText = AppCore.safeText;
@@ -407,7 +407,7 @@
       const el = document.getElementById('homeChannelContext');
       if (!el) return;
       const canal = resolveChannelLabel(CART_ID);
-      el.textContent = `Canal ativo: ${canal} • Sessão: ${CART_ID}`;
+      el.textContent = `Canal ativo: ${canal}`;
       el.className = canal === 'Loja física'
         ? 'status-banner status-info mt-10'
         : 'status-banner status-muted mt-10';
@@ -427,9 +427,10 @@
       const localItems = addLocalCartItem(produtoId, qty);
       renderHomeCartCta(localItems);
       try {
-        const res = await fetch(`${API}/carrinho`, {
+        const res = await AppCore.fetchCart(API, '/carrinho', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Cart-Id': CART_ID },
+          legacyCartId: CART_ID,
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ produtoId, quantidade: qty })
         });
         if (!res.ok) throw new Error('Falha ao adicionar no carrinho.');

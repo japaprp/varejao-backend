@@ -8,7 +8,7 @@
     "dev": "node --watch index.js",
     "check": "node --check index.js && node --check src/app.js && node --check src/server.js && node --check src/controllers/storeController.js && node --check src/routes/storeRoutes.js && node --check src/services/authService.js && node --check src/services/catalogService.js && node --check src/services/cartService.js && node --check src/data/postgresRepository.js && node --check scripts/postgres_repository_test.js",
     "smoke": "node scripts/smoke_test.js",
-    "qa": "npm run check && npm run audit:data && npm run audit:migration-source && npm run test:rate-limit && npm run test:upload && npm run test:postgres-repository && npm run smoke",
+    "qa": "npm run check && npm run audit:data && npm run audit:migration-source && npm run test:rate-limit && npm run test:upload && npm run test:postgres-repository && node scripts/storefront_cart_test.js && npm run smoke",
     "audit:data": "node scripts/audit_json_accounts.js",
     "test:rate-limit": "node scripts/rate_limit_test.js",
     "audit:migration-source": "node scripts/audit_migration_source.js",

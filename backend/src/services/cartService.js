@@ -5,6 +5,7 @@ import {
   registerCouponUse,
   validateCoupon
 } from './couponService.js';
+import { isCartSessionActive, isSessionCartId } from './cartSessionService.js';
 import { applyLoyalty } from './loyaltyService.js';
 import { readDb, writeDb } from '../data/repository.js';
 
@@ -23,6 +24,14 @@ function resolveChannelFromCartId(cartId) {
     return 'fisico';
   }
   return 'online';
+}
+
+function resolveCartChannel(db, cartId) {
+  return db.cartSessions?.[cartId]?.channel ?? resolveChannelFromCartId(cartId);
+}
+
+function isStockReservedByCart(db, cartId) {
+  return !isSessionCartId(cartId) || isCartSessionActive(db.cartSessions?.[cartId]);
 }
 
 function resolveOrderChannel(order = {}) {
@@ -156,7 +165,7 @@ function getReservedQtyForProduct(db, produtoId, options = {}) {
   let reserved = 0;
 
   for (const [cartId, items] of Object.entries(db.carrinhos || {})) {
-    if (!Array.isArray(items)) continue;
+    if (!Array.isArray(items) || !isStockReservedByCart(db, cartId)) continue;
     if (exceptCartId && resolveCartId(cartId) === exceptCart) continue;
 
     for (const item of items) {
@@ -508,6 +517,13 @@ export function listCart(cartId) {
   return getCartFromDb(db, cartId);
 }
 
+export function clearCart(cartId) {
+  const db = readDb();
+  if (!Array.isArray(db.carrinhos?.[cartId]) || db.carrinhos[cartId].length === 0) return;
+  delete db.carrinhos[cartId];
+  writeDb(db);
+}
+
 export function listOrdersByCpf(cpf) {
   const db = readDb();
   const target = normalizeCpf(cpf);
@@ -613,7 +629,7 @@ export function getCheckoutPreview(codigoCupom = '', cartId = '') {
   const db = readDb();
   const cart = getCartFromDb(db, cartId);
   const subtotal = cartSubtotal(cart);
-  const channel = resolveChannelFromCartId(cartId);
+  const channel = resolveCartChannel(db, resolveCartId(cartId));
   let desconto = 0;
   let cupomAplicado = null;
 
@@ -662,7 +678,7 @@ export function createPendingOrder({
     cupomAplicado = coupon.codigo;
   }
 
-  const channel = resolveChannelFromCartId(cartKey);
+  const channel = resolveCartChannel(db, cartKey);
   const { totalBase, frete, total } = buildOrderTotals({ subtotal, desconto, channel });
   const paymentMethod = resolvePaymentMethod(metodoPagamento);
 
@@ -835,7 +851,7 @@ export function checkoutCart({
   const manualDiscount = Math.max(0, Number(discountAmount || 0));
   desconto = Math.min(subtotal, desconto + manualDiscount);
 
-  const channel = resolveChannelFromCartId(cartKey);
+  const channel = resolveCartChannel(db, cartKey);
   if (channel === 'fisico') {
     const err = new Error('Pedidos fisicos devem usar o fluxo operacional autenticado.');
     err.status = 403;
@@ -898,10 +914,10 @@ export function getUnifiedOperationSummary() {
 
   const orders = (db.pedidos || []).map(normalizeOrder);
   const activeCarts = Object.entries(db.carrinhos || {})
-    .filter(([, items]) => Array.isArray(items) && items.length > 0)
+    .filter(([cartId, items]) => Array.isArray(items) && items.length > 0 && isStockReservedByCart(db, cartId))
     .map(([cartId, items]) => ({
       cartId,
-      canal: resolveChannelFromCartId(cartId),
+      canal: resolveCartChannel(db, cartId),
       linhas: items.length,
       itens: Number(items.reduce((sum, item) => sum + Number(item.quantidade || 0), 0).toFixed(2)),
       subtotal: Number(cartSubtotal(items).toFixed(2))
