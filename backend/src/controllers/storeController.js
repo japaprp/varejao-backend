@@ -513,9 +513,9 @@ export function postOperationalOrderController(req, res, next) {
         id: req.user?.id,
         nome: req.user?.nome,
         role: req.user?.role
-      },
-      operator: undefined
+      }
     });
+    if (created.duplicate) return res.status(200).json(created);
     notifyAdmin('operacao_pedido_criado', {
       pedidoId: created.id,
       canal: created.canal

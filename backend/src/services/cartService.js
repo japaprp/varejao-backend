@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { getProductById, getProductByName } from './catalogService.js';
 import {
   calculateCouponDiscount,
@@ -200,8 +200,9 @@ function getCartItemQty(cart, produtoId) {
 
 function normalizeOrder(pedido) {
   const channel = resolveOrderChannel(pedido);
+  const { operationalRequest, ...order } = pedido;
   return {
-    ...pedido,
+    ...order,
     cartId: pedido?.cartId || null,
     canal: channel,
     status: pedido.status || 'Finalizado'
@@ -994,14 +995,52 @@ export function createOperationalOrder({
   cartId = '',
   tableId = '',
   serviceChannel = 'dine_in',
-  operator = '',
   actor = null,
   note = '',
   businessProfile = '',
-  items = []
+  items = [],
+  clientOrderId
 } = {}) {
   const db = readDb();
   ensureCollections(db);
+  const operatorId = String(actor?.id || '').trim() || null;
+  const mesa = String(tableId || '').trim() || null;
+  const channel = String(serviceChannel || '').trim().toLowerCase() === 'pickup' ? 'pickup' : 'dine_in';
+  const observacao = String(note || '').trim() || null;
+  let operationalRequest;
+
+  if (clientOrderId !== undefined) {
+    if (!operatorId || typeof clientOrderId !== 'string' || !/^[A-Za-z0-9._:-]{1,128}$/.test(clientOrderId)) {
+      const err = new Error('Identificador de pedido operacional invalido.');
+      err.status = 400;
+      throw err;
+    }
+    const request = {
+      cartId: String(cartId || '').trim(),
+      mesa,
+      channel,
+      observacao,
+      businessProfile: businessProfile ? normalizeBusinessProfile(businessProfile) : null,
+      items: Array.isArray(items) ? items.map((item) => ({
+        produtoId: String(item?.produtoId || ''),
+        quantidade: Number(item?.quantidade),
+        observacao: String(item?.observacao || '').trim(),
+        rotaOperacional: String(item?.rotaOperacional || '').toLowerCase()
+      })) : null
+    };
+    const fingerprint = createHash('sha256').update(JSON.stringify(request)).digest('hex');
+    const existing = db.pedidos.find((order) => order.operationalRequest?.id === clientOrderId);
+    if (existing) {
+      if (existing.operadorId !== operatorId || existing.operationalRequest.fingerprint !== fingerprint) {
+        const err = new Error('Identificador de pedido em conflito.');
+        err.status = 409;
+        throw err;
+      }
+      return { ...normalizeOrder(existing), duplicate: true };
+    }
+    operationalRequest = { id: clientOrderId, fingerprint };
+  }
+
   const operationalConfig = ensureOperationalConfig(db, businessProfile);
   const enrichedItems = buildOperationalItems(db, items);
   if (!enrichedItems.length) {
@@ -1022,13 +1061,14 @@ export function createOperationalOrder({
     canal: 'fisico',
     origemOperacional: 'app',
     businessProfile: operationalConfig.businessProfile,
-    serviceChannel: String(serviceChannel || 'dine_in').trim().toLowerCase() === 'pickup' ? 'pickup' : 'dine_in',
-    mesa: String(tableId || '').trim() || null,
+    serviceChannel: channel,
+    mesa,
     // Audit identity comes from the authenticated server-side actor, never the request body.
     operador: String(actor?.nome || '').trim() || null,
-    operadorId: String(actor?.id || '').trim() || null,
+    operadorId: operatorId,
     operadorRole: String(actor?.role || '').trim().toLowerCase() || null,
-    observacao: String(note || '').trim() || null,
+    observacao,
+    operationalRequest,
     kitchenStage: 'received',
     status: 'Recebido',
     itens: aggregateItemsByProduct(enrichedItems).map((item) => {

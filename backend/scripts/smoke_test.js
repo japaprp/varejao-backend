@@ -595,22 +595,37 @@ async function main() {
       throw new Error('Itens operacionais invalidos criaram pedidos indevidos.');
     }
 
-    const pedido = await request('/operacao/pedidos', {
+    const orderRequest = {
+      clientOrderId: 'smoke-operacao-pdv',
+      businessProfile: 'padaria',
+      tableId: 'BALCAO-1',
+      operator: 'Cliente tentou falsificar o operador',
+      items: [{ produtoId: produto.id, quantidade: 2, preco: 0.01 }]
+    };
+    const submitOperationalOrder = (body, bearer = token) => fetch(`${baseUrl}/operacao/pedidos/sincronizar`, {
       method: 'POST',
-      token,
-      body: {
-        businessProfile: 'padaria',
-        tableId: 'BALCAO-1',
-        operator: 'Cliente tentou falsificar o operador',
-        items: [
-          {
-            produtoId: produto.id,
-            quantidade: 2,
-            preco: 0.01
-          }
-        ]
-      }
+      headers: { authorization: `Bearer ${bearer}`, 'content-type': 'application/json' },
+      body: JSON.stringify(body)
     });
+    const { clientOrderId, ...orderWithoutId } = orderRequest;
+    assert.equal((await submitOperationalOrder(orderWithoutId)).status, 400);
+    assert.equal((await submitOperationalOrder({ ...orderRequest, clientOrderId: null })).status, 400);
+    const results = await Promise.all([
+      submitOperationalOrder(orderRequest),
+      submitOperationalOrder(orderRequest)
+    ]);
+    results.sort((a, b) => b.status - a.status);
+    assert.deepEqual(results.map((response) => response.status), [201, 200]);
+    const [pedido, replay] = await Promise.all(results.map((response) => response.json()));
+    assert.equal(replay.id, pedido.id);
+    assert.equal(replay.duplicate, true);
+    assert.equal(replay.operationalRequest, undefined);
+    const conflict = await submitOperationalOrder({
+      ...orderRequest,
+      items: [{ produtoId: produto.id, quantidade: 3 }]
+    });
+    assert.equal(conflict.status, 409);
+    assert.equal(readDb().pedidos.length, operationalOrdersBeforeInvalidItems + 1);
     if (pedido?.itens?.[0]?.preco !== 1.5 || pedido?.subtotal !== 3) {
       throw new Error('Pedido operacional aceitou preco adulterado enviado pelo cliente.');
     }
@@ -638,6 +653,9 @@ async function main() {
       role: 'cozinha',
       cpf: ''
     }, smokeTokenSecret);
+    const differentOperator = await submitOperationalOrder(orderRequest, kitchenToken);
+    assert.equal(differentOperator.status, 409);
+    assert.equal((await differentOperator.json()).id, undefined);
     const kitchenSettlement = await fetch(`${baseUrl}/operacao/pedidos/${pedido.id}/fechar`, {
       method: 'POST',
       headers: { authorization: `Bearer ${kitchenToken}`, 'content-type': 'application/json' },

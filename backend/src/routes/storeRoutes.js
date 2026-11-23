@@ -75,6 +75,14 @@ const router = Router();
 const operationalRoles = ['admin', 'operador', 'gerente', 'manager', 'caixa', 'cashier', 'balcao', 'waiter', 'cozinha', 'kitchen', 'chef', 'producao'];
 const managementRoles = ['admin', 'operador', 'gerente', 'manager'];
 const settlementRoles = ['admin', 'operador', 'gerente', 'manager', 'caixa', 'cashier'];
+
+function requireOperationalOrderId(req, res, next) {
+  if (req.body?.clientOrderId === undefined) {
+    return res.status(400).json({ erro: 'Informe o identificador do pedido operacional.' });
+  }
+  return next();
+}
+
 const cartSessionLimiter = createRateLimiter({
   keyPrefix: 'cart-session',
   windowMs: 5 * 60 * 1000,
@@ -114,6 +122,7 @@ router.get('/stream/admin/operacao', streamAdminOperacao);
 router.post('/finalizar', postFinalizar);
 router.get('/operacao/config', getOperationalConfigController);
 router.post('/operacao/pedidos', requireAuth, requireRole(operationalRoles), postOperationalOrderController);
+router.post('/operacao/pedidos/sincronizar', requireAuth, requireRole(operationalRoles), requireOperationalOrderId, postOperationalOrderController);
 router.get('/operacao/producao', requireAuth, requireRole(operationalRoles), getProductionQueueController);
 router.patch('/operacao/pedidos/:id/producao-status', requireAuth, requireRole(operationalRoles), putProductionStatusController);
 router.post('/operacao/pedidos/:id/fechar', requireAuth, requireRole(settlementRoles), postOperationalSettlementController);
