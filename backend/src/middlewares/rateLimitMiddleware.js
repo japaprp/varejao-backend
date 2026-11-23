@@ -1,33 +1,79 @@
-const buckets = new Map();
+import { isIP } from 'node:net';
 
-function getIp(req) {
-  return req.headers['x-forwarded-for']?.toString().split(',')[0].trim()
-    || req.socket?.remoteAddress
-    || 'unknown';
+const DEFAULT_MAX_ENTRIES = 10000;
+
+/**
+ * Render terminates inbound TLS through its edge/load balancer and documents
+ * X-Forwarded-For as the client-IP source. Do not enable Express trust proxy
+ * with an assumed hop count for this service.
+ */
+export function getClientIp(req) {
+  const forwardedFor = req.headers?.['x-forwarded-for'];
+  if (typeof forwardedFor === 'string' && forwardedFor.length <= 1024) {
+    const candidate = forwardedFor.split(',')[0].trim();
+    if (isIP(candidate)) return candidate;
+  }
+
+  const remoteAddress = req.socket?.remoteAddress;
+  if (typeof remoteAddress === 'string' && isIP(remoteAddress)) {
+    return remoteAddress;
+  }
+
+  return 'unknown';
 }
 
-export function createRateLimiter({ keyPrefix, windowMs, max, message }) {
+export function createRateLimiter({
+  keyPrefix,
+  windowMs,
+  max,
+  message,
+  maxEntries = DEFAULT_MAX_ENTRIES,
+  clock = () => Date.now()
+}) {
+  const buckets = new Map();
+  const capacity = Number.isSafeInteger(maxEntries) && maxEntries > 0
+    ? maxEntries
+    : DEFAULT_MAX_ENTRIES;
+
   return (req, res, next) => {
-    const ip = getIp(req);
+    const ip = getClientIp(req);
     const key = `${keyPrefix}:${ip}`;
-    const now = Date.now();
+    const now = clock();
     const entry = buckets.get(key);
 
-    if (!entry || now > entry.resetAt) {
-      buckets.set(key, { count: 1, resetAt: now + windowMs });
+    if (entry && now < entry.resetAt) {
+      if (entry.count >= max) {
+        const retryAfterSec = Math.max(1, Math.ceil((entry.resetAt - now) / 1000));
+        res.setHeader('Retry-After', String(retryAfterSec));
+        return res.status(429).json({
+          erro: message || 'Muitas tentativas. Tente novamente em instantes.',
+          retryAfterSec
+        });
+      }
+
+      entry.count += 1;
       return next();
     }
 
-    if (entry.count >= max) {
-      const retryAfterSec = Math.ceil((entry.resetAt - now) / 1000);
-      res.setHeader('Retry-After', String(Math.max(1, retryAfterSec)));
-      return res.status(429).json({
-        erro: message || 'Muitas tentativas. Tente novamente em instantes.',
-        retryAfterSec: Math.max(1, retryAfterSec)
+    // Remove expired entries before allocating a new bucket. This bounds
+    // memory even if callers rotate source addresses.
+    for (const [bucketKey, bucket] of buckets) {
+      if (now >= bucket.resetAt) buckets.delete(bucketKey);
+    }
+
+    if (!buckets.has(key) && buckets.size >= capacity) {
+      const nearestExpiry = Math.min(...Array.from(buckets.values(), (bucket) => bucket.resetAt));
+      const retryAfterSec = Number.isFinite(nearestExpiry)
+        ? Math.max(1, Math.ceil((nearestExpiry - now) / 1000))
+        : 60;
+      res.setHeader('Retry-After', String(retryAfterSec));
+      return res.status(503).json({
+        erro: 'Protecao temporaria de requisicoes ocupada. Tente novamente em instantes.',
+        retryAfterSec
       });
     }
 
-    entry.count += 1;
+    buckets.set(key, { count: 1, resetAt: now + windowMs });
     return next();
   };
 }

@@ -1,9 +1,11 @@
+import { createHash, randomUUID } from 'node:crypto';
 import { getProductById, getProductByName } from './catalogService.js';
 import {
   calculateCouponDiscount,
   registerCouponUse,
   validateCoupon
 } from './couponService.js';
+import { isCartSessionActive, isSessionCartId } from './cartSessionService.js';
 import { applyLoyalty } from './loyaltyService.js';
 import { readDb, writeDb } from '../data/repository.js';
 
@@ -22,6 +24,14 @@ function resolveChannelFromCartId(cartId) {
     return 'fisico';
   }
   return 'online';
+}
+
+function resolveCartChannel(db, cartId) {
+  return db.cartSessions?.[cartId]?.channel ?? resolveChannelFromCartId(cartId);
+}
+
+function isStockReservedByCart(db, cartId) {
+  return !isSessionCartId(cartId) || isCartSessionActive(db.cartSessions?.[cartId]);
 }
 
 function resolveOrderChannel(order = {}) {
@@ -155,7 +165,7 @@ function getReservedQtyForProduct(db, produtoId, options = {}) {
   let reserved = 0;
 
   for (const [cartId, items] of Object.entries(db.carrinhos || {})) {
-    if (!Array.isArray(items)) continue;
+    if (!Array.isArray(items) || !isStockReservedByCart(db, cartId)) continue;
     if (exceptCartId && resolveCartId(cartId) === exceptCart) continue;
 
     for (const item of items) {
@@ -190,8 +200,9 @@ function getCartItemQty(cart, produtoId) {
 
 function normalizeOrder(pedido) {
   const channel = resolveOrderChannel(pedido);
+  const { operationalRequest, ...order } = pedido;
   return {
-    ...pedido,
+    ...order,
     cartId: pedido?.cartId || null,
     canal: channel,
     status: pedido.status || 'Finalizado'
@@ -332,7 +343,7 @@ function normalizeCheckoutPayments(payments = [], fallbackMethod = '', defaultAm
       const note = String(entry?.note || '').trim() || null;
 
       return {
-        id: `pay_${Date.now()}_${index + 1}`,
+        id: `pay_${randomUUID()}`,
         method,
         amount,
         amountReceived,
@@ -359,7 +370,7 @@ function normalizeCheckoutPayments(payments = [], fallbackMethod = '', defaultAm
 
   return [
     {
-      id: `pay_${Date.now()}_1`,
+      id: `pay_${randomUUID()}`,
       method: resolvedMethod,
       amount: roundedAmount,
       amountReceived: resolvedMethod === 'cash' ? roundedAmount : null,
@@ -455,27 +466,44 @@ function resolveOperationalRoute(prod = {}, rawItem = {}) {
 }
 
 function buildOperationalItems(db, items = []) {
-  return (items || [])
-    .map((rawItem) => {
-      const prod = (db.produtos || []).find((p) => String(p.id) === String(rawItem.produtoId || ''));
-      if (!prod) return null;
-      return {
-        produtoId: prod.id,
-        produto: prod.nome,
-        unidade: prod.unidade,
-        preco: Number(rawItem.preco ?? prod.preco ?? 0),
-        quantidade: Number(rawItem.quantidade || 0),
-        rotaOperacional: resolveOperationalRoute(prod, rawItem),
-        observacao: String(rawItem.observacao || '').trim() || null,
-        lote: prod.lote || null,
-        validade: prod.validade || null,
-        exigeReceita: Boolean(prod.exigeReceita),
-        tempoProducaoMin: Number(prod.tempoProducaoMin || 0),
-        estacaoProducao: String(prod.estacaoProducao || '').trim() || null,
-        sobEncomenda: Boolean(prod.sobEncomenda)
-      };
-    })
-    .filter(Boolean);
+  if (!Array.isArray(items) || items.length === 0) {
+    const err = new Error('Informe ao menos um item valido para a operacao.');
+    err.status = 400;
+    throw err;
+  }
+
+  return items.map((rawItem) => {
+    if (!rawItem || typeof rawItem !== 'object' || Array.isArray(rawItem)) {
+      const err = new Error('Item invalido no pedido operacional.');
+      err.status = 400;
+      throw err;
+    }
+    const prod = (db.produtos || []).find((p) => String(p.id) === String(rawItem.produtoId || ''));
+    const quantity = Number(rawItem.quantidade);
+    const catalogPrice = Number(prod?.preco);
+    if (!prod || !Number.isFinite(quantity) || quantity <= 0 ||
+        !Number.isFinite(catalogPrice) || catalogPrice < 0) {
+      const err = new Error('Produto, quantidade ou preco de catalogo invalido no pedido operacional.');
+      err.status = 400;
+      throw err;
+    }
+    return {
+      produtoId: prod.id,
+      produto: prod.nome,
+      unidade: prod.unidade,
+      // The catalog is authoritative. Never accept a unit price supplied by the client.
+      preco: catalogPrice,
+      quantidade: quantity,
+      rotaOperacional: resolveOperationalRoute(prod, rawItem),
+      observacao: String(rawItem.observacao || '').trim() || null,
+      lote: prod.lote || null,
+      validade: prod.validade || null,
+      exigeReceita: Boolean(prod.exigeReceita),
+      tempoProducaoMin: Number(prod.tempoProducaoMin || 0),
+      estacaoProducao: String(prod.estacaoProducao || '').trim() || null,
+      sobEncomenda: Boolean(prod.sobEncomenda)
+    };
+  });
 }
 
 function resolvePendingStatusByMethod(paymentMethod = 'mercadopago') {
@@ -488,6 +516,13 @@ function resolvePendingStatusByMethod(paymentMethod = 'mercadopago') {
 export function listCart(cartId) {
   const db = readDb();
   return getCartFromDb(db, cartId);
+}
+
+export function clearCart(cartId) {
+  const db = readDb();
+  if (!Array.isArray(db.carrinhos?.[cartId]) || db.carrinhos[cartId].length === 0) return;
+  delete db.carrinhos[cartId];
+  writeDb(db);
 }
 
 export function listOrdersByCpf(cpf) {
@@ -595,7 +630,7 @@ export function getCheckoutPreview(codigoCupom = '', cartId = '') {
   const db = readDb();
   const cart = getCartFromDb(db, cartId);
   const subtotal = cartSubtotal(cart);
-  const channel = resolveChannelFromCartId(cartId);
+  const channel = resolveCartChannel(db, resolveCartId(cartId));
   let desconto = 0;
   let cupomAplicado = null;
 
@@ -644,12 +679,12 @@ export function createPendingOrder({
     cupomAplicado = coupon.codigo;
   }
 
-  const channel = resolveChannelFromCartId(cartKey);
+  const channel = resolveCartChannel(db, cartKey);
   const { totalBase, frete, total } = buildOrderTotals({ subtotal, desconto, channel });
   const paymentMethod = resolvePaymentMethod(metodoPagamento);
 
   const order = {
-    id: `ped_${Date.now()}`,
+    id: `ped_${randomUUID()}`,
     createdAt: new Date().toISOString(),
     cartId: cartKey,
     canal: channel,
@@ -677,6 +712,16 @@ export function createPendingOrder({
 }
 
 export function confirmMachinePayment(orderId, paymentInfo = {}) {
+  const confirmer = paymentInfo?.confirmedBy || {};
+  const confirmerId = String(confirmer.id || '').trim();
+  const confirmerRole = String(confirmer.role || '').toLowerCase();
+  const allowedRoles = new Set(['admin', 'operador', 'gerente', 'manager', 'caixa', 'cashier']);
+  if (!confirmerId || !allowedRoles.has(confirmerRole)) {
+    const err = new Error('Somente operador autenticado e autorizado pode confirmar pagamento na maquininha.');
+    err.status = 403;
+    throw err;
+  }
+
   const db = readDb();
   const order = getOrderById(db, orderId);
   if (!order) {
@@ -704,11 +749,32 @@ export function confirmMachinePayment(orderId, paymentInfo = {}) {
     throw err;
   }
 
-  const transactionId = String(paymentInfo?.nsu || paymentInfo?.autorizacao || '').trim() || ('maq_' + Date.now());
+  if (order.status === 'Pago' || order.status === 'Finalizado' || order.payment?.status === 'approved') {
+    const err = new Error('Pagamento da maquininha ja foi confirmado.');
+    err.status = 409;
+    throw err;
+  }
+  if (String(order.status || '').toLowerCase() !== 'aguardando pagamento na maquininha' ||
+      String(order.payment?.status || '').toLowerCase() !== 'pending') {
+    const err = new Error('Pedido nao esta aguardando confirmacao da maquininha.');
+    err.status = 409;
+    throw err;
+  }
+
+  const transactionId = String(paymentInfo?.nsu || paymentInfo?.autorizacao || '').trim();
+  if (!/^[A-Za-z0-9._/-]{4,80}$/.test(transactionId)) {
+    const err = new Error('NSU ou codigo de autorizacao valido e obrigatorio para confirmar a maquininha.');
+    err.status = 400;
+    throw err;
+  }
+
   return finalizePaidOrder(orderId, {
     status: 'approved',
     id: transactionId,
-    method: 'maquininha'
+    method: 'maquininha',
+    transactionReference: transactionId,
+    confirmedBy: { id: confirmerId, role: confirmerRole },
+    confirmedAt: new Date().toISOString()
   });
 }
 
@@ -744,6 +810,9 @@ export function finalizePaidOrder(orderId, paymentInfo = {}) {
     status: paymentInfo.status || 'approved',
     id: paymentInfo.id || order.payment?.id || null,
     method: paymentInfo.method || order.payment?.method || null,
+    ...(paymentInfo.transactionReference ? { transactionReference: paymentInfo.transactionReference } : {}),
+    ...(paymentInfo.confirmedBy ? { confirmedBy: paymentInfo.confirmedBy } : {}),
+    ...(paymentInfo.confirmedAt ? { confirmedAt: paymentInfo.confirmedAt } : {}),
     updatedAt: new Date().toISOString()
   };
 
@@ -783,7 +852,12 @@ export function checkoutCart({
   const manualDiscount = Math.max(0, Number(discountAmount || 0));
   desconto = Math.min(subtotal, desconto + manualDiscount);
 
-  const channel = resolveChannelFromCartId(cartKey);
+  const channel = resolveCartChannel(db, cartKey);
+  if (channel === 'fisico') {
+    const err = new Error('Pedidos fisicos devem usar o fluxo operacional autenticado.');
+    err.status = 403;
+    throw err;
+  }
   const { totalBase, frete, total } = buildOrderTotals({ subtotal, desconto, channel });
 
   const items = aggregateItemsByProduct(cart);
@@ -791,7 +865,7 @@ export function checkoutCart({
   applyStockDeduction(db, items);
 
   const order = {
-    id: `ped_${Date.now()}`,
+    id: `ped_${randomUUID()}`,
     createdAt: new Date().toISOString(),
     cartId: cartKey,
     canal: channel,
@@ -806,11 +880,6 @@ export function checkoutCart({
     nomeCliente: nomeCliente || null,
     status: 'Finalizado'
   };
-  if (channel === 'fisico') {
-    const normalizedPayments = normalizeCheckoutPayments(payments, metodoPagamento, total);
-    applyPhysicalCheckoutSettlement(order, normalizedPayments, note);
-  }
-
   db.pedidos.push(order);
 
   db.carrinhos[cartKey] = [];
@@ -823,11 +892,7 @@ export function checkoutCart({
 
   return {
     sucesso: true,
-    mensagem: channel === 'fisico'
-      ? (order.status === 'Pago'
-          ? 'Venda fisica finalizada com pagamento registrado.'
-          : 'Venda fisica finalizada sem conciliacao de pagamento.')
-      : 'Compra finalizada!',
+    mensagem: 'Compra finalizada!',
     subtotal,
     desconto,
     totalBase,
@@ -850,10 +915,10 @@ export function getUnifiedOperationSummary() {
 
   const orders = (db.pedidos || []).map(normalizeOrder);
   const activeCarts = Object.entries(db.carrinhos || {})
-    .filter(([, items]) => Array.isArray(items) && items.length > 0)
+    .filter(([cartId, items]) => Array.isArray(items) && items.length > 0 && isStockReservedByCart(db, cartId))
     .map(([cartId, items]) => ({
       cartId,
-      canal: resolveChannelFromCartId(cartId),
+      canal: resolveCartChannel(db, cartId),
       linhas: items.length,
       itens: Number(items.reduce((sum, item) => sum + Number(item.quantidade || 0), 0).toFixed(2)),
       subtotal: Number(cartSubtotal(items).toFixed(2))
@@ -930,13 +995,52 @@ export function createOperationalOrder({
   cartId = '',
   tableId = '',
   serviceChannel = 'dine_in',
-  operator = '',
+  actor = null,
   note = '',
   businessProfile = '',
-  items = []
+  items = [],
+  clientOrderId
 } = {}) {
   const db = readDb();
   ensureCollections(db);
+  const operatorId = String(actor?.id || '').trim() || null;
+  const mesa = String(tableId || '').trim() || null;
+  const channel = String(serviceChannel || '').trim().toLowerCase() === 'pickup' ? 'pickup' : 'dine_in';
+  const observacao = String(note || '').trim() || null;
+  let operationalRequest;
+
+  if (clientOrderId !== undefined) {
+    if (!operatorId || typeof clientOrderId !== 'string' || !/^[A-Za-z0-9._:-]{1,128}$/.test(clientOrderId)) {
+      const err = new Error('Identificador de pedido operacional invalido.');
+      err.status = 400;
+      throw err;
+    }
+    const request = {
+      cartId: String(cartId || '').trim(),
+      mesa,
+      channel,
+      observacao,
+      businessProfile: businessProfile ? normalizeBusinessProfile(businessProfile) : null,
+      items: Array.isArray(items) ? items.map((item) => ({
+        produtoId: String(item?.produtoId || ''),
+        quantidade: Number(item?.quantidade),
+        observacao: String(item?.observacao || '').trim(),
+        rotaOperacional: String(item?.rotaOperacional || '').toLowerCase()
+      })) : null
+    };
+    const fingerprint = createHash('sha256').update(JSON.stringify(request)).digest('hex');
+    const existing = db.pedidos.find((order) => order.operationalRequest?.id === clientOrderId);
+    if (existing) {
+      if (existing.operadorId !== operatorId || existing.operationalRequest.fingerprint !== fingerprint) {
+        const err = new Error('Identificador de pedido em conflito.');
+        err.status = 409;
+        throw err;
+      }
+      return { ...normalizeOrder(existing), duplicate: true };
+    }
+    operationalRequest = { id: clientOrderId, fingerprint };
+  }
+
   const operationalConfig = ensureOperationalConfig(db, businessProfile);
   const enrichedItems = buildOperationalItems(db, items);
   if (!enrichedItems.length) {
@@ -951,16 +1055,20 @@ export function createOperationalOrder({
     enrichedItems.reduce((sum, item) => sum + Number(item.preco || 0) * Number(item.quantidade || 0), 0).toFixed(2)
   );
   const order = {
-    id: `ped_${Date.now()}`,
+    id: `ped_${randomUUID()}`,
     createdAt: new Date().toISOString(),
-    cartId: resolveCartId(cartId || `operacao-${Date.now()}`),
+    cartId: resolveCartId(cartId || `operacao-${randomUUID()}`),
     canal: 'fisico',
     origemOperacional: 'app',
     businessProfile: operationalConfig.businessProfile,
-    serviceChannel: String(serviceChannel || 'dine_in').trim().toLowerCase() === 'pickup' ? 'pickup' : 'dine_in',
-    mesa: String(tableId || '').trim() || null,
-    operador: String(operator || '').trim() || null,
-    observacao: String(note || '').trim() || null,
+    serviceChannel: channel,
+    mesa,
+    // Audit identity comes from the authenticated server-side actor, never the request body.
+    operador: String(actor?.nome || '').trim() || null,
+    operadorId: operatorId,
+    operadorRole: String(actor?.role || '').trim().toLowerCase() || null,
+    observacao,
+    operationalRequest,
     kitchenStage: 'received',
     status: 'Recebido',
     itens: aggregateItemsByProduct(enrichedItems).map((item) => {
@@ -1021,7 +1129,7 @@ export function listProductionQueue(filters = {}) {
     .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 }
 
-export function updateProductionStatus(orderId, stage) {
+export function updateProductionStatus(orderId, stage, actor = null) {
   const db = readDb();
   ensureCollections(db);
   const order = getOrderById(db, orderId);
@@ -1033,11 +1141,25 @@ export function updateProductionStatus(orderId, stage) {
   const normalized = normalizeKitchenStage(stage);
   order.kitchenStage = normalized;
   order.status = stageLabel(normalized);
+  const productionEvent = {
+    stage: normalized,
+    status: order.status,
+    changedAt: new Date().toISOString(),
+    actor: actor?.id ? {
+      id: String(actor.id),
+      role: String(actor.role || '').toLowerCase(),
+      name: String(actor.nome || '').trim() || null
+    } : null
+  };
+  order.productionHistory = [
+    ...(Array.isArray(order.productionHistory) ? order.productionHistory : []),
+    productionEvent
+  ].slice(-100);
   writeDb(db);
   return normalizeOrder(order);
 }
 
-export function settleOperationalOrder(orderId, { payments = [], discountAmount = 0, note = '' } = {}) {
+export function settleOperationalOrder(orderId, { payments, discountAmount, note = '' } = {}, actor = null) {
   const db = readDb();
   ensureCollections(db);
   const order = getOrderById(db, orderId);
@@ -1050,32 +1172,98 @@ export function settleOperationalOrder(orderId, { payments = [], discountAmount 
     return normalizeOrder(order);
   }
 
+  const baseSubtotal = Number(order.subtotal);
+  const requestedDiscount = discountAmount === undefined || discountAmount === null || discountAmount === ''
+    ? Number(order.desconto || 0)
+    : Number(discountAmount);
+  if (!Number.isFinite(baseSubtotal) || baseSubtotal < 0 ||
+      !Number.isFinite(requestedDiscount) || requestedDiscount < 0 || requestedDiscount > baseSubtotal) {
+    const err = new Error('Desconto ou subtotal invalido para fechamento.');
+    err.status = 400;
+    throw err;
+  }
+
+  if (!Array.isArray(payments) || payments.length === 0) {
+    const err = new Error('Informe ao menos uma forma de pagamento para fechar o pedido como pago.');
+    err.status = 400;
+    throw err;
+  }
+
+  const allowedMethods = new Set([
+    'cash', 'dinheiro', 'pix', 'debit', 'debito', 'debit_card',
+    'credit', 'credito', 'credit_card', 'maquininha',
+    'mercadopago', 'mercado pago'
+  ]);
+  for (const entry of payments) {
+    const rawMethod = String(entry?.method || '').trim().toLowerCase();
+    const amount = Number(entry?.amount);
+    if (!allowedMethods.has(rawMethod) || !Number.isFinite(amount) || amount <= 0) {
+      const err = new Error('Forma ou valor de pagamento invalido.');
+      err.status = 400;
+      throw err;
+    }
+    if (['cash', 'dinheiro'].includes(rawMethod)) {
+      const received = entry?.amountReceived === undefined || entry?.amountReceived === null || entry?.amountReceived === ''
+        ? amount
+        : Number(entry.amountReceived);
+      const expectedChange = roundCurrency(received - amount);
+      const suppliedChange = entry?.changeAmount === undefined || entry?.changeAmount === null || entry?.changeAmount === ''
+        ? expectedChange
+        : Number(entry.changeAmount);
+      if (!Number.isFinite(received) || received < amount ||
+          !Number.isFinite(suppliedChange) || suppliedChange < 0 ||
+          Math.abs(suppliedChange - expectedChange) > 0.01) {
+        const err = new Error('Valor recebido ou troco em dinheiro invalido.');
+        err.status = 400;
+        throw err;
+      }
+    }
+  }
+
+  const totalDue = roundCurrency(baseSubtotal - requestedDiscount);
+  const normalizedPayments = normalizeCheckoutPayments(payments, '', totalDue);
+  if (normalizedPayments.length !== payments.length) {
+    const err = new Error('Uma ou mais formas de pagamento nao puderam ser validadas.');
+    err.status = 400;
+    throw err;
+  }
+  const totalPaid = roundCurrency(
+    normalizedPayments.reduce((sum, item) => sum + Number(item.amount || 0), 0)
+  );
+  if (Math.abs(totalPaid - totalDue) > 0.01) {
+    const err = new Error(
+      `Total pago divergente. Esperado ${totalDue.toFixed(2)} e recebido ${totalPaid.toFixed(2)}.`
+    );
+    err.status = 400;
+    throw err;
+  }
+
   const items = aggregateItemsByProduct(order.itens || []);
   ensureStockAvailability(db, items, { exceptOrderId: order.id });
   applyStockDeduction(db, items);
 
-  const baseSubtotal = Number(order.subtotal || 0);
-  const appliedDiscount = Math.max(0, Number(discountAmount || order.desconto || 0));
-  const totalBase = Math.max(0, baseSubtotal - appliedDiscount);
-  const totalPaid = Number(
-    (payments || []).reduce((sum, item) => sum + Number(item?.amount || 0), 0).toFixed(2)
-  );
-
-  order.desconto = appliedDiscount;
-  order.totalBase = totalBase;
-  order.total = totalBase;
+  order.desconto = requestedDiscount;
+  order.totalBase = totalDue;
+  order.total = totalDue;
   order.frete = 0;
   order.status = 'Pago';
   order.kitchenStage = 'delivered';
   order.observacaoFechamento = String(note || '').trim() || null;
+  const settledAt = new Date().toISOString();
   order.payment = {
     ...(order.payment || {}),
     status: 'approved',
-    method: payments.length === 1 ? payments[0]?.method || null : 'multiple',
+    method: resolvePaymentSummaryMethod(normalizedPayments, null),
     totalPaid,
-    entries: payments,
-    updatedAt: new Date().toISOString()
+    entries: normalizedPayments,
+    updatedAt: settledAt
   };
+  order.settledBy = actor?.id ? {
+    id: String(actor.id),
+    role: String(actor.role || '').toLowerCase(),
+    name: String(actor.nome || '').trim() || null
+  } : null;
+  order.settledAt = settledAt;
 
   writeDb(db);
   return normalizeOrder(order);

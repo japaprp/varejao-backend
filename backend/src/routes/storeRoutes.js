@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import {
+  deleteCarrinho,
   deleteSaidaController,
   getAnalyticsOverviewController,
   getAnalyticsResumoController,
@@ -32,6 +33,7 @@ import {
   login,
   me,
   getOperationalUsers,
+  postCartSession,
   postCarrinho,
   postFinalizar,
   postProduto,
@@ -58,7 +60,8 @@ import {
   loginFacebook
 } from '../controllers/storeController.js';
 import { requireAdmin, requireAuth, requireRole } from '../middlewares/authMiddleware.js';
-import { authLimiter, paymentLimiter } from '../middlewares/rateLimitMiddleware.js';
+import { requireCartAccess } from '../middlewares/cartSessionMiddleware.js';
+import { authLimiter, createRateLimiter, paymentLimiter } from '../middlewares/rateLimitMiddleware.js';
 import { upload } from '../middlewares/uploadMiddleware.js';
 import {
   validateForgotPasswordPayload,
@@ -71,6 +74,21 @@ import {
 const router = Router();
 const operationalRoles = ['admin', 'operador', 'gerente', 'manager', 'caixa', 'cashier', 'balcao', 'waiter', 'cozinha', 'kitchen', 'chef', 'producao'];
 const managementRoles = ['admin', 'operador', 'gerente', 'manager'];
+const settlementRoles = ['admin', 'operador', 'gerente', 'manager', 'caixa', 'cashier'];
+
+function requireOperationalOrderId(req, res, next) {
+  if (req.body?.clientOrderId === undefined) {
+    return res.status(400).json({ erro: 'Informe o identificador do pedido operacional.' });
+  }
+  return next();
+}
+
+const cartSessionLimiter = createRateLimiter({
+  keyPrefix: 'cart-session',
+  windowMs: 5 * 60 * 1000,
+  max: 20,
+  message: 'Muitas sessões de carrinho. Tente novamente em instantes.'
+});
 
 router.post('/auth/register', authLimiter, validateRegisterPayload, register);
 router.post('/auth/login', authLimiter, validateLoginPayload, login);
@@ -94,20 +112,23 @@ router.get('/fidelidade/:cpf', requireAuth, getFidelidadeCpfController);
 
 router.get('/cupons/validar', validarCupomController);
 
-router.post('/carrinho', postCarrinho);
-router.get('/carrinho', getCarrinho);
-router.get('/checkout', getCheckout);
-router.get('/stream/checkout', streamCheckout);
+router.post('/carrinho/sessao', cartSessionLimiter, postCartSession);
+router.post('/carrinho', requireCartAccess, postCarrinho);
+router.get('/carrinho', requireCartAccess, getCarrinho);
+router.delete('/carrinho', requireCartAccess, deleteCarrinho);
+router.get('/checkout', requireCartAccess, getCheckout);
+router.get('/stream/checkout', requireCartAccess, streamCheckout);
 router.get('/stream/admin/operacao', streamAdminOperacao);
 router.post('/finalizar', postFinalizar);
 router.get('/operacao/config', getOperationalConfigController);
 router.post('/operacao/pedidos', requireAuth, requireRole(operationalRoles), postOperationalOrderController);
+router.post('/operacao/pedidos/sincronizar', requireAuth, requireRole(operationalRoles), requireOperationalOrderId, postOperationalOrderController);
 router.get('/operacao/producao', requireAuth, requireRole(operationalRoles), getProductionQueueController);
 router.patch('/operacao/pedidos/:id/producao-status', requireAuth, requireRole(operationalRoles), putProductionStatusController);
-router.post('/operacao/pedidos/:id/fechar', requireAuth, requireRole(operationalRoles), postOperationalSettlementController);
-router.post('/pagamento/preferencia', paymentLimiter, postPagamentoPreferencia);
-router.post('/pagamento/maquininha/iniciar', paymentLimiter, postPagamentoMaquininhaIniciar);
-router.post('/pagamento/maquininha/confirmar', paymentLimiter, postPagamentoMaquininhaConfirmar);
+router.post('/operacao/pedidos/:id/fechar', requireAuth, requireRole(settlementRoles), postOperationalSettlementController);
+router.post('/pagamento/preferencia', paymentLimiter, requireCartAccess, postPagamentoPreferencia);
+router.post('/pagamento/maquininha/iniciar', paymentLimiter, requireAuth, requireRole(settlementRoles), requireCartAccess, postPagamentoMaquininhaIniciar);
+router.post('/pagamento/maquininha/confirmar', paymentLimiter, requireAuth, requireRole(['admin', 'operador', 'gerente', 'manager', 'caixa', 'cashier']), postPagamentoMaquininhaConfirmar);
 router.post('/pagamento/webhook', paymentLimiter, postPagamentoWebhook);
 router.get('/pedidos', requireAuth, getPedidosPorCpf);
 router.get('/admin/pedidos', requireAuth, requireRole(['admin', 'operador']), getPedidosAdmin);

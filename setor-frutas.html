@@ -46,9 +46,9 @@
     <section id="gridProdutos" class="items-container" aria-label="Lista de frutas"></section>
   </main>
 
-  <script src="app-core.js?v=20260228-1"></script>
+  <script src="app-core.js?v=cart-session-1"></script>
   <script>
-    const API = AppCore.resolveApiBase();
+    const API = AppCore.resolveCartApiBase();
     const CART_ID = AppCore.resolveCartId();
     const money = AppCore.money;
     const safeImageUrl = AppCore.safeImageUrl;
@@ -92,9 +92,10 @@
       const status = document.getElementById('statusMsg');
       try {
         addLocalCartItem(produto, qtd);
-        const res = await fetch(`${API}/carrinho`, {
+        const res = await AppCore.fetchCart(API, '/carrinho', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Cart-Id': CART_ID },
+          legacyCartId: CART_ID,
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ produtoId: produto.id, quantidade: qtd })
         });
         if (!res.ok) throw new Error('Não foi possível adicionar no carrinho.');
@@ -242,7 +243,7 @@
     async function updateMiniCart() {
       const box = document.getElementById('miniCart');
       try {
-        const res = await fetch(`${API}/checkout`, { headers: { 'X-Cart-Id': CART_ID } });
+        const res = await AppCore.fetchCart(API, '/checkout', { legacyCartId: CART_ID });
         if (!res.ok) throw new Error('Falha no resumo.');
         const data = await res.json();
         const totalBase = Number(data.totalBase || data.total || 0);

@@ -96,12 +96,8 @@ export function validateFacebookPayload(req, res, next) {
 
 export function validateForgotPasswordPayload(req, res, next) {
   const email = String(req.body?.email || '').trim();
-  const novaSenha = String(req.body?.novaSenha || '');
   if (!isEmail(email)) {
     return res.status(400).json({ erro: 'E-mail invalido.' });
-  }
-  if (!isStrongEnoughPassword(novaSenha)) {
-    return res.status(400).json({ erro: 'Nova senha deve ter no minimo 6 caracteres.' });
   }
   return next();
 }

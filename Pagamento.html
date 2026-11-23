@@ -33,7 +33,6 @@
 
     <section class="info-card mt-12">
       <strong id="checkoutCanalLabel">Canal ativo: carregando...</strong>
-      <p id="checkoutSessaoLabel" class="mt-10"></p>
       <p class="status-banner status-muted mt-10">Use a mesma sessão no app e no checkout para sincronizar leitura, valores e pagamento sem conflito.</p>
     </section>
 
@@ -78,17 +77,15 @@
     </section>
 </main>
 
-  <script src="app-core.js?v=20260227-2"></script>
+  <script src="app-core.js?v=cart-session-1"></script>
   <script>
-    const API = AppCore.resolveApiBase();
+    const API = AppCore.resolveCartApiBase();
     let CART_ID = AppCore.resolveCartId();
     let cupomAplicado = '';
     let rehydrated = false;
     let paymentCompleted = false;
     let pendingMachineOrderId = '';
     let liveSyncTimer = null;
-    let checkoutStream = null;
-    let streamOnline = false;
     const IS_FISICO = /(caixa|pdv|balcao|fisic|sessao|session|mesa|comanda)/i.test(String(CART_ID || ''));
 
     function money(v) { return Number(v).toFixed(2).replace('.', ','); }
@@ -124,11 +121,9 @@
 
     function renderCheckoutContext() {
       const canalEl = document.getElementById('checkoutCanalLabel');
-      const sessaoEl = document.getElementById('checkoutSessaoLabel');
       const canal = resolveChannelLabel(CART_ID);
 
       if (canalEl) canalEl.textContent = `Canal ativo: ${canal}`;
-      if (sessaoEl) sessaoEl.textContent = `Sessão ativa: ${CART_ID}`;
 
       const maqSection = document.getElementById('maquininhaSection');
       const mpSection = document.getElementById('mercadoPagoSection');
@@ -144,9 +139,10 @@
 
     async function rehydrateBackendCart(items) {
       for (const item of items) {
-        await fetch(`${API}/carrinho`, {
+        await AppCore.fetchCart(API, '/carrinho', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Cart-Id': CART_ID },
+          legacyCartId: CART_ID,
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             produtoId: item.produtoId,
             quantidade: Number(item.quantidade || 0)
@@ -165,38 +161,22 @@
 
     function renderReturnStatus() {
       const params = new URLSearchParams(window.location.search);
-      const statusRaw = (params.get('status') || params.get('collection_status') || '').toLowerCase();
-      const paymentId = params.get('payment_id') || params.get('collection_id') || '';
-      const orderId = params.get('external_reference') || '';
-      const approved =
-        statusRaw === 'approved'
-        || statusRaw === 'success'
-        || (statusRaw === '' && Boolean(paymentId));
+      const paymentReturn = ['status', 'collection_status', 'payment_id', 'collection_id']
+        .some((key) => Boolean(params.get(key)));
+      if (!paymentReturn) return false;
 
-      if (approved) {
-        paymentCompleted = true;
-        clearLocalCheckoutState();
-        const orderText = orderId ? ` Pedido: ${orderId}.` : '';
-        showStatus(`Pagamento efetuado com sucesso.${orderText} Carrinho atualizado.`, 'status-success');
-        return;
-      }
-
-      if (!statusRaw) return;
-      if (statusRaw === 'pending' || statusRaw === 'in_process') {
-        showStatus('Pagamento pendente. Assim que confirmado, liberaremos seu pedido.', 'status-info');
-      } else {
-        showStatus('Pagamento não aprovado. Tente novamente ou escolha outra forma.', 'status-error');
-      }
+      rehydrated = true;
+      showStatus('Retorno do pagamento recebido. Consulte Meus Pedidos para acompanhar a confirmação.');
+      return true;
     }
 
     async function carregarResumo(cupom = '', options = {}) {
       const { silent = false } = options;
       const resumoCompra = document.getElementById('resumoCompra');
-      resumoCompra.innerHTML = '';
 
       try {
-        const res = await fetch(`${API}/checkout${cupom ? `?cupom=${encodeURIComponent(cupom)}` : ''}`, {
-          headers: { 'X-Cart-Id': CART_ID }
+        const res = await AppCore.fetchCart(API, `/checkout${cupom ? `?cupom=${encodeURIComponent(cupom)}` : ''}`, {
+          legacyCartId: CART_ID
         });
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
@@ -213,6 +193,7 @@
           }
         }
 
+        resumoCompra.replaceChildren();
         data.itens.forEach((item) => {
           const subtotal = Number(item.preco) * Number(item.quantidade);
           const li = document.createElement('li');
@@ -287,9 +268,10 @@
           metodoPreferido: metodo
         };
 
-        const finalizarRes = await fetch(`${API}/pagamento/preferencia`, {
+        const finalizarRes = await AppCore.fetchCart(API, '/pagamento/preferencia', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Cart-Id': CART_ID },
+          legacyCartId: CART_ID,
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
 
@@ -318,9 +300,10 @@
           cupom: cupomAplicado
         };
 
-        const res = await fetch(`${API}/pagamento/maquininha/iniciar`, {
+        const res = await AppCore.fetchCart(API, '/pagamento/maquininha/iniciar', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Cart-Id': CART_ID },
+          legacyCartId: CART_ID,
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
 
@@ -382,8 +365,8 @@
     function startLiveSync() {
       if (liveSyncTimer) clearInterval(liveSyncTimer);
       liveSyncTimer = setInterval(() => {
-        carregarResumo(cupomAplicado, { silent: true });
-      }, 3000);
+        if (document.visibilityState === 'visible') carregarResumo(cupomAplicado, { silent: true });
+      }, 5000);
     }
 
     function stopLiveSync() {
@@ -392,77 +375,43 @@
       liveSyncTimer = null;
     }
 
-    function stopCheckoutStream() {
-      if (!checkoutStream) return;
-      checkoutStream.close();
-      checkoutStream = null;
-      streamOnline = false;
-    }
-
-    function startCheckoutStream() {
-      stopCheckoutStream();
-
-      if (typeof window.EventSource !== 'function') {
-        startLiveSync();
-        return;
-      }
-
-      const streamUrl = `${API}/stream/checkout?cartId=${encodeURIComponent(CART_ID)}`;
-
-      try {
-        checkoutStream = new EventSource(streamUrl);
-      } catch {
-        startLiveSync();
-        return;
-      }
-
-      checkoutStream.addEventListener('checkout_update', () => {
-        carregarResumo(cupomAplicado, { silent: true });
-      });
-
-      checkoutStream.addEventListener('ping', () => {
-        // heartbeat
-      });
-
-      checkoutStream.onopen = () => {
-        streamOnline = true;
-        stopLiveSync();
-      };
-
-      checkoutStream.onerror = () => {
-        streamOnline = false;
-        startLiveSync();
-      };
-    }
-
     async function esvaziarCarrinho() {
-      clearLocalCheckoutState();
-      document.getElementById('cupomInput').value = '';
-      pendingMachineOrderId = '';
-      document.getElementById('btn-maq-confirmar').disabled = true;
-      setMaqStatus('', 'status-info');
-      await carregarResumo('', { silent: false });
-      showStatus('Carrinho esvaziado. Adicione novos itens para continuar.', 'status-info');
+      try {
+        const response = await AppCore.fetchCart(API, '/carrinho', {
+          method: 'DELETE',
+          legacyCartId: CART_ID
+        });
+        if (!response.ok && response.status !== 404) {
+          throw new Error('Não foi possível esvaziar o carrinho. Tente novamente.');
+        }
+
+        clearLocalCheckoutState();
+        document.getElementById('cupomInput').value = '';
+        pendingMachineOrderId = '';
+        document.getElementById('btn-maq-confirmar').disabled = true;
+        setMaqStatus('', 'status-info');
+        await carregarResumo('', { silent: true });
+        showStatus(response.ok ? 'Carrinho esvaziado.' : 'Carrinho neste dispositivo esvaziado.');
+      } catch (error) {
+        showStatus(error.message, 'status-error');
+      }
     }
 
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
         carregarResumo(cupomAplicado, { silent: true });
-        if (!streamOnline) startCheckoutStream();
       }
     });
 
     window.addEventListener('beforeunload', () => {
-      stopCheckoutStream();
       stopLiveSync();
     });
 
     document.addEventListener('DOMContentLoaded', () => {
-      renderReturnStatus();
       renderCheckoutContext();
-      carregarResumo('', { silent: false });
+      const paymentReturn = renderReturnStatus();
+      carregarResumo('', { silent: paymentReturn });
       startLiveSync();
-      startCheckoutStream();
 
       document.querySelectorAll('input, select, textarea').forEach((el) => {
         if (el.getAttribute('aria-label')) return;
